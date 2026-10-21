@@ -13,7 +13,7 @@ test("only the selected store, required services and exact Access hosts are allo
   }
   for (const url of ["https://beta.sm0ky.dev", "https://e2e-v2.sm0ky.dev", "https://other.cloudflareaccess.com",
     "https://store-team.cloudflareaccess.com.evil.test", "https://stripe.com.evil.test", "https://evilstripe.com",
-    "http://e2e.sm0ky.dev", "https://e2e.sm0ky.dev:444", "https://user:password@e2e.sm0ky.dev", "file:///tmp/photo", "bad url"]) {
+    "http://e2e.sm0ky.dev", "https://e2e.sm0ky.dev:444", "https://user:synthetic@e2e.sm0ky.dev", "file:///tmp/photo", "bad url"]) {
     assert.equal(policy.allows(url), false, url);
   }
 });
@@ -111,6 +111,17 @@ test("direct probes never contact an off-list redirect or initial address", asyn
   assert.equal(calls, 1);
   await assert.rejects(filteredGet(client, "https://example.com/", settings), /left the selected sites/);
   assert.equal(calls, 1);
+});
+
+test("a direct probe that fails names no cookie it sent or got", async () => {
+  const first = "apiRequestContext.get: Timeout 30000ms exceeded.";
+  const client = { get: async () => { throw new Error(`${first}\nCall log:\n  - \u2192 GET ${settings.store}/label\n`
+    + `  -   cookie: ${["CF_Authorization", "synthetic"].join("=")}\n  - \u2190 200 OK\n  -   set-cookie: ${["emdash_session", "synthetic"].join("=")}\n`); } };
+  await assert.rejects(filteredGet(client, settings.store + "/label", settings), error => {
+    assert.equal(error.message, first);
+    assert.doesNotMatch(error.stack, /cookie|synthetic/);
+    return true;
+  });
 });
 
 test("the filter does not add a cookie the browser omitted", async () => {

@@ -1,7 +1,7 @@
 name: Live journeys
 # A run a release started names its beta on the Actions page.
 run-name: Live journeys${{ inputs.beta && format(' for {0}', inputs.beta) || '' }}
-# Runs the DinkusKit live journeys (skills/dinkuskit-live-test/runner) against the beta test store,
+# Runs the DinkusKit live journeys (runner/) against the beta test store,
 # beta.sm0ky.dev, on a GitHub runner. It never runs on pull requests or pushes: only from the
 # "Run workflow" button, which a plugin's Cut beta also presses once it has published a beta. This
 # store belongs to this workflow alone; no Mac or other computer runs journeys on it. Stripe TEST
@@ -44,7 +44,7 @@ concurrency:
 jobs:
   journeys:
     name: Journeys on beta.sm0ky.dev
-    if: github.repository == 'saariuslystoned/SaariusSkills'
+    if: github.repository == 'dinkuskit/live-journeys'
     runs-on: ubuntu-24.04
     timeout-minutes: 130
     env:
@@ -52,7 +52,7 @@ jobs:
       DINKUS_E2E_SITE_ID: 858232f9-bc07-44f6-b3de-259a8055a9dd
       DINKUS_E2E_ORDERS_ADMIN: https://beta.sm0ky.dev/_emdash/admin/plugins/r_fjzjvld3ssb4j63o/orders
       DINKUS_E2E_ACCESS_ORIGINS: https://sm0kydev.cloudflareaccess.com
-      DINKUS_E2E_MAIL_CMD: node "$GITHUB_WORKSPACE/skills/dinkuskit-live-test/runner/scripts/gmail-mail.mjs"
+      DINKUS_E2E_MAIL_CMD: node "$GITHUB_WORKSPACE/runner/scripts/gmail-mail.mjs"
       # Nobody watches a GitHub run, so the runner fails at once where it would wait for a person.
       DINKUS_E2E_HEADLESS: "1"
       DINKUS_E2E_VIDEO: ${{ inputs.video && '1' || '0' }}
@@ -64,7 +64,7 @@ jobs:
       run:
         # Named, so GitHub adds pipefail: a failing command before a pipe fails its step.
         shell: bash
-        working-directory: skills/dinkuskit-live-test/runner
+        working-directory: runner
 
     steps:
       - name: Check out repository

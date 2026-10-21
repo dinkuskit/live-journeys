@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { GMAIL_READONLY } from "../support/gmail.mjs";
 
-const [file, inbox, repo = "saariuslystoned/SaariusSkills"] = process.argv.slice(2);
+const [file, inbox, repo = "dinkuskit/live-journeys"] = process.argv.slice(2);
 if (!file || !inbox) {
   console.error("Usage: node scripts/gmail-authorize.mjs <client_secret.json> <inbox address> [owner/repo]");
   process.exit(2);
