@@ -13,7 +13,7 @@ test("only the selected store, required services and exact Access hosts are allo
   }
   for (const url of ["https://beta.sm0ky.dev", "https://e2e-v2.sm0ky.dev", "https://other.cloudflareaccess.com",
     "https://store-team.cloudflareaccess.com.evil.test", "https://stripe.com.evil.test", "https://evilstripe.com",
-    "http://e2e.sm0ky.dev", "https://e2e.sm0ky.dev:444", "https://user:password@e2e.sm0ky.dev", "file:///tmp/photo", "bad url"]) {
+    "http://e2e.sm0ky.dev", "https://e2e.sm0ky.dev:444", "https://user:synthetic@e2e.sm0ky.dev", "file:///tmp/photo", "bad url"]) {
     assert.equal(policy.allows(url), false, url);
   }
 });
