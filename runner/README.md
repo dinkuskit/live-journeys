@@ -237,8 +237,10 @@ store already runs.
 Chrome runs headless, so the runner fails at once wherever it would wait for a person. Sign-in emails are read with
 `scripts/gmail-mail.mjs`, through the Gmail API with a read-only key, in place of gogcli.
 The job log is public, so it shows only each journey's pass or fail, the plugin versions
-the store ran ("Plugins tested"), so a release can check its own beta passed, and why the
-store update stopped, if it did; the steps,
+the store ran ("Plugins tested"), so a release can check its own beta passed, why the
+store update stopped, if it did, and, for a journey that failed, its step names with each
+step's pass or fail and one fixed kind of failure ("timed out after 30 s", "an expect check
+failed"; never the error's own words); what each step found,
 screenshots, console output and any video go to a private R2 bucket under
 `runs/github-<run id>-<attempt>/`.
 

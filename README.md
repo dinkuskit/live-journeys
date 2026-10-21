@@ -14,4 +14,6 @@ TEST cards and Ship sandbox labels only.
 - The **Tests** workflow runs the runner's offline checks on every pull request.
 
 Proof (steps, screenshots, console output, videos) goes to a private R2 bucket.
-The public run page shows only pass or fail and the plugin versions tested.
+The public run page shows only pass or fail, the plugin versions tested and, for a
+journey that failed, its step names with one fixed kind of failure (such as
+"timed out after 30 s"), never what a step found.

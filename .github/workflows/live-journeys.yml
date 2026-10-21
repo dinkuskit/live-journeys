@@ -8,9 +8,10 @@ run-name: Live journeys${{ inputs.beta && format(' for {0}', inputs.beta) || '' 
 # cards and Ship sandbox labels only. Before the journeys it updates the store's DinkusKit beta
 # plugins to the newest betas, and stops if an update asks for new permissions.
 #
-# The job log is public, so it shows only each journey's pass or fail, the plugin versions tested and
-# why a store update stopped. Steps, screenshots, the console output and videos go to the private R2
-# bucket.
+# The job log is public, so it shows only each journey's pass or fail, the plugin versions tested, why
+# a store update stopped and, for a journey that failed, its step names with each step's pass or fail
+# and one fixed kind of failure. What each step found, screenshots, the console output and videos go
+# to the private R2 bucket.
 
 on:
   workflow_dispatch:
