@@ -90,11 +90,11 @@ export function nextPress(reading, controls, { approved = false } = {}) {
   }
   if (!approved && links.includes(AUTHORIZE_LINK)) return { action: "authorize" };
   if (approved && buttons.includes("Continue")) return { action: "press", name: "Continue" };
-  // Reads the status of the connection this run just approved. It changes nothing.
-  if (approved && buttons.includes("Check connection")) return { action: "press", name: "Check connection" };
   if (buttons.includes("Set up or resume Stripe") || links.includes("Continue setup at Stripe")) {
     return { action: "leave", because: "DinkusKit Payments status was checked. Set up or resume Stripe was left alone." };
   }
+  // Reads the status of the connection this run just approved. It changes nothing.
+  if (approved && buttons.includes("Check connection")) return { action: "press", name: "Check connection" };
   const left = ["Sign in again", "Check connection", "Continue"].filter(name => buttons.includes(name));
   return {
     action: "blocked",

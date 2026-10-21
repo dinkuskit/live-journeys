@@ -47,6 +47,7 @@ test("pending approval opens DinkusKit before Continue, and Continue is next onc
 test("Stripe setup and every other control stay unpressed", () => {
   const checked = readStatusText("Connect payments: Not complete. DinkusKit Payments status was checked. No processor account is connected. Select Set up Stripe to connect your processor account.");
   assert.equal(nextPress(checked, { buttons: ["Set up or resume Stripe", "Check connection", "Reconnect"], links: ["Continue setup at Stripe"] }).action, "leave");
+  assert.equal(nextPress(checked, { buttons: ["Set up or resume Stripe", "Check connection", "Reconnect"], links: ["Continue setup at Stripe"] }, { approved: true }).action, "leave");
   const saved = readStatusText("Connect payments: Not complete. Your DinkusKit authorization was saved. Use Check connection to read the payment account status. No processor setup was attempted.");
   assert.equal(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }).action, "blocked");
   assert.deepEqual(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }, { approved: true }), { action: "press", name: "Check connection" });
