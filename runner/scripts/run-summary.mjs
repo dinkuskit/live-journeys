@@ -28,5 +28,9 @@ const lines = [
   "", `${tested ? "Plugins tested" : "Plugins on the store (no journeys ran)"}: ${facts.plugins ?? "not recorded"}`,
   "", `Steps, screenshots and console output: ${proof}.`,
 ];
+// Diagnostic only (not for main): each failed step's name and the first line of its own message,
+// with any web address removed, cut to 200 characters.
+const clean = text => String(text ?? "").split("\n")[0].replace(/https?:\/\/\S+/g, "<address>").slice(0, 200);
+for (const s of (report?.steps ?? []).filter(s => s.status === "FAIL")) lines.push("", `Failed step: ${clean(s.step)} | ${clean(s.detail)}`);
 console.log(lines.join("\n"));
 process.exit(verdict === "PASS" ? 0 : 1);
