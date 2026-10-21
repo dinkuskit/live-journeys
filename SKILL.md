@@ -55,9 +55,9 @@ Changesets pre mode any more.
 2. **Cut beta.** On the plugin's repository, press **Run workflow** on **Release** with
    `action: cut-beta`. That publishes `dinkus-<plugin>-beta` at `X.Y.Z-beta.N`
    from `main`, then presses **Live journeys** in this repository with `beta` set
-   to `dinkus-<plugin>-beta X.Y.Z-beta.N`. The press uses the `LIVE_JOURNEYS_TOKEN`
-   secret. Without that secret the beta is still published, and the same workflow
-   can be pressed by hand with the same `beta`.
+   to `dinkus-<plugin>-beta X.Y.Z-beta.N`. The press uses the dinkuskit org secret
+   `DINKUS_LIVE_JOURNEYS_TOKEN`. Without that secret the beta is still published,
+   and the same workflow can be pressed by hand with the same `beta`.
 3. **Proof** is this repository's **Live journeys** workflow, on
    **https://beta.sm0ky.dev** only. It first runs **Update the store**
    (`npm run update-store`, tag `@update`). That moves each DinkusKit beta plugin
