@@ -48,6 +48,12 @@ test("Commerce settings", { tag: "@next" }, journey(async ({ page }) => {
       // PluginManager renders this gear only when the plugin is on and has settings. Its href is
       // /plugins-manager/$pluginId/settings. The card is the plugin's own heading plus that link.
       const heading = page.getByRole("heading", { level: 3, name: plugin.name, exact: true });
+      // Plugins renders its cards after the page loads, so wait for them (or its empty or failed
+      // notice) before counting, as Ship settings does.
+      const empty = page.getByRole("heading", { name: "No plugins configured", exact: true });
+      const failed = page.getByText(/^Failed to load plugins/);
+      await heading.or(empty).or(failed).first().waitFor({ timeout: 30_000 }).catch(() => {});
+      if (await failed.count()) throw new Error("Plugins did not load. The test does not install or change anything.");
       const cards = await heading.count();
       if (cards !== 1) throw new Error(`Plugins shows ${cards} cards named "${plugin.name}", not one.`);
       const row = page.locator("div").filter({ has: heading }).filter({ has: page.getByRole("link", { name: "Settings", exact: true }) }).last();
@@ -57,8 +63,12 @@ test("Commerce settings", { tag: "@next" }, journey(async ({ page }) => {
       if (!href.includes(`/plugins-manager/${plugin.id}/settings`)) throw new Error("Commerce's Settings control doesn't open its settings page.");
       await gear.click();
       const form = page.locator("#plugin-settings-form");
-      await form.waitFor();
+      await form.waitFor({ timeout: 30_000 });
       const storeKey = form.getByLabel(STORE_KEY.label);
+      const headingName = `${plugin.name} Settings`;
+      // The form's fields and heading can render after the form itself. A missing one is named below.
+      await storeKey.waitFor({ timeout: 30_000 }).catch(() => {});
+      await page.getByRole("heading", { level: 1, name: headingName, exact: true }).waitFor({ timeout: 30_000 }).catch(() => {});
       const keyShown = await storeKey.count() === 1;
       const keyType = keyShown ? await storeKey.getAttribute("type") : null;
       const keyEmpty = keyShown ? (await storeKey.inputValue()) === "" : false;
@@ -76,7 +86,6 @@ test("Commerce settings", { tag: "@next" }, journey(async ({ page }) => {
       if (await checkout.getAttribute("type") === "password") throw new Error("Checkout settings is a password field.");
       if (!await form.getByText(CHECKOUT_SETTINGS.description, { exact: true }).isVisible()) throw new Error("Checkout settings doesn't show its Set up Commerce description.");
       if (!await form.getByText(STORE_KEY.description, { exact: true }).isVisible()) throw new Error("Store key doesn't show its Set up Commerce description.");
-      const headingName = `${plugin.name} Settings`;
       if (await page.getByRole("heading", { level: 1, name: headingName, exact: true }).count() !== 1) throw new Error(`The page isn't headed "${headingName}".`);
       if (await page.getByRole("button", { name: "Save Settings" }).count() < 1) throw new Error("Save Settings isn't on the form. Nothing was saved.");
       const stored = placeholder?.includes("Currently set") ? "A store key is already stored."
