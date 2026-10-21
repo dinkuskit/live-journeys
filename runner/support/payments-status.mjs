@@ -9,15 +9,21 @@ import { filterPage } from "./request-policy.mjs";
 // are buttons; Authorize Payments at DinkusKit is an external link. That link opens
 // dinkuskit.com/account/connect, whose submit button is "Approve payments"
 // (src/pages/account/connect.astro). registry_session is written only by that flow.
-// Reconnect, Deny, and Set up or resume Stripe are on those pages and this journey never presses them.
+// Reconnect, Deny, Sign in again and Set up or resume Stripe are on those pages, and this journey
+// never presses them. Check connection is pressed only after this run's own approval.
 
 const CONNECTION_ID = /^[A-Za-z0-9_-]{1,200}$/;
 const SECRET = /sk_(?:test|live)_[0-9A-Za-z]+|rk_(?:test|live)_[0-9A-Za-z]+|whsec_[0-9A-Za-z]+|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/;
 
 export { AUTHORIZE_LINK };
-export const CONNECT_LINE = "Connect your DinkusKit account to check payment setup.";
+// Payments says one of these when the store has no DinkusKit connection: the first before Payments
+// is configured, the second once it is (src/registry/setup.ts, connection state "disconnected").
+export const CONNECT_LINES = [
+  "Connect your DinkusKit account to check payment setup.",
+  "Connect your DinkusKit account to continue.",
+];
 const BANNERS = ["Not ready to sell", "Connected: Stripe test mode", "Payment status not checked"];
-const PRESSABLE = ["Connect", "Sign in again", "Continue", "Check connection"];
+const PRESSABLE = ["Connect", "Continue", "Check connection"];
 
 /** DinkusKit's connect page for one connection, and nothing else that could carry a token. */
 export function authorizeHref(href, account) {
@@ -54,13 +60,17 @@ export function readStatusText(text) {
     banner,
     connect,
     connectedTest: banner === "Connected: Stripe test mode" || connect.includes("Connected: Stripe test mode"),
-    asksToConnect: connect.includes(CONNECT_LINE),
+    asksToConnect: CONNECT_LINES.some(line => connect.includes(line)),
   };
 }
 
 /**
- * The next connect control, or leave. Never Reconnect, Deny, Set up or resume Stripe, or any
- * other control. `approved` means DinkusKit's Approve payments was already pressed this run.
+ * The next connect control, or leave. A store is connected only when it is not connected at all:
+ * Connect, Authorize Payments at DinkusKit, then Continue and Check connection once this run has
+ * approved. Never Reconnect or Sign in again (both start a new connect), Check connection on a
+ * connection this run didn't make, Deny, Set up or resume Stripe, or any other control, so the beta
+ * store keeps its DinkusKit.com account and Stripe TEST account.
+ * `approved` means DinkusKit's Approve payments was already pressed this run.
  */
 export function nextPress(reading, controls, { approved = false } = {}) {
   const buttons = controls?.buttons ?? [];
@@ -78,14 +88,20 @@ export function nextPress(reading, controls, { approved = false } = {}) {
       ? { action: "press", name: "Connect" }
       : { action: "blocked", because: "The page asks to connect a DinkusKit account, but it has no Connect button." };
   }
-  if (buttons.includes("Sign in again")) return { action: "press", name: "Sign in again" };
   if (!approved && links.includes(AUTHORIZE_LINK)) return { action: "authorize" };
-  if (buttons.includes("Continue")) return { action: "press", name: "Continue" };
+  if (approved && buttons.includes("Continue")) return { action: "press", name: "Continue" };
   if (buttons.includes("Set up or resume Stripe") || links.includes("Continue setup at Stripe")) {
     return { action: "leave", because: "DinkusKit Payments status was checked. Set up or resume Stripe was left alone." };
   }
-  if (buttons.includes("Check connection")) return { action: "press", name: "Check connection" };
-  return { action: "blocked", because: "The Payments status page shows no connect control from its status screen." };
+  // Reads the status of the connection this run just approved. It changes nothing.
+  if (approved && buttons.includes("Check connection")) return { action: "press", name: "Check connection" };
+  const left = ["Sign in again", "Check connection", "Continue"].filter(name => buttons.includes(name));
+  return {
+    action: "blocked",
+    because: left.length
+      ? `The store is connected, but Payments status doesn't show Connected: Stripe test mode. It offers ${left.join(", ")}, which this journey leaves to the owner.`
+      : "The Payments status page shows no connect control from its status screen.",
+  };
 }
 
 /**

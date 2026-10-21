@@ -15,8 +15,10 @@ test("the known connect line asks for Connect and a verified test connection doe
   const connected = readStatusText(`Payment setup\nConnected: Stripe test mode\n${connectedLine}`);
   assert.equal(connected.asksToConnect, false);
   assert.equal(connected.connectedTest, true);
-  const other = readStatusText("Connect payments: Not complete. Your payment connection is unavailable, so it could not be checked. Connect your DinkusKit account to continue.");
-  assert.equal(other.asksToConnect, false);
+  const disconnected = readStatusText("Connect payments: Not complete. Your payment connection is unavailable, so it could not be checked. Connect your DinkusKit account to continue.");
+  assert.equal(disconnected.asksToConnect, true);
+  assert.deepEqual(nextPress(disconnected, { buttons: ["Connect"], links: [] }), { action: "press", name: "Connect" });
+  assert.equal(readStatusText("Connect payments: Not complete. Select Sign in again to continue.").asksToConnect, false);
 });
 
 test("Connect is the press when the page asks, and a verified test connection is left alone", () => {
@@ -39,18 +41,22 @@ test("pending approval opens DinkusKit before Continue, and Continue is next onc
   const controls = { buttons: ["Continue"], links: ["Authorize Payments at DinkusKit"] };
   assert.equal(nextPress(pending, controls).action, "authorize");
   assert.deepEqual(nextPress(pending, controls, { approved: true }), { action: "press", name: "Continue" });
+  assert.notEqual(nextPress(pending, { buttons: ["Continue"], links: [] }).action, "press");
 });
 
 test("Stripe setup and every other control stay unpressed", () => {
   const checked = readStatusText("Connect payments: Not complete. DinkusKit Payments status was checked. No processor account is connected. Select Set up Stripe to connect your processor account.");
   assert.equal(nextPress(checked, { buttons: ["Set up or resume Stripe", "Check connection", "Reconnect"], links: ["Continue setup at Stripe"] }).action, "leave");
+  assert.equal(nextPress(checked, { buttons: ["Set up or resume Stripe", "Check connection", "Reconnect"], links: ["Continue setup at Stripe"] }, { approved: true }).action, "leave");
   const saved = readStatusText("Connect payments: Not complete. Your DinkusKit authorization was saved. Use Check connection to read the payment account status. No processor setup was attempted.");
-  assert.deepEqual(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }), { action: "press", name: "Check connection" });
-  assert.deepEqual(
-    nextPress(readStatusText("Payment status not checked\nConnect payments: Not checked. Select Sign in again to refresh it."), { buttons: ["Sign in again"], links: [] }),
-    { action: "press", name: "Sign in again" },
+  assert.equal(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }).action, "blocked");
+  assert.deepEqual(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }, { approved: true }), { action: "press", name: "Check connection" });
+  assert.match(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }).because, /Check connection, which this journey leaves to the owner/);
+  assert.equal(
+    nextPress(readStatusText("Payment status not checked\nConnect payments: Not checked. Select Sign in again to refresh it."), { buttons: ["Sign in again"], links: [] }).action,
+    "blocked",
   );
-  for (const name of ["Reconnect", "Deny", "Set up or resume Stripe", "Check provider identity", "Confirm recovery preparation"]) {
+  for (const name of ["Reconnect", "Deny", "Set up or resume Stripe", "Check provider identity", "Confirm recovery preparation", "Check connection", "Sign in again", "Continue"]) {
     const decision = nextPress(
       { connectedTest: false, asksToConnect: false },
       { buttons: [name], links: [] },
