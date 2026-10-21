@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
-import { firstLine, forProof, withoutQueries } from "../support/errors.mjs";
+import { failureKind, firstLine, forProof, withoutQueries } from "../support/errors.mjs";
 
 const FIRST = "apiRequestContext.get: Timeout 30000ms exceeded.";
 const FRAME = "    at readApi (file:///runner/tests/update-store.spec.mjs:25:26)";
@@ -135,6 +135,18 @@ test("an error that can't change gives way to a copy of the same kind, without w
   const lateKept = forProof(Object.freeze(late));
   assert.equal(lateKept.message, "Stripe showed a captcha.");
   nothingSynthetic(lateKept, "the copy of an error whose message was set later");
+});
+
+test("a failed step's kind is one of a few fixed phrases, never the error's own words", () => {
+  assert.equal(failureKind("locator.waitFor: Timeout 30000ms exceeded."), "timed out after 30 s");
+  assert.equal(failureKind("page.goto: net::ERR_NAME_NOT_RESOLVED at https://beta.sm0ky.dev/synthetic"), "network error ERR_NAME_NOT_RESOLVED");
+  assert.equal(failureKind("locator.click: Target page, context or browser has been closed"), "the browser closed");
+  assert.equal(failureKind("locator.getAttribute: Error: strict mode violation: getByRole('link', { name: 'synthetic' }) resolved to 2 elements:"),
+    "a locator matched more than one element");
+  assert.equal(failureKind("the homepage answered HTTP 502"), "an answer of HTTP 502");
+  assert.equal(failureKind("expect(locator).toBeVisible() failed"), "an expect check failed");
+  assert.equal(failureKind("Commerce didn't keep the synthetic weight"), "one of the step's own checks failed");
+  assert.equal(failureKind(undefined), "one of the step's own checks failed");
 });
 
 // Read as text: this offline check runs without Playwright installed.

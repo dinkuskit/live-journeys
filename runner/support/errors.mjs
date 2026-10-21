@@ -45,3 +45,23 @@ export function forProof(error) {
     return Object.assign(Object.setPrototypeOf(new Error(kept), Object.getPrototypeOf(error)), own, { name: error.name, message: kept, stack });
   }
 }
+
+// A failed step's kind, from what the proof keeps of its error. The public run page prints only these
+// fixed words and numbers, since the error's own words can carry what the page said.
+const KINDS = [
+  [/Timeout (\d+)ms exceeded/, match => `timed out after ${Math.round(Number(match[1]) / 1000)} s`],
+  [/net::(ERR_[A-Z_]+)/, match => `network error ${match[1]}`],
+  [/has been closed|browser has disconnected/, () => "the browser closed"],
+  [/strict mode violation/, () => "a locator matched more than one element"],
+  [/\bHTTP (\d{3})\b/, match => `an answer of HTTP ${match[1]}`],
+  [/expect\(/, () => "an expect check failed"],
+];
+
+/** One fixed kind for a failed step's detail, so the public run page can say how a step failed without its words. */
+export const failureKind = detail => {
+  for (const [pattern, kind] of KINDS) {
+    const match = String(detail ?? "").match(pattern);
+    if (match) return kind(match);
+  }
+  return "one of the step's own checks failed";
+};

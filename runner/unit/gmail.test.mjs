@@ -55,12 +55,17 @@ test("a search reads the newest matches in Gmail's order, with read-only calls o
   assert.equal(new URL(seen[0].url).searchParams.get("maxResults"), "3");
 });
 
-test("the public summary shows each journey's pass or fail and nothing from its steps", () => {
+test("the public summary shows each journey's pass or fail, and a failed journey's step names, never what a step found", () => {
   const folder = mkdtempSync(join(tmpdir(), "summary-"));
   writeFileSync(join(folder, "report.json"), JSON.stringify({
     verdict: "FAIL",
     journeys: [{ name: "Storefront", verdict: "PASS" }, { name: "Cart", verdict: "FAIL" }],
-    steps: [{ journey: "Cart", step: "Add to cart", status: "FAIL", detail: "private detail" }],
+    steps: [
+      { journey: "Storefront", step: "Open the store", status: "PASS", detail: "private storefront detail" },
+      { journey: "Cart", step: "Open the cart", status: "PASS", detail: "private cart detail" },
+      { journey: "Cart", step: "Add to cart | then pay", status: "FAIL", detail: "locator.waitFor: Timeout 30000ms exceeded. private detail" },
+      { journey: "Cart", step: "Check out", status: "FAIL", detail: "private detail" },
+    ],
     facts: { order: "#1030" },
   }));
   const script = new URL("../scripts/run-summary.mjs", import.meta.url).pathname;
@@ -70,7 +75,11 @@ test("the public summary shows each journey's pass or fail and nothing from its 
   assert.match(out, /Live journeys: FAIL/);
   assert.match(out, /\| Storefront \| PASS \|/);
   assert.match(out, /\| Cart \| FAIL \|/);
-  assert.doesNotMatch(out, /private detail|#1030|Add to cart/);
+  assert.match(out, /^### Cart: steps$/m);
+  assert.match(out, /^\| Open the cart \| PASS \| {2}\|$/m);
+  assert.match(out, /^\| Add to cart \\\| then pay \| FAIL \| timed out after 30 s \|$/m);
+  assert.match(out, /^\| Check out \| FAIL \| one of the step's own checks failed \|$/m);
+  assert.doesNotMatch(out, /private|#1030|Open the store|Storefront: steps/);
 });
 
 test("the public summary names the plugin versions the store ran, and says when none were recorded", () => {

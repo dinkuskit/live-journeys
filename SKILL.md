@@ -72,7 +72,8 @@ Changesets pre mode any more.
    plugin between its beta listing and its release listing. After the update
    passes, the workflow runs every `@running` journey, headless. One run uses the
    store at a time. The run page shows pass or fail, the plugin versions tested,
-   and why an update stopped. Screenshots go to the private R2 bucket. The
+   why an update stopped, and a failed journey's step names with one fixed kind of
+   failure each. Screenshots go to the private R2 bucket. The
    `proof_ref` is that run's address followed by `(X.Y.Z-beta.N @running pass)`.
 4. **Promote.** After that recorded pass, press **Run workflow** on **Release**
    with `action: promote`, `beta_version` set to `X.Y.Z-beta.N`, and that

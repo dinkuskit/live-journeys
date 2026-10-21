@@ -36,7 +36,7 @@ const listed = plan => plan.map(plugin => plugin.install
 // aggregator in the browser, and this runner's request filter does not allow that origin, so this
 // journey does not click through that page. It posts the same verify and install calls the Install
 // button and Accept & Install send, then shows the result on Plugins. It never types a store key.
-test("Install the Registry plugins", { tag: "@next" }, journey(async ({ page }) => {
+test("Install the Registry plugins", { tag: "@running" }, journey(async ({ page }) => {
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
     throw new Error(`Only the beta store, ${BETA_STORE.store} (site ${BETA_STORE.siteId}), gets a Registry install; this run is set to ${config.store || "no store"} (site ${config.siteId || "not set"}).`);
   }
