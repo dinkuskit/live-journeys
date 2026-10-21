@@ -27,7 +27,7 @@ async function blankFields(page) {
 }
 
 // The owner opens Commerce's settings from Plugins. The Store key field is shown empty and left alone.
-test("Commerce settings", { tag: "@next" }, journey(async ({ page }) => {
+test("Commerce settings", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   let plugin;
 
