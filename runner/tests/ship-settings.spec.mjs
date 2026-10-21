@@ -16,7 +16,7 @@ test.afterEach(async ({ page }) => {
   await page.goto("about:blank").catch(() => {});
 });
 
-test("Ship settings", { tag: "@next" }, journey(async ({ page }) => {
+test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   expect(config.siteId, `Set DINKUS_E2E_SITE_ID to the store's DinkusKit site id (in ${config.settingsFile})`).not.toBe("");
   const soft = { soft: true };

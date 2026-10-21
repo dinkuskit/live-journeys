@@ -18,7 +18,7 @@ test.afterEach(async ({ page }) => {
 // The owner opens Payments status. When the page asks to connect a DinkusKit account, the owner
 // presses Connect, approves payments at DinkusKit, and comes back. A page that already shows
 // Connected: Stripe test mode is left as it is: Reconnect and Set up or resume Stripe stay unpressed.
-test("Payments status", { tag: "@next" }, journey(async ({ page }) => {
+test("Payments status", { tag: "@running" }, journey(async ({ page }) => {
   // Connect and Approve payments change which DinkusKit account the store's Payments answers to.
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
     throw new Error(`Only the beta store, ${BETA_STORE.store} (site ${BETA_STORE.siteId}), gets Payments connected; this run is set to ${config.store || "no store"} (site ${config.siteId || "not set"}).`);

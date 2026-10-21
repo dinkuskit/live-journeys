@@ -44,7 +44,7 @@ async function openSignInLink(page, link) {
 // already lists the store, stop. Connect itself is the Payments plugin's Connect
 // button, then DinkusKit.com's "Connect this store?" page. Checkout settings, the
 // store key, Payments status checks, and Ship settings are later episodes.
-test("DinkusKit.com account and connect the store", { tag: "@next" }, journey(async ({ page }) => {
+test("DinkusKit.com account and connect the store", { tag: "@running" }, journey(async ({ page }) => {
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
     throw new Error(`Only the beta store, ${BETA_STORE.store} (site ${BETA_STORE.siteId}), gets this connect; this run is set to ${config.store || "no store"} (site ${config.siteId || "not set"}).`);
   }

@@ -203,8 +203,8 @@ const withPhoto = state => state.hasPhoto ? " with its photo"
 // weight, gives it a photo, and publishes a page in a new category. Manage products proves those
 // controls and then renames, archives and restores; this journey stops once the page is in its
 // category. The tidy at the end is how Manage products takes its own product off the store. Archive
-// is not a step of this story. @next until it has passed on the beta store.
-test("One product with a category", { tag: "@next" }, journey(async ({ page }) => {
+// is not a step of this story.
+test("One product with a category", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   const run = runNames();
   // Commerce keeps the product open in the saved profile's page; Media and Content work in a second tab.
