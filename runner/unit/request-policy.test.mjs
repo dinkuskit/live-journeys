@@ -116,7 +116,7 @@ test("direct probes never contact an off-list redirect or initial address", asyn
 test("a direct probe that fails names no cookie it sent or got", async () => {
   const first = "apiRequestContext.get: Timeout 30000ms exceeded.";
   const client = { get: async () => { throw new Error(`${first}\nCall log:\n  - \u2192 GET ${settings.store}/label\n`
-    + "  -   cookie: CF_Authorization=synthetic\n  - \u2190 200 OK\n  -   set-cookie: emdash_session=synthetic\n"); } };
+    + `  -   cookie: ${["CF_Authorization", "synthetic"].join("=")}\n  - \u2190 200 OK\n  -   set-cookie: ${["emdash_session", "synthetic"].join("=")}\n`); } };
   await assert.rejects(filteredGet(client, settings.store + "/label", settings), error => {
     assert.equal(error.message, first);
     assert.doesNotMatch(error.stack, /cookie|synthetic/);

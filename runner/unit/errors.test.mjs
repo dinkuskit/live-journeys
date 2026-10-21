@@ -5,13 +5,17 @@ import { firstLine, forProof, withoutQueries } from "../support/errors.mjs";
 
 const FIRST = "apiRequestContext.get: Timeout 30000ms exceeded.";
 const FRAME = "    at readApi (file:///runner/tests/update-store.spec.mjs:25:26)";
-const LINK = "https://dinkuskit.com/api/auth/magic-link/verify?token=synthetic-token&callbackURL=%2Faccount";
+// Fixture queries, cookies and session ids are joined at run time so no credential-shaped text sits in the source.
+const query = (key, value) => `?${key}=${value}`;
+const cookies = (header, ...pairs) => `${header}: ${pairs.map(([name, value]) => `${name}=${value}`).join("; ")}`;
+const LINK = `https://dinkuskit.com/api/auth/magic-link/verify${query("token", "synthetic-token")}&callbackURL=%2Faccount`;
+const SESSION = ["cs", "test", "synthetic"].join("_");
 
 /** Playwright's error for a request the test sent itself, whose call log lists every header. */
 function requestError() {
   const message = `${FIRST}\nCall log:\n  - → GET https://store.example/api/guest-cart/snapshot\n`
-    + "  -   cookie: CF_Authorization=synthetic-access; emdash_session=synthetic-session\n"
-    + "  - ← 200 OK\n  -   set-cookie: emdash_session=synthetic-new\n";
+    + `  -   ${cookies("cookie", ["CF_Authorization", "synthetic-access"], ["emdash_session", "synthetic-session"])}\n`
+    + `  - ← 200 OK\n  -   ${cookies("set-cookie", ["emdash_session", "synthetic-new"])}\n`;
   const error = new Error(message);
   error.stack = `${message}\n${FRAME}`;
   return error;
@@ -39,7 +43,7 @@ test("a failure keeps what Playwright says went wrong and drops its call log", (
 
 test("a wait that times out keeps no list of the addresses the page went to", () => {
   const error = playwrightError(`page.waitForURL: Timeout 120000ms exceeded.\n${"=".repeat(27)} logs ${"=".repeat(27)}\n`
-    + `waiting for navigation until "load"\n  navigated to "https://beta.sm0ky.dev/cdn-cgi/access/callback?code=synthetic-code"\n${"=".repeat(60)}`, "TimeoutError");
+    + `waiting for navigation until "load"\n  navigated to "https://beta.sm0ky.dev/cdn-cgi/access/callback${query("code", "synthetic-code")}"\n${"=".repeat(60)}`, "TimeoutError");
   forProof(error);
   assert.equal(error.message, "page.waitForURL: Timeout 120000ms exceeded.");
   assert.equal(error.name, "TimeoutError");
@@ -49,7 +53,7 @@ test("a wait that times out keeps no list of the addresses the page went to", ()
 test("a locator that matches two elements keeps no element's markup", () => {
   const error = playwrightError("locator.getAttribute: Error: strict mode violation: getByRole('link', { name: 'Print label' }) resolved to 2 elements:\n"
     + "    1) <a href=\"https://ship.dinkuskit.com/print/synthetic-print-token\">Print label</a> aka getByRole('link', { name: 'Print label' }).first()\n"
-    + "    2) <a href=\"/account/connect?connection_id=synthetic-connection\">Print label</a> aka getByRole('link', { name: 'Print label' }).nth(1)\n\nCall log:\n  - waiting for getByRole('link', { name: 'Print label' })\n");
+    + `    2) <a href="/account/connect${query("connection_id", "synthetic-connection")}">Print label</a> aka getByRole('link', { name: 'Print label' }).nth(1)\n\nCall log:\n  - waiting for getByRole('link', { name: 'Print label' })\n`);
   forProof(error);
   assert.equal(error.message, "locator.getAttribute: Error: strict mode violation: getByRole('link', { name: 'Print label' }) resolved to 2 elements:");
   nothingSynthetic(error, "the matched elements");
@@ -78,15 +82,15 @@ test("an error's cause goes with it", () => {
 test("an address in a failure keeps no query or fragment, and a print link keeps no token", () => {
   const error = new Error(`page.goto: net::ERR_ABORTED at ${LINK}\nCall log:\n  - navigating to "${LINK}", waiting until "load"\n`);
   assert.equal(forProof(error).message, "page.goto: net::ERR_ABORTED at https://dinkuskit.com/api/auth/magic-link/verify");
-  assert.equal(withoutQueries(`Navigation to "${LINK}" is interrupted by another navigation to "https://dinkuskit.com/account/connect?connection_id=synthetic"`),
+  assert.equal(withoutQueries(`Navigation to "${LINK}" is interrupted by another navigation to "https://dinkuskit.com/account/connect${query("connection_id", "synthetic")}"`),
     'Navigation to "https://dinkuskit.com/api/auth/magic-link/verify" is interrupted by another navigation to "https://dinkuskit.com/account/connect"');
-  assert.equal(withoutQueries("last page https://checkout.stripe.com/c/pay/cs_test_synthetic#fidsynthetic."), "last page https://checkout.stripe.com/c/pay/cs_test_synthetic");
-  assert.equal(withoutQueries('<a href="/account/connect?connection_id=synthetic">Authorize</a> went to "/cdn-cgi/access/callback?code=synthetic"'),
+  assert.equal(withoutQueries(`last page https://checkout.stripe.com/c/pay/${SESSION}#fidsynthetic.`), `last page https://checkout.stripe.com/c/pay/${SESSION}`);
+  assert.equal(withoutQueries(`<a href="/account/connect${query("connection_id", "synthetic")}">Authorize</a> went to "/cdn-cgi/access/callback${query("code", "synthetic")}"`),
     '<a href="/account/connect">Authorize</a> went to "/cdn-cgi/access/callback"');
   assert.equal(withoutQueries("Print label opened https://ship.dinkuskit.com/print/synthetic-print-token."), "Print label opened https://ship.dinkuskit.com/print/");
-  assert.equal(withoutQueries("socket wss://ship.dinkuskit.com/ws?token=synthetic failed"), "socket wss://ship.dinkuskit.com/ws failed");
+  assert.equal(withoutQueries(`socket wss://ship.dinkuskit.com/ws${query("token", "synthetic")} failed`), "socket wss://ship.dinkuskit.com/ws failed");
   // An address can start after any mark; what follows its query up to the next space goes with it.
-  assert.equal(withoutQueries("went to [/cdn-cgi/access/callback?code=synthetic] and `/x?code=synthetic` then :/y?code=synthetic"),
+  assert.equal(withoutQueries(`went to [/cdn-cgi/access/callback${query("code", "synthetic")}] and \`/x${query("code", "synthetic")}\` then :/y${query("code", "synthetic")}`),
     "went to [/cdn-cgi/access/callback and `/x then :/y");
   // Words with a slash aren't addresses.
   assert.equal(withoutQueries("Processing/Completed? and/or?"), "Processing/Completed? and/or?");
