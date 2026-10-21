@@ -15,8 +15,10 @@ test("the known connect line asks for Connect and a verified test connection doe
   const connected = readStatusText(`Payment setup\nConnected: Stripe test mode\n${connectedLine}`);
   assert.equal(connected.asksToConnect, false);
   assert.equal(connected.connectedTest, true);
-  const other = readStatusText("Connect payments: Not complete. Your payment connection is unavailable, so it could not be checked. Connect your DinkusKit account to continue.");
-  assert.equal(other.asksToConnect, false);
+  const disconnected = readStatusText("Connect payments: Not complete. Your payment connection is unavailable, so it could not be checked. Connect your DinkusKit account to continue.");
+  assert.equal(disconnected.asksToConnect, true);
+  assert.deepEqual(nextPress(disconnected, { buttons: ["Connect"], links: [] }), { action: "press", name: "Connect" });
+  assert.equal(readStatusText("Connect payments: Not complete. Select Sign in again to continue.").asksToConnect, false);
 });
 
 test("Connect is the press when the page asks, and a verified test connection is left alone", () => {
@@ -47,6 +49,7 @@ test("Stripe setup and every other control stay unpressed", () => {
   assert.equal(nextPress(checked, { buttons: ["Set up or resume Stripe", "Check connection", "Reconnect"], links: ["Continue setup at Stripe"] }).action, "leave");
   const saved = readStatusText("Connect payments: Not complete. Your DinkusKit authorization was saved. Use Check connection to read the payment account status. No processor setup was attempted.");
   assert.equal(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }).action, "blocked");
+  assert.deepEqual(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }, { approved: true }), { action: "press", name: "Check connection" });
   assert.match(nextPress(saved, { buttons: ["Check connection", "Reconnect"], links: [] }).because, /Check connection, which this journey leaves to the owner/);
   assert.equal(
     nextPress(readStatusText("Payment status not checked\nConnect payments: Not checked. Select Sign in again to refresh it."), { buttons: ["Sign in again"], links: [] }).action,
