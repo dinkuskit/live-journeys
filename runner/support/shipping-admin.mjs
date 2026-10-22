@@ -19,7 +19,11 @@ const PROBLEMS = {
   "Ship could not be used": "",
   "Order not at Ship": "",
   "Something went wrong": "",
-  "Connect Ship": "Paste the store's Store ID and store key from the Set up Commerce box on DinkusKit.com into the Ship plugin's settings.",
+  // The page's own line says what to do: paste in Ship 0.2, Connect from Ship's Connect release, which
+  // Ship settings does on the beta store.
+  "Connect Ship": "",
+  "Connect Ship again": "",
+  "Approve at DinkusKit.com": "",
   "Ship settings need a look": "Paste the Store ID and store key again from the Set up Commerce box on DinkusKit.com.",
   "Shipping is for Editors and Administrators": "The test's store admin sign-in has to be an Editor or an Administrator.",
 };

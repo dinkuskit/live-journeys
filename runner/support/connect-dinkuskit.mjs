@@ -1,14 +1,27 @@
-// What the DinkusKit.com account and connect pages actually show, and the one
+// What the DinkusKit.com account, connect and Your Stores pages actually show, and the one
 // Payments control that starts a connection. Decisions only. The journey clicks.
 
 // /account, when the owner is signed in and the business is approved with no store yet.
 export const CONNECT_INSTRUCTION = "Install the DinkusKit Payments plugin in your EmDash store, open its setup page and press Connect. You'll come back here to approve it.";
+// The same from dinkuskit#70, where Commerce's Connect registers the store and Payments and Ship follow it.
+export const COMMERCE_INSTRUCTION = "Install the DinkusKit Commerce plugin in your EmDash store, open Commerce Settings and press Connect. You'll come back here to approve it. Then do the same in Payments and Ship.";
 
-// /account/connect. The service name is the registered id, "payments", not a label.
+// /account/connect. The service name is the registered id ("payments", "commerce", "ship"), not a label,
+// and the button is "Approve <service>". What each service gets is the start of its own paragraph, since
+// DinkusKit.com has added words after Payments' (dinkuskit#70).
 export const CONSENT_HEADING = "Connect this store?";
-export const CONSENT_SERVICE = "Service: payments";
 export const CONSENT_PAYMENTS = "Payments status and processor setup access; this does not grant checkout access.";
-export const APPROVE_PAYMENTS = "Approve payments";
+const CONSENTS = {
+  payments: { label: "Payments", says: CONSENT_PAYMENTS },
+  commerce: { label: "Commerce", says: "Commerce gets its own store key." },
+  ship: { label: "Ship", says: "The Ship plugin gets its own store key" },
+};
+
+// Your Stores (/account/sites) from dinkuskit#70: each store's "Connected plugins" list has a line per
+// plugin, "Commerce plugin: connected <time>, last used <time>" or "Commerce plugin: not connected. Press
+// Connect in the Commerce plugin in EmDash.", and a Disconnect button for a connected one, never pressed.
+export const SITES_PATH = "/account/sites";
+export const CONNECTED_PLUGINS = "Connected plugins";
 
 // dinkus-payments-beta's admin page. The menu label is "Payments status".
 // dinkuskit/payments src/registry/identity.ts and emdash-plugin.jsonc.
@@ -23,9 +36,10 @@ const originOf = value => {
 };
 
 /**
- * What to do with the account page. "connected" means this store is already listed:
- * leave it. "connect" means the page says to press Connect in Payments. Anything else
- * stops, so the journey never switches business, approves a business, or starts Connect.
+ * What to do with the account page. "connected" means this store is already listed.
+ * "connect" means the page says to press Connect, in `plugin`: the Payments plugin, or from
+ * dinkuskit#70 Commerce. Anything else stops, so the journey never switches business,
+ * approves a business, or starts Connect.
  */
 export function accountReading(text, store) {
   const storeOrigin = originOf(store);
@@ -37,22 +51,51 @@ export function accountReading(text, store) {
   if (lines.includes("Waiting for approval")) return { next: "stop", reason: "This business is waiting for approval. A store can connect after that. This journey does not approve a business." };
   if (lines.includes("Your businesses")) return { next: "stop", reason: "This account has more than one business. This journey will not pick one." };
   if (lines.includes("Connect your store")) {
-    if (!text.includes(CONNECT_INSTRUCTION)) return { next: "stop", reason: "The account says to connect a store, but not by pressing Connect in the Payments plugin." };
-    return { next: "connect" };
+    if (text.includes(COMMERCE_INSTRUCTION)) return { next: "connect", plugin: "Commerce" };
+    if (text.includes(CONNECT_INSTRUCTION)) return { next: "connect", plugin: "Payments" };
+    return { next: "stop", reason: "The account says to connect a store, but not by pressing Connect in Commerce or the Payments plugin." };
   }
   if (lines.some(line => line.startsWith("You're on the staff of"))) return { next: "stop", reason: "This sign-in is staff, not the owner. Only the owner can approve a store connection." };
   return { next: "stop", reason: "The account page did not say this store is connected or ask to connect it." };
 }
 
-/** The consent page is this store and Payments, still waiting. Otherwise Approve stays unpressed. */
-export function consentReading(text, store) {
+/** The consent page is this store and `service`, still waiting. Otherwise Approve stays unpressed. */
+export function consentReading(text, store, service = "payments") {
   const lines = linesOf(text);
+  const { label, says } = CONSENTS[service] ?? {};
+  if (!label) return { ok: false, reason: `This journey doesn't approve ${service}. Approve was not pressed.` };
   if (!lines.includes(CONSENT_HEADING)) return { ok: false, reason: "The page is not Connect this store? Approve was not pressed." };
-  if (!lines.includes(CONSENT_SERVICE)) return { ok: false, reason: "The page is not asking to connect Payments. Approve was not pressed." };
-  if (!text.includes(CONSENT_PAYMENTS)) return { ok: false, reason: "The page does not describe Payments access the way DinkusKit.com does. Approve was not pressed." };
+  if (!lines.includes(`Service: ${service}`)) return { ok: false, reason: `The page is not asking to connect ${label}. Approve was not pressed.` };
+  if (!text.includes(says)) return { ok: false, reason: `The page does not describe ${label} access the way DinkusKit.com does. Approve was not pressed.` };
   if (!lines.includes(`Site origin: ${originOf(store)}`)) return { ok: false, reason: "The page is not this store. Approve was not pressed." };
   if (lines.includes("This connection is no longer waiting for consent.")) return { ok: false, reason: "This connection is no longer waiting for consent. Approve was not pressed." };
   return { ok: true };
+}
+
+/**
+ * Which plugins Your Stores shows connected for one store, from its Connected plugins lines (each line's
+ * text, a Disconnect button's label below it or not): { commerce: true } for "Commerce plugin: connected
+ * ...", false for "... not connected ...". A plugin without a line is left out.
+ */
+export function connectedPlugins(items) {
+  const found = {};
+  for (const item of items ?? []) {
+    const match = String(item).trim().match(/^(Commerce|Payments|Ship) plugin: (connected|not connected)\b/);
+    if (match) found[match[1].toLowerCase()] = match[2] === "connected";
+  }
+  return found;
+}
+
+/**
+ * This store's plugins on Your Stores, from each store's web address (its heading) and the lines of its
+ * Connected plugins list: { plugins } as connectedPlugins reads them, or { error } unless exactly one list
+ * is this store's.
+ */
+export function storePlugins(stores, store) {
+  const origin = originOf(store);
+  const mine = (stores ?? []).filter(entry => entry?.origin === origin);
+  if (mine.length !== 1) return { error: mine.length ? `Your Stores shows ${mine.length} Connected plugins lists for ${origin}, not one.` : `Your Stores shows no Connected plugins list for ${origin}.` };
+  return { plugins: connectedPlugins(mine[0].items) };
 }
 
 /** A DinkusKit.com magic-link address. The journey never records one. */
