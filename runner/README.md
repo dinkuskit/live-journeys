@@ -179,14 +179,16 @@ hosted Checkout it tries three of Stripe's test cards that never take a payment:
 4000 0027 6000 3184, which brings up Stripe's test bank check, where the test
 presses Fail, and again if Stripe's test page is still open seconds later.
 Then it leaves by Stripe's link back to the store, which Payments
-points at the cart, follows the cart's way back to the same checkout and pays
-once with the 4242 test card. The owner completes the order in Commerce Orders,
-so the run leaves no order open. If Stripe takes a payment from a card it should
-turn down, the test pays nothing more and checks and completes that order
-instead. On a store whose cart offers no way back to an open checkout
-(Template Store before #100), the cart step fails and the test pays through the
-checkout's own Stripe page, as Buy and ship does with a checkout an earlier run
-left open.
+points at the cart (from payments#79, at the store's checkout page), follows
+that page's way back to the same checkout and pays once with the 4242 test
+card. The owner completes the order in Commerce Orders, so the run leaves no
+order open. If Stripe takes a payment from a card it should turn down, the test
+pays nothing more and checks and completes that order instead. On a store whose
+cart offers no way back to an open checkout (Template Store before #100), the
+way-back step fails and the test pays through the checkout's own Stripe page,
+as Buy and ship does with a checkout an earlier run left open. A store without
+the checkout page Payments names (Template Store before #127) fails the back-link
+step, and the test checks the cart's way back instead.
 
 Buy a label in the store admin places one Stripe TEST order the way Buy and ship
 does, paying once with the test card, and buys one Pitney Bowes sandbox label
@@ -404,13 +406,13 @@ once, unpaid, since nobody answers it for the test.
 | Step | What it proves |
 | --- | --- |
 | The owner can open Commerce Orders | Commerce Orders opens in the store admin, and the test notes the newest TEST order, so it can tell later that the refused cards made no order |
-| A shopper opens Stripe Checkout for one product | As in Buy and ship, a shopper puts a physical product in the cart, gives a US delivery address and reaches Stripe's hosted Checkout in test mode; a session that isn't in test mode stops the journey here, before any card. A checkout an earlier run left open is reopened instead of starting another |
+| A shopper opens Stripe Checkout for one product | As in Buy and ship, a shopper puts a physical product in the cart, gives a US delivery address (on the cart, or on the store's checkout page once the cart only links there, as from Template Store #127) and reaches Stripe's hosted Checkout in test mode; a session that isn't in test mode stops the journey here, before any card. A checkout an earlier run left open is reopened instead of starting another |
 | A declined card is turned down with a clear message and no order | Stripe answers 4000 0000 0000 0002 with "Your card has been declined.", and Commerce still reports the checkout waiting for payment, with no order |
 | A card without enough funds is turned down with a clear message and no order | The same for 4000 0000 0000 9995 and "Your card has insufficient funds." |
 | A card that fails the bank's security check is turned down with a clear message and no order | 4000 0027 6000 3184 brings up Stripe's test bank check; the test presses Fail (again if the test page ignored a press), Stripe says it can't authenticate the payment method, and Commerce still waits for payment |
-| The shopper leaves Stripe by its back link and lands on the cart | Stripe's link back to the store opens the store's cart page |
-| The cart offers a way back to the same Stripe checkout | After "Check checkout status", the cart's "Return to secure checkout" link goes to the same Stripe checkout, and its checkout button stays locked, so the shopper can't start a second one |
-| The shopper goes back to Stripe and pays once with the 4242 test card | The shopper follows that link (or, when the cart offers none, the test opens the checkout's own Stripe page) and pays once, and Commerce records the payment |
+| The shopper leaves Stripe by its back link and lands back in the store | Stripe's link back to the store opens the store's cart, or from payments#79 the store's checkout page, and that page holds the shopper's cart; a store without the page Payments names fails here |
+| The store offers a way back to the same Stripe checkout | On that page, after "Check checkout status", the "Return to secure checkout" link goes to the same Stripe checkout, and the checkout button stays locked, so the shopper can't start a second one |
+| The shopper goes back to Stripe and pays once with the 4242 test card | The shopper follows that link (or, when the store offers none, the test opens the checkout's own Stripe page) and pays once, and Commerce records the payment |
 | The thank-you page confirms the order and empties the cart | As in Buy and ship |
 | Commerce Orders lists one new order for the checkout, Processing | The order is listed Processing, and it is the only TEST order newer than the one noted at the start |
 | The owner marks the order completed, so the run leaves no order open | As in Mark as completed, with no carrier or tracking number, since nothing was sent. Only a Processing TEST order is completed |

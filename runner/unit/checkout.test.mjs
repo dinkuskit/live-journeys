@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { stripeSession, thankYouShown } from "../support/checkout-text.mjs";
+import { storeReturnLinks, storeReturnPage, stripeSession, thankYouShown } from "../support/checkout-text.mjs";
 
 test("a Stripe Checkout address names its session, with or without Stripe's fragment", () => {
   assert.equal(stripeSession("https://checkout.stripe.com/c/pay/cs_test_a1B2c3#fidabc"), "cs_test_a1B2c3");
@@ -25,4 +25,24 @@ test("the thank-you page passes only with the order confirmed and the cart empty
     /saw "We couldn't confirm your order: Try again\." instead of their order/);
   assert.throws(() => thankYouShown({ ...confirmed, cart: 1 }), /the cart shows 1 item\(s\)/);
   assert.throws(() => thankYouShown({ ...confirmed, cart: null }), /an unreadable number of item\(s\)/);
+});
+
+test("Stripe's way back is the store's cart or, from payments#79, its checkout page, and nothing else", () => {
+  const store = "https://store.example";
+  assert.equal(storeReturnPage("https://store.example/cart", store), "cart");
+  assert.equal(storeReturnPage("https://store.example/checkout", store), "checkout page");
+  assert.equal(storeReturnPage("https://store.example/checkout?from=stripe", store), "checkout page");
+  for (const address of [
+    "https://store.example/checkout/success?session_id=cs_test_a1",
+    "https://store.example/checkout/cancel",
+    "https://store.example/",
+    "https://other.example/cart",
+    "http://store.example/cart",
+    "https://checkout.stripe.com/c/pay/cs_test_a1",
+    "not an address",
+  ]) assert.equal(storeReturnPage(address, store), null, address);
+  const links = storeReturnLinks(store);
+  assert.match(links, /a\[href="https:\/\/store\.example\/cart"\]:visible/);
+  assert.match(links, /a\[href="https:\/\/store\.example\/checkout"\]:visible/);
+  assert.doesNotMatch(links, /checkout\/success/);
 });

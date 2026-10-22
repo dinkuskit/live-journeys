@@ -282,10 +282,13 @@ catalog adds nothing. See the runner README's "Run on GitHub".
   report each card Stripe didn't turn down with a clear message, with what the
   shopper saw. If Stripe took a payment from a card it should have refused, say
   so first: the test paid nothing more and completed that order instead. A
-  failure on "The cart offers a way back to the same Stripe checkout" means a
-  shopper who left Stripe couldn't get back to their open checkout from the cart;
-  the test still paid once through the checkout's own Stripe page, so the steps
-  after it ran.
+  failure on "The store offers a way back to the same Stripe checkout" means a
+  shopper who left Stripe couldn't get back to their open checkout from the
+  store's cart or checkout page; the test still paid once through the checkout's
+  own Stripe page, so the steps after it ran. A failure on "The shopper leaves
+  Stripe by its back link and lands back in the store" that says the store has
+  no checkout page means Payments sends shoppers to /checkout (payments#79) on a
+  store without that page (Template Store #127).
 
 ## What each step proves
 

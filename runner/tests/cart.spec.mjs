@@ -127,7 +127,8 @@ test("Cart", { tag: "@running" }, journey(async () => {
       // Without the price the shopper saw, the cart's price can't be checked.
       if (money(product.price) === null) throw new Error(`${product.where} shows no price for "${product.name || "its product"}", so the cart's price couldn't be checked.`);
       await product.button.click(quick);
-      const status = product.button.locator("xpath=..").locator("[data-add-to-cart-status]");
+      // The message sits beside the button, or from Template Store #125 beside the box holding the button and its quantity.
+      const status = product.button.locator("xpath=ancestor::*[.//*[@data-add-to-cart-status]][1]").locator("[data-add-to-cart-status]");
       // The confirmation counts only when the shopper can see it.
       if (!await expect(status.filter({ visible: true })).toHaveText(/added to cart/i, { timeout: 10_000 }).then(() => true, () => false)) {
         const said = await text(status);
