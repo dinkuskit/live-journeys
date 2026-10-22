@@ -55,6 +55,53 @@ const KINDS = [
   [/strict mode violation/, () => "a locator matched more than one element"],
   [/\bHTTP (\d{3})\b/, match => `an answer of HTTP ${match[1]}`],
   [/expect\(/, () => "an expect check failed"],
+  // Connect to DinkusKit (plugin-connect.mjs, dinkuskit-approve.mjs): which part of the walk stopped, and
+  // for a refusal the plugin's own fixed banner or DinkusKit.com's error code, never the page's other words.
+  [/still asks to connect after this run's Connect: "(.*)"$/, match => `Connect: the plugin refused (${CONNECT_REFUSALS.find(([text]) => match[1].startsWith(text))?.[1] ?? "other banner"})`],
+  [/still asks to connect after this run's Connect\.$/, () => "Connect: the plugin still asks to connect, with no reason"],
+  [/still waits for DinkusKit\.com after this run's Approve/, () => "Connect: still waiting after Approve and Check"],
+  [/waits for DinkusKit\.com after this run's Approve \w+, and offers no Check/, () => "Connect: waiting after Approve with no Check"],
+  [/waits for an approval this run didn't start/, () => "Connect: an older waiting approval with no Cancel"],
+  [/asks to connect, but offers no Connect/, () => "Connect: no Connect button"],
+  [/shows no connection to DinkusKit\.com and no Connect/, () => "Connect: no DinkusKit section"],
+  [/isn't connected to DinkusKit\.com, and only the beta store/, () => "Connect: not connected, and this step may not connect it"],
+  [/says only an Administrator connects it/, () => "Connect: not an Administrator"],
+  [/says to connect Commerce first/, () => "Connect: Commerce first"],
+  [/press got no answer within a minute/, () => "Connect: a press got no answer"],
+  [/page didn't change after (Connect again|Connect)\.$/, match => `Connect: the page didn't change after ${match[1]}`],
+  [/Connect didn't finish\.$/, () => "Connect: too many presses"],
+  [/does not open DinkusKit's connect page/, () => "Connect: the approve link is not DinkusKit's"],
+  [/DinkusKit did not show Connect this store\?/, () => "Connect: no consent page"],
+  [/DinkusKit did not answer Approve \w+ within a minute/, () => "Connect: no answer to Approve"],
+  [/DinkusKit\.com did not approve this connection(?: \(([^)]*)\))?; it sent the owner to (another store page|DinkusKit's (\S*?))\.?$/,
+    match => `Connect: Approve refused (${CONSENT_REFUSALS.has(match[1]) ? match[1] : match[1] ? "another code" : "no code"}), sent to ${match[3] === undefined ? "another store page" : CONSENT_DESTINATIONS[match[3]] ?? "another DinkusKit.com page"}`],
+  [/did not approve this connection/, () => "Connect: Approve refused"],
+  [/The plugin's page did not open after Approve/, () => "Connect: the plugin page didn't open after Approve"],
+  [/used approval link/, () => "Connect: the used approval link check failed"],
+  [/connect page has no Approve \w+ button/, () => "Connect: no Approve button"],
+];
+
+// DinkusKit.com's refusal codes on its connect page (dinkuskit/dinkuskit src/account/connect.ts and the
+// store-proof checks it calls). Only these are printed; any other code is "another code".
+const CONSENT_REFUSALS = new Set([
+  "stale_organization", "organization_forbidden", "unsupported_protocol", "expired_token", "not_pending", "integration_unavailable",
+  "proof_expires_too_far", "invalid_client", "approval_failed", "connect_commerce_first", "grant_revoked", "ownership_conflict",
+  "origin_id_conflict", "invalid_proof_path", "invalid_proof_query", "invalid_proof_url", "private_proof_destination", "proof_empty",
+  "proof_fetch_blocked", "proof_malformed", "proof_redirect_rejected", "proof_timeout", "proof_too_large", "proof_unavailable",
+]);
+// Where DinkusKit.com sent the owner instead, by fixed name.
+const CONSENT_DESTINATIONS = { "/account/connect": "the connect page", "/account/sites": "Your Stores", "/account/sign-in": "sign-in" };
+
+// The plugins' own Connect banners (dinkuskit/commerce src/features/checkout/registry-connect.ts and
+// src/admin/connect.ts, dinkuskit/ship src/pages.ts), each with the fixed label the run page prints.
+const CONNECT_REFUSALS = [
+  ["Connect did not finish.", "did not finish"],
+  ["DinkusKit.com could not be reached.", "DinkusKit.com could not be reached"],
+  ["Connect needs this store on its https web address", "needs https and a Registry install"],
+  ["Connect could not finish.", "could not finish"],
+  ["The business owner did not approve", "owner did not approve"],
+  ["DinkusKit.com no longer knows this store key.", "key no longer known"],
+  ["DinkusKit.com named another store for this web address.", "another store for this address"],
 ];
 
 /** One fixed kind for a failed step's detail, so the public run page can say how a step failed without its words. */

@@ -1,10 +1,14 @@
 import { expect, test } from "../support/browser.mjs";
 import { config } from "../support/env.mjs";
+import { SHIP_CONNECT, connectPlugin, emptyPasswordInput, recordPresses } from "../support/plugin-connect.mjs";
 import { note } from "../support/proof.mjs";
 import {
-  SHIP_PLUGIN_NAME, STORE_ID_LABEL, STORE_KEY_LABEL, pluginIdFromSettingsUrl, pluginSettingsPath, storeIdProblem,
+  CONNECTION, SHIP_PLUGIN_NAME, STORE_ID_LABEL, STORE_KEY_LABEL, openShippingPage, pluginIdFromSettingsUrl, pluginSettingsPath, readShippingPage,
+  shippingDrawn, storeIdProblem,
 } from "../support/ship-settings.mjs";
+import { shippingAdmin } from "../support/shipping-admin.mjs";
 import { openAdmin } from "../support/store-admin.mjs";
+import { BETA_STORE } from "../support/store-updates.mjs";
 import { journey, step } from "../support/steps.mjs";
 
 // EmDash draws this form from admin.settingsSchema (packages/admin/src/components/PluginSettings.tsx).
@@ -12,6 +16,10 @@ import { journey, step } from "../support/steps.mjs";
 // (PluginManager.tsx). The secret field is a password input whose value stays empty. This journey
 // never types, saves, or clears a setting, and it never buys a label. It leaves a blank page for
 // Playwright's failure notes, as Commerce settings does.
+// From Ship's Connect release the form holds only the DinkusKit connection, and the Shipping page is where
+// Ship connects: Connect, then Approve ship at DinkusKit.com, only on the beta store and only when Ship
+// isn't connected. Commerce connects first, earlier in the run. Before that, the same Connect runs as it
+// would on any other store, and must press nothing.
 test.afterEach(async ({ page }) => {
   await page.goto("about:blank").catch(() => {});
 });
@@ -20,6 +28,10 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   expect(config.siteId, `Set DINKUS_E2E_SITE_ID to the store's DinkusKit site id (in ${config.settingsFile})`).not.toBe("");
   const soft = { soft: true };
+  let connectRelease = false;
+  // Whether each password field was empty when the form drew, read before any step blanks it for the screenshots.
+  let connectionEmpty = false;
+  let storeKeyEmpty = false;
 
   // Without the form there is nothing to read, so this step stops the journey.
   await step(page, "The owner opens Ship settings from Plugins", async () => {
@@ -47,12 +59,27 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
       await page.getByRole("heading", { name: `${shipName} Settings`, exact: true }).waitFor();
       const pluginId = pluginIdFromSettingsUrl(page.url(), config.store);
       if (pluginId !== opened.pluginId) throw new Error("Ship's Settings control opened a different page than its own settings form.");
+      // The form's fields can draw after its heading. Ship's Connect release has only the DinkusKit connection.
+      const form = page.locator("#plugin-settings-form");
+      const storeId = form.getByLabel(STORE_ID_LABEL, { exact: true });
+      const connection = form.getByLabel(CONNECTION.label, { exact: true });
+      await storeId.or(connection).first().waitFor({ timeout: 30_000 }).catch(() => {});
+      connectRelease = !await storeId.count() && await connection.count() === 1;
+      // Only a yes/no comes back, so the proof never receives what a field holds.
+      if (connectRelease) connectionEmpty = await connection.evaluate(emptyPasswordInput);
+      const storeKey = form.getByLabel(STORE_KEY_LABEL, { exact: true });
+      if (await storeKey.count() === 1) storeKeyEmpty = await storeKey.evaluate(emptyPasswordInput);
       note("ship settings plugin", pluginId);
       return pluginSettingsPath(pluginId);
     } finally {
       await blankPasswordFields(page);
     }
   });
+
+  if (connectRelease) {
+    await shipConnect(page, connectionEmpty);
+    return;
+  }
 
   await step(page, "Store ID is the site id Commerce uses", async () => {
     try {
@@ -74,16 +101,64 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
       const field = page.getByLabel(STORE_KEY_LABEL, { exact: true });
       if ((await field.count()) !== 1) throw new Error(`Ship settings has no single ${STORE_KEY_LABEL} field.`);
       if (!await field.isVisible()) throw new Error("Store key field is not visible.");
-      // The value stays in the page. Only a yes/no comes back, so the proof never receives the key.
-      const emptyPassword = await field.evaluate(input =>
-        input instanceof HTMLInputElement && input.type === "password" && input.value === "");
-      if (!emptyPassword) throw new Error("Store key must be a visible empty password field. The test does not type, save, or record it.");
+      // Read when the form drew, before the first step blanked it: the proof never receives the key.
+      if (!storeKeyEmpty) throw new Error("Store key must be a visible empty password field. The test does not type, save, or record it.");
       return "Store key field is empty";
     } finally {
       await blankPasswordFields(page);
     }
   }, soft);
 }));
+
+/** Ship's Connect release: the settings form holds only the DinkusKit connection, and the Shipping page connects. */
+async function shipConnect(page, connectionEmpty) {
+  await step(page, "Ship settings holds only the DinkusKit connection", async () => {
+    try {
+      const form = page.locator("#plugin-settings-form");
+      if (await form.getByLabel(STORE_KEY_LABEL, { exact: true }).count()) throw new Error("Ship settings still has a Store key field beside the DinkusKit connection.");
+      // Read when the form drew, before the first step blanked it, so a stored connection sent back to the page fails here.
+      if (!connectionEmpty) throw new Error("The DinkusKit connection must be an empty password field. The test does not type, save, or record it.");
+      if (!await form.getByText(CONNECTION.description, { exact: true }).isVisible()) throw new Error("The DinkusKit connection doesn't say Connect on the Shipping page manages it.");
+      return "The form holds only the DinkusKit connection, empty and left alone. Store ID and Store key are gone.";
+    } finally {
+      await blankPasswordFields(page);
+    }
+  });
+
+  let url;
+  const connect = mayConnect => connectPlugin(page, {
+    texts: SHIP_CONNECT,
+    mayConnect,
+    open: async () => { await openShippingPage(page, url); },
+    read: shown => readShippingPage(shown, config.ship),
+    landing: new URL(url).pathname,
+    ready: shippingDrawn,
+  });
+
+  // A run on any other store may not press Connect, Cancel or Approve. The same walk with that permission
+  // must leave the browser sending no press and no settings save.
+  await step(page, "On any other store, the Shipping page presses nothing", async () => {
+    url = await shippingAdmin(page);
+    const { outcome, sent } = await recordPresses(page.context(), config, async () => {
+      await openShippingPage(page, url);
+      return connect(false).then(
+        ({ siteId }) => `Ship is already connected, to store ${siteId}`,
+        error => `The run stopped before pressing anything: ${error.message}`);
+    });
+    if (sent.length) throw new Error(`Without the beta store's permission, the browser still sent ${sent.join(", ")}.`);
+    note("ship on another store", outcome);
+    return `${outcome}. Nothing was pressed or saved.`;
+  });
+
+  await step(page, "The Shipping page is connected to this store", async () => {
+    await openShippingPage(page, url);
+    // Connect and Approve ship change which DinkusKit.com store Ship answers to.
+    const result = await connect(config.store === BETA_STORE.store && config.siteId === BETA_STORE.siteId);
+    if (result.siteId !== config.siteId) throw new Error(`Ship is connected to DinkusKit.com store ${result.siteId}, not this store's ${config.siteId}.`);
+    note("ship connect", result.connected ? "connected this run" : "already connected");
+    return `Open Ship goes to this store's orders, store ${result.siteId}${result.connected ? ", after this run's Connect and Approve ship" : ""}.`;
+  });
+}
 
 /** Ship's Settings link, when it points at EmDash's settings form. Null when Ship has no such link. */
 async function shipSettingsLink(page) {

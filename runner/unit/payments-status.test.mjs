@@ -10,6 +10,10 @@ const connectedLine = "Connect payments: Connected: Stripe test mode. Test card 
 const storeKeyLine = "Connect payments: Not checked. Paste the store key from the Set up Commerce box on DinkusKit.com into this plugin's settings (Store key), the same key Commerce uses. This page trades it for a short pass each time it checks your payment status. Then select Check connection.";
 const lastCheckForKey = "Last checked Oct 21, 2026 at 10:15 PM UTC. Paste the store key in this plugin's settings so this page can check it now. Checkout isn't affected.";
 const lastCheckForSignIn = "Last checked Oct 21, 2026 at 10:15 PM UTC. This page's DinkusKit sign-in lasts 5 minutes, so select Sign in again to check it now. Checkout doesn't use this sign-in.";
+// Payments' Connect release (dinkuskit/payments#82): nothing to paste, and Connect again gets the plugin its own key.
+const noKeyLine = "Connect payments: Not checked. This plugin doesn't have its DinkusKit store key yet. Select Connect again and approve at DinkusKit.com; DinkusKit.com then gives this plugin its own key, and this page uses it to check your payment status.";
+const lastCheckForConnect = "Last checked Oct 22, 2026 at 3:15 PM UTC. Select Connect again so this page can check it now. Checkout isn't affected.";
+const commerceFirstLine = "Connect payments: Not complete. Connect the Commerce plugin first. Commerce registers this store with DinkusKit.com; then come back here and select Connect.";
 
 test("the known connect line asks for Connect and a verified test connection does not", () => {
   const asking = readStatusText(`Payment setup\nNot ready to sell\n${connectLine}\nPlace a test order: Not complete. Connect payments first, then place a test order.`);
@@ -74,6 +78,25 @@ test("from Payments 0.3.0 the page checks when it opens: Connected passes, Sign 
   // Payments 0.2 shows a lapsed sign-in this way, and it still passes there.
   assert.equal(nextPress(lapsed, { buttons: ["Sign in again"], links: [] }).action, "leave");
   assert.match(nextPress(lapsed, { buttons: ["Sign in again"], links: [] }, { storeKeyRead: true }).because, /only its last check/);
+});
+
+test("from Payments' Connect release a missing or refused key gets Connect again once, before any approval", () => {
+  for (const text of [
+    `Payment setup\nPayment status not checked\nThis page couldn't read your payment status. The first step says why. Checkout isn't affected.\n${noKeyLine}`,
+    `Payment setup\nConnected: Stripe test mode\n${lastCheckForConnect}\n${connectedLine}`,
+    "Payment setup\nPayment status not checked\nConnect payments: Not checked. DinkusKit.com no longer knows this plugin's store key, for example after Disconnect on DinkusKit.com. Select Connect again to get a new one.",
+    "Payment setup\nPayment status not checked\nConnect payments: Not checked. This plugin's store key belongs to another store. Select Connect again to get this store's key.",
+  ]) {
+    const reading = readStatusText(text);
+    assert.equal(reading.asksForStoreKey, false, text);
+    assert.equal(reading.asksToConnectAgain, true, text);
+    assert.deepEqual(nextPress(reading, { buttons: ["Connect again"], links: [] }, { storeKeyRead: true }), { action: "press", name: "Connect again" });
+    assert.match(nextPress(reading, { buttons: ["Connect again"], links: [] }, { storeKeyRead: true, approved: true }).because, /after this run's Approve payments/);
+    assert.match(nextPress(reading, { buttons: ["Check connection"], links: [] }, { storeKeyRead: true }).because, /no Connect again button/);
+  }
+  const first = readStatusText(`Payment setup\nNot ready to sell\n${commerceFirstLine}`);
+  assert.equal(first.asksForCommerce, true);
+  assert.match(nextPress(first, { buttons: ["Connect"], links: [] }).because, /connect the Commerce plugin first/);
 });
 
 test("pending approval opens DinkusKit before Continue, and Continue is next once payments are approved", () => {

@@ -18,8 +18,10 @@ test.afterEach(async ({ page }) => {
 // The owner opens Payments status. When the page asks to connect a DinkusKit account, the owner
 // presses Connect, approves payments at DinkusKit, and comes back. A page that already shows
 // Connected: Stripe test mode is left as it is: Reconnect and Set up or resume Stripe stay unpressed.
-// From Payments 0.3.0 the page checks with the Store key the owner pasted in the plugin's settings, so it
-// must show Connected: Stripe test mode when it opens, without Sign in again or only its last check.
+// From Payments 0.3.0 the page checks with a Store key each time it opens, so it must show Connected:
+// Stripe test mode then, without Sign in again or only its last check. In 0.3.0 the owner pastes that key
+// in the plugin's settings; from Payments' Connect release Connect hands the plugin its own, and a page
+// that says to select Connect again gets Connect again and Approve payments once.
 test("Payments status", { tag: "@running" }, journey(async ({ page }) => {
   // Connect and Approve payments change which DinkusKit account the store's Payments answers to.
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
@@ -45,7 +47,7 @@ test("Payments status", { tag: "@running" }, journey(async ({ page }) => {
     return said;
   });
 
-  await step(page, "Connect is used only when the page asks for a DinkusKit account", async () => {
+  await step(page, "Connect is used only when the page asks for it", async () => {
     let approved = false;
     let previous = "";
     for (let turn = 0; turn < 6; turn++) {

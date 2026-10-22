@@ -1,13 +1,12 @@
-import { APPROVE_PAYMENTS, AUTHORIZE_LINK, PAYMENTS_BETA_STATUS_PATH, betaPaymentsStatusLinks, consentReading } from "./connect-dinkuskit.mjs";
+import { AUTHORIZE_LINK, PAYMENTS_BETA_STATUS_PATH, betaPaymentsStatusLinks } from "./connect-dinkuskit.mjs";
+import { approveAtDinkusKit, authorizeHref, failClosed, redact, showsSecret } from "./dinkuskit-approve.mjs";
 import { config } from "./env.mjs";
-import { mailBaseline, waitForMail } from "./mail.mjs";
-import { filterPage } from "./request-policy.mjs";
 import { versionAtLeast } from "./store-plugins.mjs";
 
 // Payments status in the store admin. The menu label and path are the plugin's admin page
 // (dinkuskit/payments emdash-plugin.jsonc). The screen is Block Kit from
-// src/registry/setup.ts renderSetupScreen: Connect, Sign in again, Continue and Check connection
-// are buttons; Authorize Payments at DinkusKit is an external link. That link opens
+// src/registry/setup.ts renderSetupScreen: Connect, Connect again, Sign in again, Continue and Check
+// connection are buttons; Authorize Payments at DinkusKit is an external link. That link opens
 // dinkuskit.com/account/connect, whose submit button is "Approve payments"
 // (src/pages/account/connect.astro). registry_session is written only by that flow.
 // Reconnect, Deny, Sign in again and Set up or resume Stripe are on those pages, and this journey
@@ -15,11 +14,11 @@ import { versionAtLeast } from "./store-plugins.mjs";
 // From Payments 0.3.0 (dinkuskit/payments#76) the page checks status with the Store key in the plugin's
 // settings, the same key Commerce uses. Until the owner pastes it, the page shows the last check it read
 // or Payment status not checked, and asks for the store key. This journey never types a key.
+// From Payments' Connect release (dinkuskit/payments#82) there is no Store key to paste: Connect hands the
+// plugin its own key, and a page without one, or with one DinkusKit.com no longer knows, says to select
+// Connect again. That Connect again is pressed once, and approved like a first Connect.
 
-const CONNECTION_ID = /^[A-Za-z0-9_-]{1,200}$/;
-const SECRET = /sk_(?:test|live)_[0-9A-Za-z]+|rk_(?:test|live)_[0-9A-Za-z]+|whsec_[0-9A-Za-z]+|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/;
-
-export { AUTHORIZE_LINK };
+export { AUTHORIZE_LINK, authorizeHref, redact, showsSecret };
 // Payments says one of these when the store has no DinkusKit connection: the first before Payments
 // is configured, the second once it is (src/registry/setup.ts, connection state "disconnected").
 export const CONNECT_LINES = [
@@ -27,41 +26,25 @@ export const CONNECT_LINES = [
   "Connect your DinkusKit account to continue.",
 ];
 const BANNERS = ["Not ready to sell", "Connected: Stripe test mode", "Payment status not checked"];
-const PRESSABLE = ["Connect", "Continue", "Check connection"];
+const PRESSABLE = ["Connect", "Connect again", "Continue", "Check connection"];
 const STORE_KEY = /\bstore key\b/i;
+// Payments 0.3.0 asks to paste the Store key; its Connect release asks to select Connect again instead.
+const PASTE = /\bPaste\b/;
+const CONNECT_AGAIN = "Select Connect again";
+// The page's ask when DinkusKit.com wants Commerce connected first (store-connect-flow-081).
+const COMMERCE_FIRST = "Connect the Commerce plugin first.";
 // The first Payments version that checks status with the Store key, so its page needs no sign-in to check.
 const STORE_KEY_READ = "0.3.0-0";
 
 /** Whether a Payments plugin version checks its status with the Store key in its settings. */
 export const readsWithStoreKey = version => versionAtLeast(version, STORE_KEY_READ);
 
-/** DinkusKit's connect page for one connection, and nothing else that could carry a token. */
-export function authorizeHref(href, account) {
-  let url;
-  try { url = new URL(href); } catch { return false; }
-  if (url.origin !== account || url.username || url.password || url.hash || url.pathname !== "/account/connect") return false;
-  const keys = [...url.searchParams.keys()];
-  const id = url.searchParams.get("connection_id");
-  return keys.length === 1 && keys[0] === "connection_id" && url.searchParams.getAll("connection_id").length === 1 && CONNECTION_ID.test(id ?? "");
-}
-
-/** A store key or session token in text the proof might keep. */
-export function showsSecret(text) {
-  return SECRET.test(String(text ?? ""));
-}
-
-/** Proof text with store keys, session tokens and connection ids removed. */
-export function redact(text) {
-  return String(text ?? "")
-    .replace(new RegExp(SECRET.source, "g"), "[secret]")
-    .replace(/connection_id=[^&\s]+/gi, "connection_id=[redacted]");
-}
-
 /**
  * What the open Payments status page is saying, from its visible text. The connect line is the
  * unconfigured Connect payments step. Connected: Stripe test mode is the verified TEST banner.
- * A missing or refused store key is named on the page, and Last checked opens the banner that shows
- * an earlier check instead of a new one.
+ * A missing or refused store key is named on the page: Payments 0.3.0 asks to paste it, its Connect
+ * release to select Connect again. Last checked opens the banner that shows an earlier check instead
+ * of a new one.
  */
 export function readStatusText(text) {
   const lines = String(text ?? "").split("\n").map(line => line.trim()).filter(Boolean);
@@ -73,7 +56,9 @@ export function readStatusText(text) {
     connect,
     connectedTest: banner === "Connected: Stripe test mode" || connect.includes("Connected: Stripe test mode"),
     asksToConnect: CONNECT_LINES.some(line => connect.includes(line)),
-    asksForStoreKey: lines.some(line => STORE_KEY.test(line)),
+    asksForStoreKey: lines.some(line => STORE_KEY.test(line) && PASTE.test(line)),
+    asksToConnectAgain: lines.some(line => line.includes(CONNECT_AGAIN)),
+    asksForCommerce: lines.some(line => line.includes(COMMERCE_FIRST)),
     lastCheck: lines.some(line => line.startsWith("Last checked ")),
   };
 }
@@ -86,8 +71,10 @@ export function readStatusText(text) {
  * store keeps its DinkusKit.com account and Stripe TEST account.
  * `approved` means DinkusKit's Approve payments was already pressed this run. `storeKeyRead` means the
  * page is Payments 0.3.0 or later, which checks with the Store key each time it opens: there a page that
- * shows only its last check, or offers Sign in again, hasn't checked. A page that asks for the store key
- * hasn't either, whatever its version.
+ * shows only its last check, or offers Sign in again, hasn't checked. A page that asks to paste the store
+ * key hasn't either, whatever its version. From Payments' Connect release a page that says to select
+ * Connect again has no key of its own yet, or one DinkusKit.com no longer knows: Connect again is pressed
+ * then, once, and approved like a first Connect, since that is how the plugin gets its key.
  */
 export function nextPress(reading, controls, { approved = false, storeKeyRead = false } = {}) {
   const buttons = controls?.buttons ?? [];
@@ -97,6 +84,15 @@ export function nextPress(reading, controls, { approved = false, storeKeyRead = 
       action: "blocked",
       because: "Payments status asks for the store key, so it didn't check payment setup. The owner pastes the Store key in dinkus-payments-beta's settings; this journey never types it.",
     };
+  }
+  if (reading?.asksForCommerce) {
+    return { action: "blocked", because: "Payments status says to connect the Commerce plugin first. Commerce's Connect registers the store at DinkusKit.com, then Payments can connect." };
+  }
+  if (reading?.asksToConnectAgain) {
+    if (approved) return { action: "blocked", because: "Payments status still asks to select Connect again after this run's Approve payments, so the plugin has no store key from DinkusKit.com." };
+    return buttons.includes("Connect again")
+      ? { action: "press", name: "Connect again" }
+      : { action: "blocked", because: "Payments status says to select Connect again, but it has no Connect again button." };
   }
   if (storeKeyRead && reading?.lastCheck) {
     return { action: "blocked", because: "Payments status shows only its last check. From Payments 0.3.0 it checks with the Store key each time it opens." };
@@ -191,78 +187,12 @@ export async function authorizeLink(page) {
 
 /**
  * Opens Authorize Payments at DinkusKit and presses Approve payments, only when the page asks to
- * connect this store to Payments. Deny is never pressed.
- * A signed-out account is signed in with the test inbox first; the connect page sends that
- * sign-in to /account with no way back, so the same connect address is opened again after.
- * The address is not written down.
+ * connect this store to Payments. Deny is never pressed. Only dinkus-payments-beta's page counts as
+ * the way back: the beta store's release listing has its own.
  */
 export async function approvePayments(page, href) {
-  if (!authorizeHref(href, config.account)) await failClosed(page, "Authorize Payments at DinkusKit does not open DinkusKit's connect page.");
-  const popupPromise = page.context().waitForEvent("page", { timeout: 15_000 }).catch(() => null);
-  await page.locator("main").getByRole("link", { name: AUTHORIZE_LINK, exact: true }).click();
-  const popup = await popupPromise;
-  const consent = popup ?? page;
-  try {
-    if (popup) await filterPage(popup, config);
-    await consent.waitForLoadState("domcontentloaded");
-    if (consent.url().startsWith(`${config.account}/account/sign-in`)) {
-      await signInToAccount(consent);
-      await consent.goto(href);
-      await consent.waitForLoadState("domcontentloaded");
-    }
-    const heading = consent.getByRole("heading", { name: "Connect this store?", exact: true });
-    await heading.waitFor({ timeout: 30_000 }).catch(async () => {
-      await failClosed(consent, "DinkusKit did not show Connect this store?.");
-    });
-    const reading = consentReading(await consent.locator("main").innerText(), config.store);
-    if (!reading.ok) await failClosed(consent, reading.reason);
-    const approve = consent.getByRole("button", { name: APPROVE_PAYMENTS, exact: true });
-    if (!await approve.count()) {
-      const said = (await consent.locator("body").innerText()).split("\n").map(line => line.trim()).find(Boolean) ?? "";
-      await failClosed(consent, said || "DinkusKit's connect page has no Approve payments button.");
-    }
-    await approve.click();
-    // DinkusKit answers by sending the page on: back to the store, back to the connect page with
-    // ?error=<reason>, or to another account page (sites, sign-in) for a refusal it can't show there.
-    const landed = await consent.waitForURL(next => {
-      try {
-        const url = new URL(next);
-        if (url.origin === config.store) return true;
-        return url.origin === config.account && (url.pathname !== "/account/connect" || url.searchParams.has("error"));
-      } catch { return false; }
-    }, { timeout: 60_000 }).then(() => new URL(consent.url()), () => null);
-    if (!landed) await failClosed(consent, "DinkusKit did not answer Approve payments within a minute.");
-    // Only dinkus-payments-beta's page counts: the beta store's release listing has its own.
-    if (landed.origin !== config.store || landed.pathname !== PAYMENTS_BETA_STATUS_PATH) {
-      const reason = landed.searchParams.get("error") ?? "";
-      const where = landed.origin === config.store ? "another store page" : `DinkusKit's ${landed.pathname}`;
-      await failClosed(consent, `DinkusKit.com did not approve this connection${/^[a-z_]{1,64}$/.test(reason) ? ` (${reason})` : ""}; it sent the owner to ${where}.`);
-    }
-    // The status page's own load finishes the connection. Closing before Payment setup is shown would cut that off.
-    await consent.getByRole("heading", { name: "Payment setup", exact: true }).waitFor({ timeout: 60_000 }).catch(async () => {
-      await failClosed(consent, "Payments status did not show Payment setup after Approve payments.");
-    });
-  } finally {
-    if (popup) await popup.close().catch(() => {});
-  }
-}
-
-/** DinkusKit.com's magic-link sign-in. The link is opened and never written down. */
-async function signInToAccount(popup) {
-  if (!config.ownerEmail) await failClosed(popup, "DINKUS_E2E_OWNER_EMAIL is not set, so the test cannot ask DinkusKit.com for a sign-in link.");
-  if (!config.mailCmd) await failClosed(popup, "DinkusKit.com asked for a sign-in link and no mail command is set.");
-  const baseline = mailBaseline("dinkuskit");
-  await popup.locator("#email").fill(config.ownerEmail);
-  await popup.getByRole("button", { name: "Email me a sign-in link", exact: true }).click();
-  const link = await waitForMail("dinkuskit", baseline);
-  if (!link) await failClosed(popup, "No DinkusKit sign-in link arrived.");
-  await popup.goto(link).catch(async () => {
-    await failClosed(popup, "The DinkusKit sign-in link did not open.");
+  await approveAtDinkusKit(page, {
+    link: AUTHORIZE_LINK, href, service: "payments", landing: PAYMENTS_BETA_STATUS_PATH,
+    ready: consent => consent.getByRole("heading", { name: "Payment setup", exact: true }),
   });
-}
-
-/** Leaves a blank page so a later screenshot cannot keep a key, token or connection address. */
-async function failClosed(page, message) {
-  await page.goto("about:blank").catch(() => {});
-  throw new Error(redact(message).split("\n")[0]);
 }

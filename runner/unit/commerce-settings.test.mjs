@@ -21,12 +21,15 @@ test("the one Commerce listing, release or beta, is the settings plugin", () => 
     slug: "dinkus-commerce-beta",
     version: "0.3.0-beta.12",
     path: "/_emdash/admin/plugins-manager/r_commerce/settings",
+    page: "/_emdash/admin/plugins/r_commerce/settings",
   });
   const release = commerceSettings(list([commerce({ id: "r_release", registrySlug: "dinkus-commerce", version: "0.3.0" })]));
   assert.equal(release.slug, "dinkus-commerce");
   assert.equal(release.path, "/_emdash/admin/plugins-manager/r_release/settings");
+  assert.equal(release.page, "/_emdash/admin/plugins/r_release/settings");
   const spaced = commerceSettings(list([commerce({ id: "r a" })]));
   assert.equal(spaced.path, "/_emdash/admin/plugins-manager/r%20a/settings");
+  assert.equal(spaced.page, "/_emdash/admin/plugins/r%20a/settings");
 });
 
 test("a payments plugin, or a slug that only starts like Commerce, is not Commerce settings", () => {

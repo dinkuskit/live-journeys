@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  accountReading, betaPaymentsStatusLinks, consentReading, CONNECT_INSTRUCTION, isSignInLink,
+  accountReading, betaPaymentsStatusLinks, COMMERCE_INSTRUCTION, consentReading, CONNECT_INSTRUCTION, connectedPlugins, isSignInLink, NO_LONGER_WAITING,
+  storePlugins, wrongConsentRefusals,
 } from "../support/connect-dinkuskit.mjs";
 
 const STORE = "https://beta.sm0ky.dev";
@@ -31,25 +32,79 @@ test("another store, a second business, a wait, or a staff sign-in does not star
   assert.equal(accountReading(account(["Connect your store", "Press something else."]), STORE).next, "stop");
 });
 
-test("Connect is only the Payments instruction on an account with one business and no store", () => {
+test("Connect is only the Payments or Commerce instruction on an account with one business and no store", () => {
   assert.deepEqual(accountReading(account([
     "Connect your store",
     "Status: Approved",
     CONNECT_INSTRUCTION,
-  ]), STORE), { next: "connect" });
+  ]), STORE), { next: "connect", plugin: "Payments" });
+  // dinkuskit#70 starts with Commerce's Connect.
+  assert.deepEqual(accountReading(account([
+    "Connect your store",
+    "Status: Approved",
+    COMMERCE_INSTRUCTION,
+  ]), STORE), { next: "connect", plugin: "Commerce" });
+  assert.equal(accountReading(account(["Connect your store", COMMERCE_INSTRUCTION, "Your businesses"]), STORE).next, "stop");
 });
 
 test("Approve stays unpressed unless the page is this store's Payments consent", () => {
   const ready = account([
     "Connect this store?",
     "Service: payments",
-    "Payments status and processor setup access; this does not grant checkout access.",
+    "Payments status and processor setup access. The Payments plugin also gets its own store key, which can start checkout payments for this store (payments:checkout) as well as show its status page.",
     `Site origin: ${STORE}`,
   ]);
   assert.deepEqual(consentReading(ready, STORE), { ok: true });
   assert.equal(consentReading(ready.replace(STORE, "https://other.example"), STORE).ok, false);
   assert.equal(consentReading(ready.replace("Service: payments", "Service: inventory"), STORE).ok, false);
-  assert.match(consentReading(`${ready}\nThis connection is no longer waiting for consent.`, STORE).reason, /no longer waiting/);
+  assert.equal(consentReading(`${ready}\nThis connection is no longer waiting for consent.`, STORE).reason, NO_LONGER_WAITING);
+  // The paragraph from before dinkuskit#70 said Payments got no checkout access. Its key can now start checkout payments.
+  const before = ready.replace(/^Payments status.*$/m, "Payments status and processor setup access; this does not grant checkout access.");
+  assert.match(consentReading(before, STORE).reason, /describe Payments access/);
+});
+
+test("Approve commerce and Approve ship need their own consent paragraphs, and Payments' longer one still counts", () => {
+  const consent = (service, says) => account(["Connect this store?", `Service: ${service}`, says, `Site origin: ${STORE}`]);
+  const commerce = "Commerce gets its own store key. It uses it for checkout with Payments, for sending paid orders to Ship when Ship is on, and for reading the checkout settings you choose here. Approving also registers this store's web address with your business.";
+  const ship = "The Ship plugin gets its own store key, for the Shipping page in your store's admin. It works only while Ship is turned on for this store.";
+  const payments = "Payments status and processor setup access. The Payments plugin also gets its own store key, which can start checkout payments for this store (payments:checkout) as well as show its status page.";
+  assert.deepEqual(consentReading(consent("commerce", commerce), STORE, "commerce"), { ok: true });
+  assert.deepEqual(consentReading(consent("ship", ship), STORE, "ship"), { ok: true });
+  assert.deepEqual(consentReading(consent("payments", payments), STORE), { ok: true });
+  // The service on the page has to be the one this run's plugin asked for.
+  assert.match(consentReading(consent("ship", ship), STORE, "commerce").reason, /not asking to connect Commerce/);
+  assert.match(consentReading(consent("commerce", payments), STORE, "commerce").reason, /describe Commerce access/);
+  assert.match(consentReading(consent("inventory", "Inventory."), STORE, "inventory").reason, /doesn't approve inventory/);
+});
+
+test("before Approve, the consent check refuses the same page as another store and as each other plugin", () => {
+  const consent = (service, says) => account(["Connect this store?", `Service: ${service}`, says, `Site origin: ${STORE}`]);
+  const commerce = consent("commerce", "Commerce gets its own store key. It uses it for checkout with Payments.");
+  const ship = consent("ship", "The Ship plugin gets its own store key, for the Shipping page in your store's admin.");
+  const payments = consent("payments", "Payments status and processor setup access. The Payments plugin also gets its own store key, which can start checkout payments for this store (payments:checkout) as well as show its status page.");
+  assert.deepEqual(wrongConsentRefusals(commerce, STORE, "commerce"), { summary: "Refused as another store and as payments and ship." });
+  assert.deepEqual(wrongConsentRefusals(ship, STORE, "ship"), { summary: "Refused as another store and as payments and commerce." });
+  assert.deepEqual(wrongConsentRefusals(payments, STORE, "payments"), { summary: "Refused as another store and as commerce and ship." });
+  // A page the check would also take for Ship, or for any store, is refused before Approve commerce.
+  const twoServices = `${commerce}\nService: ship\nThe Ship plugin gets its own store key`;
+  assert.match(wrongConsentRefusals(twoServices, STORE, "commerce").error, /would approve this commerce page as ship/);
+  const anyStore = `${commerce}\nSite origin: https://another-store.invalid`;
+  assert.match(wrongConsentRefusals(anyStore, STORE, "commerce").error, /would approve this page for another store/);
+});
+
+test("Your Stores' Connected plugins lines read as connected or not, for this store only", () => {
+  const lines = [
+    "Commerce plugin: connected 2026-10-22 15:04 UTC, not used yet",
+    "Payments plugin: not connected. Press Connect in the Payments plugin in EmDash, after Commerce.",
+    "Ship plugin: not connected. Press Connect in the Ship plugin in EmDash, after Commerce.",
+  ];
+  assert.deepEqual(connectedPlugins(lines), { commerce: true, payments: false, ship: false });
+  assert.deepEqual(connectedPlugins(["Commerce plugin: not connected. Press Connect in the Commerce plugin in EmDash.", "Store key: none yet"]), { commerce: false });
+  assert.deepEqual(storePlugins([{ origin: "https://other.example", items: lines }, { origin: STORE, items: lines.slice(1) }], `${STORE}/`), {
+    plugins: { payments: false, ship: false },
+  });
+  assert.match(storePlugins([{ origin: "https://other.example", items: lines }], STORE).error, /no Connected plugins list for https:\/\/beta\.sm0ky\.dev/);
+  assert.match(storePlugins([{ origin: STORE, items: lines }, { origin: STORE, items: lines }], STORE).error, /2 Connected plugins lists/);
 });
 
 test("a DinkusKit sign-in link is told apart from the account page", () => {

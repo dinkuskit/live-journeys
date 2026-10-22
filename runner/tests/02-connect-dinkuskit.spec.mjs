@@ -1,11 +1,16 @@
 import { test } from "../support/browser.mjs";
+import { commerceSettings, openCommercePage, readCommercePage } from "../support/commerce-settings.mjs";
 import {
-  AUTHORIZE_LINK, PAYMENT_SETUP_HEADING, PAYMENTS_STATUS_LABEL, accountReading, betaPaymentsStatusLinks, isSignInLink,
+  AUTHORIZE_LINK, CONNECTED_PLUGINS, PAYMENT_SETUP_HEADING, PAYMENTS_STATUS_LABEL, SITES_PATH, accountReading, betaPaymentsStatusLinks,
+  isSignInLink, storePlugins,
 } from "../support/connect-dinkuskit.mjs";
+import { failClosed, showsSecret } from "../support/dinkuskit-approve.mjs";
 import { config } from "../support/env.mjs";
 import { mailBaseline, waitForMail } from "../support/mail.mjs";
 import { approvePayments, authorizeHref as isConnectLink } from "../support/payments-status.mjs";
-import { openAdmin } from "../support/store-admin.mjs";
+import { COMMERCE_CONNECT, connectPlugin } from "../support/plugin-connect.mjs";
+import { note } from "../support/proof.mjs";
+import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { BETA_STORE } from "../support/store-updates.mjs";
 import { journey, step } from "../support/steps.mjs";
 
@@ -40,10 +45,12 @@ async function openSignInLink(page, link) {
   }
 }
 
-// The owner's DinkusKit.com account, then this store connected there. If the account
-// already lists the store, stop. Connect itself is the Payments plugin's Connect
-// button, then DinkusKit.com's "Connect this store?" page. Checkout settings, the
-// store key, Payments status checks, and Ship settings are later episodes.
+// The owner's DinkusKit.com account, then this store connected there. From Commerce's Connect
+// release Commerce's own Connect registers the store: Connect on Commerce Settings, then Approve
+// commerce on DinkusKit.com's "Connect this store?" page, and Your Stores lists Commerce connected.
+// Before that release the Payments plugin's Connect does, and a store the account already lists is
+// left as it is. Disconnect, Replace key and Show checkout settings on Your Stores are never pressed.
+// Checkout settings, Payments status checks, and Ship are later episodes.
 test("DinkusKit.com account and connect the store", { tag: "@running" }, journey(async ({ page }) => {
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
     throw new Error(`Only the beta store, ${BETA_STORE.store} (site ${BETA_STORE.siteId}), gets this connect; this run is set to ${config.store || "no store"} (site ${config.siteId || "not set"}).`);
@@ -93,9 +100,60 @@ test("DinkusKit.com account and connect the store", { tag: "@running" }, journey
     await pause(page);
     reading = accountReading(await mainText(page), config.store);
     if (reading.next === "stop") throw new Error(reading.reason);
-    if (reading.next === "connected") return `${config.store} is already connected. Left it as it is.`;
-    return "This store is not connected yet. The account says to press Connect in the Payments plugin.";
+    if (reading.next === "connected") return `The account lists ${config.store} as connected.`;
+    return `This store is not connected yet. The account says to press Connect in ${reading.plugin === "Commerce" ? "Commerce" : "the Payments plugin"}.`;
   });
+
+  let commerce;
+  await step(page, "Commerce Settings shows whether Commerce connects the store", async () => {
+    await openAdmin(page, `${config.store}/_emdash/admin/plugins-manager`);
+    const found = commerceSettings(await notePlugins(page));
+    if (found.error) throw new Error(found.error);
+    const url = `${config.store}${found.page}`;
+    commerce = { ...found, url, connectRelease: await openCommercePage(page, url) };
+    await pause(page);
+    if (!commerce.connectRelease) return `${found.slug} ${found.version} has no Connect of its own, so the Payments plugin connects the store.`;
+    const { siteId } = (await readCommercePage(page)).reading;
+    return siteId ? `Commerce is connected to DinkusKit.com, store ${siteId}.` : "Commerce has its own Connect and isn't connected yet.";
+  });
+
+  if (commerce.connectRelease) {
+    await step(page, "Commerce is connected to this store", async () => {
+      const result = await connectPlugin(page, {
+        texts: COMMERCE_CONNECT, mayConnect: true,
+        open: async () => { await openCommercePage(page, commerce.url); },
+        read: readCommercePage,
+        landing: commerce.page,
+        ready: consent => consent.getByRole("heading", { name: COMMERCE_CONNECT.section, exact: true }),
+      });
+      if (result.siteId !== config.siteId) throw new Error(`Commerce is connected to DinkusKit.com store ${result.siteId}, not this store's ${config.siteId}.`);
+      await pause(page);
+      note("commerce connect", result.connected ? "connected this run" : "already connected");
+      return result.connected
+        ? `The owner approved commerce on DinkusKit.com, and Commerce is connected to store ${result.siteId}.`
+        : `Commerce was already connected to store ${result.siteId}. Connect again was left alone.`;
+    });
+
+    await step(page, "Your Stores shows Commerce connected for this store", async () => {
+      await page.goto(`${config.account}${SITES_PATH}`, { waitUntil: "domcontentloaded" });
+      const lists = page.locator(`ul[aria-label="${CONNECTED_PLUGINS}"]`);
+      await lists.first().waitFor({ timeout: 30_000 }).catch(() => {});
+      // Your Stores shows a store key only after Replace key, which this journey never presses.
+      if (showsSecret(await mainText(page))) await failClosed(page, "Your Stores showed a store key. It was not kept.");
+      await pause(page);
+      // Each store's list sits under its web address; a line's Disconnect button is left out.
+      const stores = await lists.evaluateAll(uls => uls.map(ul => ({
+        origin: ul.parentElement?.querySelector("h3")?.textContent?.trim() ?? "",
+        items: [...ul.children].map(item => item.innerText.split("\n").map(line => line.trim()).find(Boolean) ?? ""),
+      })));
+      const found = storePlugins(stores, config.store);
+      if (found.error) throw new Error(found.error);
+      if (found.plugins.commerce !== true) throw new Error("Your Stores doesn't show Commerce connected for this store, though Commerce Settings does.");
+      const others = ["Payments", "Ship"].map(plugin => `${plugin} ${found.plugins[plugin.toLowerCase()] ? "connected" : "not connected yet"}`);
+      return `Commerce plugin: connected. ${others.join(", ")}.`;
+    });
+    return;
+  }
 
   if (reading.next === "connected") return;
 

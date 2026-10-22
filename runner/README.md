@@ -6,6 +6,11 @@ journeys plan:
 
 | Journey | Stage | What it covers |
 | --- | --- | --- |
+| [Install the Registry plugins](tests/01-install-plugins.spec.mjs) | `@running` | A DinkusKit beta the beta store does not already run is installed there (`dinkus-ship-beta` `0.1.0-beta.1` unless `DINKUS_E2E_INSTALL` names others), through the store's Registry verify and install routes, and Plugins lists it. A beta the store already runs is left as it is |
+| [DinkusKit.com account and connect the store](tests/02-connect-dinkuskit.spec.mjs) | `@running` | The owner's DinkusKit.com account and the beta store connected there. From Commerce's Connect release that means Commerce connected: Commerce Settings shows it connected to this store, or, when it isn't, Connect there and Approve commerce at DinkusKit.com, and Your Stores then lists Commerce connected. Before that release, when the account says to connect the store, Payments status is used to approve Payments for that store only. Disconnect, Replace key and Show checkout settings are never pressed |
+| [Payments status](tests/03-payments-status.spec.mjs) | `@running` | On the beta store, dinkus-payments-beta's Payments status shows a connected Stripe test account, or, only when the store is not connected at all, walks Connect, Authorize Payments at DinkusKit, Approve payments, Continue and Check connection. From Payments 0.3.0 the page must show Connected: Stripe test mode when it opens, checked with a Store key: in 0.3.0 the one the owner pasted in the plugin's settings, where a page that asks for the store key fails; from Payments' Connect release the plugin's own, so a page that says to select Connect again gets Connect again and Approve payments once. A page that shows only its last check or offers Sign in again fails. Deny, Reconnect, Sign in again and Stripe setup are not pressed, Check connection only follows this run's own approval, and the journey never types a key |
+| [Commerce settings](tests/04-commerce-settings.spec.mjs) | `@running` | Commerce's settings form shows Checkout settings and an empty Store key, with the Set up Commerce descriptions. From Commerce's Connect release the form holds only an empty DinkusKit connection, Commerce Settings shows Commerce connected to this store (Connect and Approve commerce on the beta store when it isn't), and on the beta store Get checkout settings brings this store's checkout settings, which DinkusKit.com gives only once Payments is connected. First, the same Connect, run as it would be on any other store, must press nothing. Nothing is typed |
+| [Ship settings](tests/05-ship-settings.spec.mjs) | `@running` | Ship's settings show Store ID matching the store's site id and an empty Store key. From Ship's Connect release the form holds only an empty DinkusKit connection, and the Shipping page is connected to this store (Connect and Approve ship on the beta store when it isn't, once Commerce is). First, the same Connect, run as it would be on any other store, must press nothing. Nothing is typed, and no label is bought |
 | [Buy and ship](tests/buy-and-ship.spec.mjs) | `@running` | A Stripe TEST order on the store, the order in Commerce, a Pitney Bowes sandbox label in Ship, and Commerce marking the order Completed with the same tracking number |
 | [Storefront](tests/storefront.spec.mjs) | `@running` | A new shopper's first look: the homepage, the product list, a product page and its category page |
 | [Cart](tests/cart.spec.mjs) | `@running` | A new shopper adds a product to the cart, changes its quantity and removes it, with the cart total right each time |
@@ -14,15 +19,28 @@ journeys plan:
 | [Mark as completed](tests/mark-completed.spec.mjs) | `@running` | The owner marks a paid TEST order completed in Commerce Orders, typing a carrier and tracking number, and an agent completes another through Commerce's orders API, sending neither; both end Completed |
 | [Problems](tests/problems.spec.mjs) | `@running` | A shopper's checkout going wrong: Stripe turns down a declined card, a card without enough funds and a card that fails the bank's security check, each with a clear message and no order; the shopper leaves Stripe for the cart, finds the way back to the same checkout and pays once with the test card, and the owner completes that one order |
 | [Buy a label in the store admin](tests/store-admin-label.spec.mjs) | `@running` | The owner ships a paid Stripe TEST order from the store admin's Shipping page, which the Ship plugin draws from hosted Ship: See prices, Buy label at the quoted price and Print label, then, once Commerce has completed the order, Print label again and Cancel label, with the order staying Completed |
-| [Install the Registry plugins](tests/install-plugins.spec.mjs) | `@running` | A DinkusKit beta the beta store does not already run is installed there (`dinkus-ship-beta` `0.1.0-beta.1` unless `DINKUS_E2E_INSTALL` names others), through the store's Registry verify and install routes, and Plugins lists it. A beta the store already runs is left as it is |
-| [DinkusKit.com account and connect the store](tests/connect-dinkuskit.spec.mjs) | `@running` | The owner's DinkusKit.com account shows the beta store connected, or, when the account says to connect it, Payments status is used to approve Payments for that store only. The store key is never opened |
-| [Commerce settings](tests/commerce-settings.spec.mjs) | `@running` | Commerce Settings shows Checkout settings and an empty Store key, with the Set up Commerce descriptions. The key is never typed |
-| [Payments status](tests/payments-status.spec.mjs) | `@running` | On the beta store, dinkus-payments-beta's Payments status shows a connected Stripe test account, or, only when the store is not connected at all, walks Connect, Authorize Payments at DinkusKit, Approve payments, Continue and Check connection. From Payments 0.3.0 the page must show Connected: Stripe test mode when it opens, checked with the Store key the owner pasted in the plugin's settings; a page that asks for the store key, shows only its last check or offers Sign in again fails. Deny, Reconnect, Sign in again and Stripe setup are not pressed, Check connection only follows this run's own approval, and the journey never types a key |
-| [Ship settings](tests/ship-settings.spec.mjs) | `@running` | Ship's settings show Store ID matching the store's site id and an empty Store key. The key is never typed, and no label is bought |
 | [One product with a category](tests/onboarding-product.spec.mjs) | `@running` | The owner adds one product with a price, a weight, a photo, and a published page in a new category. Archive is only the tidy afterward, not the story |
 
-`npm test` runs every `@running` journey. A new journey starts as `@next` and
-moves to `@running` once it has passed on the beta store. Manage products needs
+`npm test` runs every `@running` journey, one at a time in file-name order, so
+the five numbered setup journeys run first and the store is connected before
+anything is bought. Payments status runs before Commerce settings, because
+DinkusKit.com gives Commerce its checkout settings only once Payments is
+connected. A new journey starts as `@next` and moves to `@running` once it has
+passed on the beta store.
+
+From the Connect releases of Commerce, Payments and Ship nothing is pasted: each
+plugin gets its own store key when the business owner approves its Connect at
+DinkusKit.com. On the beta store a run presses Connect once in each plugin that
+isn't connected yet, signed in to the store admin as an Administrator, and
+approves it on DinkusKit.com's "Connect this store?" page with the account's
+emailed sign-in link. Commerce connects first, because its Connect registers the
+store, and Ship's Connect is refused until it has. Approve is pressed only when
+that page names this store and this plugin; just before, the same check is tried
+as another store and as each other plugin, and must refuse. Just after, the run
+opens the same approval link again, and DinkusKit.com must say it is no longer
+waiting for consent, with no Approve. Each setup journey tells the
+releases apart by what its page shows, so it passes on the release before Connect
+too. Manage products needs
 a Commerce release that can rename and archive a product, and Full catalog one
 whose product screens cope with a full catalog (0.3.0-beta.4 or later); on an
 older Commerce, Manage products stops before adding anything and Full catalog
@@ -34,7 +52,7 @@ How a beta becomes that release is [Release a plugin](../SKILL.md#release-a-plug
 Payments, Commerce and Ship each press `cut-beta`, then this workflow, then
 `promote`. This runner proves. It does not
 publish. **Update the store** does not install a plugin the store is not already
-running. [Install the Registry plugins](tests/install-plugins.spec.mjs) does that,
+running. [Install the Registry plugins](tests/01-install-plugins.spec.mjs) does that,
 and only on beta.sm0ky.dev. It never types a store key.
 
 It runs in a visible Chrome window with its own saved profile
@@ -227,7 +245,10 @@ but beta.sm0ky.dev, leaves every other plugin alone, never moves a plugin back t
 version or between its beta and release listings, and agrees to nothing the Update button would
 ask about: an update that asks for new permissions, opens routes to visitors who aren't signed
 in (which also need an exception in the store's Access app) or changes its agent tools stops the
-run, naming the plugin and what it asked, for the owner to update by hand. It also stops when
+run, naming the plugin and what it asked, for the owner to update by hand. Commerce's and Ship's
+Connect releases each open one such route, `store-proof`, which DinkusKit.com reads while the
+owner approves that plugin's Connect, so the first run on each stops here until the owner has
+updated it by hand and the Access app lets DinkusKit.com reach that route. It also stops when
 EmDash couldn't check the Registry for a plugin, since a pass has to name the betas it really
 tested. When a plugin's **Cut beta** presses Run workflow, it names the beta it just published
 (the `beta` input, such as `dinkus-payments-beta 0.2.9-beta.3`, shown in the run's name), and the

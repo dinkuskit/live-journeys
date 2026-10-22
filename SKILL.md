@@ -134,6 +134,12 @@ still has deployed now. For other test stores, use the local steps below.
      The run places four TEST orders and leaves each one Completed. Full catalog
      runs before Manage products, so Manage products works with the whole
      catalog in place.
+   - The five setup journeys run first, in their numbered order: Install the
+     Registry plugins, DinkusKit.com account, Payments status, Commerce settings
+     and Ship settings. From the Connect releases nothing is pasted: on
+     beta.sm0ky.dev a run presses Connect once in each plugin that isn't
+     connected yet, Commerce first, and approves it on DinkusKit.com with the
+     account's emailed sign-in link. No store key is ever typed.
    - `npm run journey -- storefront` runs one journey, named by its file in
      `runner/tests`. Storefront only reads the pages a shopper sees and places
      no order. Cart fills and empties a new shopper's cart and never checks out.
