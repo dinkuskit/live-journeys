@@ -132,6 +132,12 @@ export async function recordPresses(context, settings, run) {
   }
 }
 
+/**
+ * True for an empty password input. It runs in the page (`locator.evaluate(emptyPasswordInput)`), so only
+ * a yes/no comes back and the proof never receives what a field holds.
+ */
+export const emptyPasswordInput = input => input instanceof HTMLInputElement && input.type === "password" && input.value === "";
+
 /** The visible buttons in the page's main area. */
 export async function mainButtons(page) {
   return (await page.locator("main").getByRole("button").allInnerTexts()).map(label => label.trim()).filter(Boolean);

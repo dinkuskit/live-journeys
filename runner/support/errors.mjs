@@ -73,12 +73,24 @@ const KINDS = [
   [/does not open DinkusKit's connect page/, () => "Connect: the approve link is not DinkusKit's"],
   [/DinkusKit did not show Connect this store\?/, () => "Connect: no consent page"],
   [/DinkusKit did not answer Approve \w+ within a minute/, () => "Connect: no answer to Approve"],
-  [/DinkusKit\.com did not approve this connection(?: \(([a-z_]{1,64})\))?; it sent the owner to (another store page|DinkusKit's \/[a-z/-]*)/,
-    match => `Connect: Approve refused${match[1] ? ` (${match[1]})` : ""}, sent to ${match[2].startsWith("another") ? "another store page" : match[2]}`],
+  [/DinkusKit\.com did not approve this connection(?: \(([^)]*)\))?; it sent the owner to (another store page|DinkusKit's (\S*?))\.?$/,
+    match => `Connect: Approve refused (${CONSENT_REFUSALS.has(match[1]) ? match[1] : match[1] ? "another code" : "no code"}), sent to ${match[3] === undefined ? "another store page" : CONSENT_DESTINATIONS[match[3]] ?? "another DinkusKit.com page"}`],
+  [/did not approve this connection/, () => "Connect: Approve refused"],
   [/The plugin's page did not open after Approve/, () => "Connect: the plugin page didn't open after Approve"],
   [/used approval link/, () => "Connect: the used approval link check failed"],
   [/connect page has no Approve \w+ button/, () => "Connect: no Approve button"],
 ];
+
+// DinkusKit.com's refusal codes on its connect page (dinkuskit/dinkuskit src/account/connect.ts and the
+// store-proof checks it calls). Only these are printed; any other code is "another code".
+const CONSENT_REFUSALS = new Set([
+  "stale_organization", "organization_forbidden", "unsupported_protocol", "expired_token", "not_pending", "integration_unavailable",
+  "proof_expires_too_far", "invalid_client", "approval_failed", "connect_commerce_first", "grant_revoked", "ownership_conflict",
+  "origin_id_conflict", "invalid_proof_path", "invalid_proof_query", "invalid_proof_url", "private_proof_destination", "proof_empty",
+  "proof_fetch_blocked", "proof_malformed", "proof_redirect_rejected", "proof_timeout", "proof_too_large", "proof_unavailable",
+]);
+// Where DinkusKit.com sent the owner instead, by fixed name.
+const CONSENT_DESTINATIONS = { "/account/connect": "the connect page", "/account/sites": "Your Stores", "/account/sign-in": "sign-in" };
 
 // The plugins' own Connect banners (dinkuskit/commerce src/features/checkout/registry-connect.ts and
 // src/admin/connect.ts, dinkuskit/ship src/pages.ts), each with the fixed label the run page prints.

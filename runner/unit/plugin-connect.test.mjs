@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { COMMERCE_CONNECT, SHIP_CONNECT, connectPlugin, nextConnect, pressSent, readConnect, recordPresses } from "../support/plugin-connect.mjs";
+import { COMMERCE_CONNECT, SHIP_CONNECT, connectPlugin, emptyPasswordInput, nextConnect, pressSent, readConnect, recordPresses } from "../support/plugin-connect.mjs";
 import { shipStoreFromHref } from "../support/ship-settings.mjs";
 
 const SITE = "858232f9-bc07-44f6-b3de-259a8055a9dd";
@@ -135,4 +135,18 @@ test("presses are recorded only while the walk runs, from every page of the brow
   // The recorder lets go of the browser when the walk ends, even when it throws.
   await assert.rejects(recordPresses(context, settings, async () => { throw new Error("stopped"); }), /stopped/);
   assert.equal(listeners.size, 0);
+});
+
+test("only an empty password field counts as empty, so a stored connection sent back to the page fails", () => {
+  const had = globalThis.HTMLInputElement;
+  class HTMLInputElement { constructor(type, value) { this.type = type; this.value = value; } }
+  globalThis.HTMLInputElement = HTMLInputElement;
+  try {
+    assert.equal(emptyPasswordInput(new HTMLInputElement("password", "")), true);
+    assert.equal(emptyPasswordInput(new HTMLInputElement("password", "{\"siteId\":\"x\"}")), false);
+    assert.equal(emptyPasswordInput(new HTMLInputElement("text", "")), false);
+    assert.equal(emptyPasswordInput({ type: "password", value: "" }), false);
+  } finally {
+    if (had === undefined) delete globalThis.HTMLInputElement; else globalThis.HTMLInputElement = had;
+  }
 });

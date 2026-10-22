@@ -1,6 +1,6 @@
 import { expect, test } from "../support/browser.mjs";
 import { config } from "../support/env.mjs";
-import { SHIP_CONNECT, connectPlugin, recordPresses } from "../support/plugin-connect.mjs";
+import { SHIP_CONNECT, connectPlugin, emptyPasswordInput, recordPresses } from "../support/plugin-connect.mjs";
 import { note } from "../support/proof.mjs";
 import {
   CONNECTION, SHIP_PLUGIN_NAME, STORE_ID_LABEL, STORE_KEY_LABEL, openShippingPage, pluginIdFromSettingsUrl, pluginSettingsPath, readShippingPage,
@@ -29,6 +29,9 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.siteId, `Set DINKUS_E2E_SITE_ID to the store's DinkusKit site id (in ${config.settingsFile})`).not.toBe("");
   const soft = { soft: true };
   let connectRelease = false;
+  // Whether each password field was empty when the form drew, read before any step blanks it for the screenshots.
+  let connectionEmpty = false;
+  let storeKeyEmpty = false;
 
   // Without the form there is nothing to read, so this step stops the journey.
   await step(page, "The owner opens Ship settings from Plugins", async () => {
@@ -62,6 +65,10 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
       const connection = form.getByLabel(CONNECTION.label, { exact: true });
       await storeId.or(connection).first().waitFor({ timeout: 30_000 }).catch(() => {});
       connectRelease = !await storeId.count() && await connection.count() === 1;
+      // Only a yes/no comes back, so the proof never receives what a field holds.
+      if (connectRelease) connectionEmpty = await connection.evaluate(emptyPasswordInput);
+      const storeKey = form.getByLabel(STORE_KEY_LABEL, { exact: true });
+      if (await storeKey.count() === 1) storeKeyEmpty = await storeKey.evaluate(emptyPasswordInput);
       note("ship settings plugin", pluginId);
       return pluginSettingsPath(pluginId);
     } finally {
@@ -70,7 +77,7 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
   });
 
   if (connectRelease) {
-    await shipConnect(page);
+    await shipConnect(page, connectionEmpty);
     return;
   }
 
@@ -94,10 +101,8 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
       const field = page.getByLabel(STORE_KEY_LABEL, { exact: true });
       if ((await field.count()) !== 1) throw new Error(`Ship settings has no single ${STORE_KEY_LABEL} field.`);
       if (!await field.isVisible()) throw new Error("Store key field is not visible.");
-      // The value stays in the page. Only a yes/no comes back, so the proof never receives the key.
-      const emptyPassword = await field.evaluate(input =>
-        input instanceof HTMLInputElement && input.type === "password" && input.value === "");
-      if (!emptyPassword) throw new Error("Store key must be a visible empty password field. The test does not type, save, or record it.");
+      // Read when the form drew, before the first step blanked it: the proof never receives the key.
+      if (!storeKeyEmpty) throw new Error("Store key must be a visible empty password field. The test does not type, save, or record it.");
       return "Store key field is empty";
     } finally {
       await blankPasswordFields(page);
@@ -106,15 +111,13 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
 }));
 
 /** Ship's Connect release: the settings form holds only the DinkusKit connection, and the Shipping page connects. */
-async function shipConnect(page) {
+async function shipConnect(page, connectionEmpty) {
   await step(page, "Ship settings holds only the DinkusKit connection", async () => {
     try {
       const form = page.locator("#plugin-settings-form");
       if (await form.getByLabel(STORE_KEY_LABEL, { exact: true }).count()) throw new Error("Ship settings still has a Store key field beside the DinkusKit connection.");
-      // Only a yes/no comes back, so the proof never receives what the field holds.
-      const emptyPassword = await form.getByLabel(CONNECTION.label, { exact: true }).evaluate(input =>
-        input instanceof HTMLInputElement && input.type === "password" && input.value === "");
-      if (!emptyPassword) throw new Error("The DinkusKit connection must be an empty password field. The test does not type, save, or record it.");
+      // Read when the form drew, before the first step blanked it, so a stored connection sent back to the page fails here.
+      if (!connectionEmpty) throw new Error("The DinkusKit connection must be an empty password field. The test does not type, save, or record it.");
       if (!await form.getByText(CONNECTION.description, { exact: true }).isVisible()) throw new Error("The DinkusKit connection doesn't say Connect on the Shipping page manages it.");
       return "The form holds only the DinkusKit connection, empty and left alone. Store ID and Store key are gone.";
     } finally {

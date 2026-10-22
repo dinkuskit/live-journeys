@@ -166,10 +166,13 @@ test("a stopped Connect gets a fixed kind, never the page's own words", () => {
     "Connect: the plugin refused (other banner)");
   assert.equal(failureKind("Commerce still waits for DinkusKit.com after this run's Approve commerce: \"Not approved yet.\""),
     "Connect: still waiting after Approve and Check");
-  assert.equal(failureKind("DinkusKit.com did not approve this connection (store_proof_failed); it sent the owner to DinkusKit's /account/connect."),
-    "Connect: Approve refused (store_proof_failed), sent to DinkusKit's /account/connect");
+  assert.equal(failureKind("DinkusKit.com did not approve this connection (proof_unavailable); it sent the owner to DinkusKit's /account/connect."),
+    "Connect: Approve refused (proof_unavailable), sent to the connect page");
+  // A code or page DinkusKit.com doesn't name in its source is never printed.
+  assert.equal(failureKind("DinkusKit.com did not approve this connection (jane_doe_store_42); it sent the owner to DinkusKit's /account/private-thing."),
+    "Connect: Approve refused (another code), sent to another DinkusKit.com page");
   assert.equal(failureKind("DinkusKit.com did not approve this connection; it sent the owner to another store page."),
-    "Connect: Approve refused, sent to another store page");
+    "Connect: Approve refused (no code), sent to another store page");
   assert.equal(failureKind("This run's used approval link: Something else"), "Connect: the used approval link check failed");
 });
 
