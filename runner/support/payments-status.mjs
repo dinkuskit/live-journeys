@@ -2,6 +2,7 @@ import { APPROVE_PAYMENTS, AUTHORIZE_LINK, PAYMENTS_BETA_STATUS_PATH, betaPaymen
 import { config } from "./env.mjs";
 import { mailBaseline, waitForMail } from "./mail.mjs";
 import { filterPage } from "./request-policy.mjs";
+import { versionAtLeast } from "./store-plugins.mjs";
 
 // Payments status in the store admin. The menu label and path are the plugin's admin page
 // (dinkuskit/payments emdash-plugin.jsonc). The screen is Block Kit from
@@ -11,6 +12,9 @@ import { filterPage } from "./request-policy.mjs";
 // (src/pages/account/connect.astro). registry_session is written only by that flow.
 // Reconnect, Deny, Sign in again and Set up or resume Stripe are on those pages, and this journey
 // never presses them. Check connection is pressed only after this run's own approval.
+// From Payments 0.3.0 (dinkuskit/payments#76) the page checks status with the Store key in the plugin's
+// settings, the same key Commerce uses. Until the owner pastes it, the page shows the last check it read
+// or Payment status not checked, and asks for the store key. This journey never types a key.
 
 const CONNECTION_ID = /^[A-Za-z0-9_-]{1,200}$/;
 const SECRET = /sk_(?:test|live)_[0-9A-Za-z]+|rk_(?:test|live)_[0-9A-Za-z]+|whsec_[0-9A-Za-z]+|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/;
@@ -24,6 +28,12 @@ export const CONNECT_LINES = [
 ];
 const BANNERS = ["Not ready to sell", "Connected: Stripe test mode", "Payment status not checked"];
 const PRESSABLE = ["Connect", "Continue", "Check connection"];
+const STORE_KEY = /\bstore key\b/i;
+// The first Payments version that checks status with the Store key, so its page needs no sign-in to check.
+const STORE_KEY_READ = "0.3.0-0";
+
+/** Whether a Payments plugin version checks its status with the Store key in its settings. */
+export const readsWithStoreKey = version => versionAtLeast(version, STORE_KEY_READ);
 
 /** DinkusKit's connect page for one connection, and nothing else that could carry a token. */
 export function authorizeHref(href, account) {
@@ -50,6 +60,8 @@ export function redact(text) {
 /**
  * What the open Payments status page is saying, from its visible text. The connect line is the
  * unconfigured Connect payments step. Connected: Stripe test mode is the verified TEST banner.
+ * A missing or refused store key is named on the page, and Last checked opens the banner that shows
+ * an earlier check instead of a new one.
  */
 export function readStatusText(text) {
   const lines = String(text ?? "").split("\n").map(line => line.trim()).filter(Boolean);
@@ -61,6 +73,8 @@ export function readStatusText(text) {
     connect,
     connectedTest: banner === "Connected: Stripe test mode" || connect.includes("Connected: Stripe test mode"),
     asksToConnect: CONNECT_LINES.some(line => connect.includes(line)),
+    asksForStoreKey: lines.some(line => STORE_KEY.test(line)),
+    lastCheck: lines.some(line => line.startsWith("Last checked ")),
   };
 }
 
@@ -70,11 +84,29 @@ export function readStatusText(text) {
  * approved. Never Reconnect or Sign in again (both start a new connect), Check connection on a
  * connection this run didn't make, Deny, Set up or resume Stripe, or any other control, so the beta
  * store keeps its DinkusKit.com account and Stripe TEST account.
- * `approved` means DinkusKit's Approve payments was already pressed this run.
+ * `approved` means DinkusKit's Approve payments was already pressed this run. `storeKeyRead` means the
+ * page is Payments 0.3.0 or later, which checks with the Store key each time it opens: there a page that
+ * shows only its last check, or offers Sign in again, hasn't checked. A page that asks for the store key
+ * hasn't either, whatever its version.
  */
-export function nextPress(reading, controls, { approved = false } = {}) {
+export function nextPress(reading, controls, { approved = false, storeKeyRead = false } = {}) {
   const buttons = controls?.buttons ?? [];
   const links = controls?.links ?? [];
+  if (reading?.asksForStoreKey) {
+    return {
+      action: "blocked",
+      because: "Payments status asks for the store key, so it didn't check payment setup. The owner pastes the Store key in dinkus-payments-beta's settings; this journey never types it.",
+    };
+  }
+  if (storeKeyRead && reading?.lastCheck) {
+    return { action: "blocked", because: "Payments status shows only its last check. From Payments 0.3.0 it checks with the Store key each time it opens." };
+  }
+  if (storeKeyRead && buttons.includes("Sign in again")) {
+    return {
+      action: "blocked",
+      because: "Payments status offers Sign in again when it opens, which this journey leaves to the owner. From Payments 0.3.0 a connected store's status check needs only the Store key.",
+    };
+  }
   if (reading?.connectedTest) {
     return {
       action: "leave",
