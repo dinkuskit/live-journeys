@@ -2,7 +2,7 @@ import { test } from "../support/browser.mjs";
 import { config } from "../support/env.mjs";
 import { note } from "../support/proof.mjs";
 import {
-  approvePayments, authorizeLink, nextPress, openPaymentsStatus, paymentsStatusAdmin, pressNamed, readPaymentsScreen, redact,
+  approvePayments, authorizeLink, nextPress, openPaymentsStatus, paymentsStatusAdmin, pressNamed, readPaymentsScreen, readsWithStoreKey, redact,
 } from "../support/payments-status.mjs";
 import { pluginVersion } from "../support/store-plugins.mjs";
 import { notePlugins } from "../support/store-admin.mjs";
@@ -18,18 +18,22 @@ test.afterEach(async ({ page }) => {
 // The owner opens Payments status. When the page asks to connect a DinkusKit account, the owner
 // presses Connect, approves payments at DinkusKit, and comes back. A page that already shows
 // Connected: Stripe test mode is left as it is: Reconnect and Set up or resume Stripe stay unpressed.
+// From Payments 0.3.0 the page checks with the Store key the owner pasted in the plugin's settings, so it
+// must show Connected: Stripe test mode when it opens, without Sign in again or only its last check.
 test("Payments status", { tag: "@running" }, journey(async ({ page }) => {
   // Connect and Approve payments change which DinkusKit account the store's Payments answers to.
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
     throw new Error(`Only the beta store, ${BETA_STORE.store} (site ${BETA_STORE.siteId}), gets Payments connected; this run is set to ${config.store || "no store"} (site ${config.siteId || "not set"}).`);
   }
   let statusUrl;
+  let storeKeyRead = false;
 
   await step(page, "The Payments status page opens in the store admin", async () => {
     statusUrl = await paymentsStatusAdmin(page);
     await openPaymentsStatus(page, statusUrl);
     const plugin = new URL(statusUrl).pathname.split("/")[4];
     const version = pluginVersion(await notePlugins(page), plugin);
+    storeKeyRead = readsWithStoreKey(version);
     note("payments status plugin", `${plugin} ${version ?? "(version not shown)"}`);
     return `Payment setup is open${version ? ` (${version})` : ""}`;
   });
@@ -46,7 +50,7 @@ test("Payments status", { tag: "@running" }, journey(async ({ page }) => {
     let previous = "";
     for (let turn = 0; turn < 6; turn++) {
       const screen = await readPaymentsScreen(page);
-      const decision = nextPress(screen.reading, screen.controls, { approved });
+      const decision = nextPress(screen.reading, screen.controls, { approved, storeKeyRead });
       if (decision.action === "leave") return decision.because;
       if (decision.action === "blocked") throw new Error(decision.because);
       const mark = `${decision.action}:${decision.name ?? ""}\n${screen.reading.banner}\n${screen.reading.connect}`;
