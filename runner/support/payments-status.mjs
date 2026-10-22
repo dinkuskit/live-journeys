@@ -1,6 +1,7 @@
 import { AUTHORIZE_LINK, PAYMENTS_BETA_STATUS_PATH, betaPaymentsStatusLinks } from "./connect-dinkuskit.mjs";
 import { approveAtDinkusKit, authorizeHref, failClosed, redact, showsSecret } from "./dinkuskit-approve.mjs";
 import { config } from "./env.mjs";
+import { pressAndAwait } from "./plugin-connect.mjs";
 import { versionAtLeast } from "./store-plugins.mjs";
 
 // Payments status in the store admin. The menu label and path are the plugin's admin page
@@ -169,13 +170,8 @@ export async function readPaymentsScreen(page) {
 /** Presses one connect button. Any other name is refused. */
 export async function pressNamed(page, name) {
   if (!PRESSABLE.includes(name)) throw new Error("That control is not part of the Payments status connect path.");
-  const main = page.locator("main");
-  const before = await main.innerText();
-  await main.getByRole("button", { name, exact: true }).click();
-  await page.waitForFunction(previous => {
-    const shown = document.querySelector("main");
-    return shown && shown.innerText !== previous;
-  }, before, { timeout: 60_000 }).catch(() => {});
+  // The loop opens the page again right after, which would cut off a press still on its way.
+  await pressAndAwait(page, page.locator("main").getByRole("button", { name, exact: true }), name, "Payments");
 }
 
 /** The Authorize link's address, when it is DinkusKit's connect page and nothing else. */

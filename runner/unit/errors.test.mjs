@@ -181,3 +181,13 @@ test("a Connect press that failed or changed nothing gets a fixed kind", () => {
   assert.equal(failureKind("Commerce's Connect press got no answer within a minute."), "Connect: a press got no answer");
   assert.equal(failureKind("Commerce's page didn't change after Connect."), "Connect: the page didn't change after Connect");
 });
+
+test("a stopped Payments status gets a fixed kind, never the page's own words", () => {
+  assert.equal(failureKind('Payments status still says "Connect payments: something private" after Connect again.'), "Payments: the page didn't move on after Connect again");
+  assert.equal(failureKind('Payments status still says "x" after Approve payments.'), "Payments: the page didn't move on after Approve payments");
+  assert.equal(failureKind("Payments status still asks to select Connect again after this run's Approve payments, so the plugin has no store key from DinkusKit.com."),
+    "Payments: still asks for Connect again after Approve");
+  assert.equal(failureKind("The store is connected, but Payments status doesn't show Connected: Stripe test mode. It offers Continue, which this journey leaves to the owner."),
+    "Payments: connected, but not Stripe test mode");
+  assert.equal(failureKind("Payments's Connect again press got HTTP 502."), "an answer of HTTP 502");
+});

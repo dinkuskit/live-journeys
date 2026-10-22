@@ -152,12 +152,21 @@ export async function mainText(page, plugin) {
 
 /** Presses the one button named `name` in the page's main area and waits for the page to answer. */
 export async function pressButton(page, name, plugin) {
-  const main = page.locator("main");
-  const button = main.getByRole("button", { name, exact: true });
+  const button = page.locator("main").getByRole("button", { name, exact: true });
   const count = await button.count();
   if (count !== 1) throw new Error(`${plugin}'s page has ${count} buttons named ${name}, not one.`);
+  await pressAndAwait(page, button, name, plugin);
+}
+
+/**
+ * Clicks `button` and waits for the store's answer to the press, then for the page to draw it. A run
+ * that reads, or opens another page, before the answer arrives sees the page as it was, or cuts the press
+ * off. The press goes to the plugin's admin route as a block_action; only its status is kept. Fails on
+ * an error status, no answer, or a Connect that left the page as it was.
+ */
+export async function pressAndAwait(page, button, name, plugin) {
+  const main = page.locator("main");
   const before = await main.innerText();
-  // The press goes to the plugin's admin route as a block_action; only its status is kept.
   const answer = page.waitForResponse(response => {
     const request = response.request();
     if (request.method() !== "POST") return false;
