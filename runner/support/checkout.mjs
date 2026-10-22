@@ -160,7 +160,8 @@ async function findPhysicalProduct(page) {
   const paths = await page.locator("a[data-product-link]").evaluateAll(links => links.map(link => link.getAttribute("href")));
   for (const path of [...paths, listing]) {
     await page.goto(new URL(path, config.store).href);
-    const ids = await page.locator("[data-add-to-cart]").evaluateAll(buttons => buttons.map(button => button.getAttribute("data-add-to-cart")));
+    // From Template Store #125 a product sold only by its options also draws a locked Add to cart, which this journey can't use.
+    const ids = await page.locator("[data-add-to-cart]").evaluateAll(buttons => buttons.filter(button => !button.disabled).map(button => button.getAttribute("data-add-to-cart")));
     for (const id of ids.filter(Boolean)) {
       const response = await get(page, `${config.store}/api/guest-cart/snapshot?ids=${encodeURIComponent(id)}`);
       const product = response.ok() ? (await response.json()).products?.[0] : null;
