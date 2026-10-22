@@ -135,7 +135,7 @@ still has deployed now. For other test stores, use the local steps below.
      runs before Manage products, so Manage products works with the whole
      catalog in place.
    - The five setup journeys run first, in their numbered order: Install the
-     Registry plugins, DinkusKit.com account, Commerce settings, Payments status
+     Registry plugins, DinkusKit.com account, Payments status, Commerce settings
      and Ship settings. From the Connect releases nothing is pasted: on
      beta.sm0ky.dev a run presses Connect once in each plugin that isn't
      connected yet, Commerce first, and approves it on DinkusKit.com with the

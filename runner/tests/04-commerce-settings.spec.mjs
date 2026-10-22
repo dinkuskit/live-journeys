@@ -51,7 +51,9 @@ async function getCheckoutSettings(page) {
 // The owner opens Commerce's settings from Plugins. Before Commerce's Connect release the Store key field
 // is shown empty and left alone. From that release the form keeps only the DinkusKit connection, and the
 // owner connects Commerce on its own Settings page: Connect, then Approve commerce at DinkusKit.com, only
-// on the beta store and only when Commerce isn't connected, then Get checkout settings.
+// on the beta store and only when Commerce isn't connected. Then, on the beta store only, Get checkout
+// settings. DinkusKit.com gives them only once Payments is connected, so this journey runs after Payments
+// status.
 test("Commerce settings", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   let plugin;
@@ -156,11 +158,13 @@ test("Commerce settings", { tag: "@running" }, journey(async ({ page }) => {
     return `Connected to DinkusKit.com, store ${result.siteId}${result.connected ? ", after this run's Connect and Approve commerce" : ". Connect again was left alone"}.`;
   });
 
+  // Get checkout settings writes what DinkusKit.com sends into Commerce's settings.
+  if (!mayConnect) return;
   await step(page, "Get checkout settings brings this store's checkout settings", async () => {
     // A fresh page, so a toast from Connect's own fetch can't pass for this press's answer.
     await openCommercePage(page, url);
     let refused = await getCheckoutSettings(page);
-    if (refused === KEY_UNKNOWN && mayConnect) {
+    if (refused === KEY_UNKNOWN) {
       // DinkusKit.com stopped this key (Disconnect on Your Stores); Connect again gets Commerce a new one.
       await pressButton(page, "Connect again", "Commerce");
       thisStore(await connect(true));
