@@ -1,6 +1,7 @@
-import { consentReading } from "./connect-dinkuskit.mjs";
+import { CONSENT_HEADING, NO_LONGER_WAITING, consentReading, wrongConsentRefusals } from "./connect-dinkuskit.mjs";
 import { config } from "./env.mjs";
 import { mailBaseline, waitForMail } from "./mail.mjs";
+import { note } from "./proof.mjs";
 import { filterPage } from "./request-policy.mjs";
 
 // The approval every DinkusKit Connect ends with. Payments, Commerce and Ship each start a Connect from their
@@ -8,6 +9,8 @@ import { filterPage } from "./request-policy.mjs";
 // one connection (dinkuskit/dinkuskit src/pages/account/connect.astro). Its button is "Approve <service>";
 // Deny is never pressed. DinkusKit.com then sends the owner back to the plugin's page, whose own load
 // finishes the Connect. The connect address is a bearer for that approval, so it is never written down.
+// Before Approve, the consent check is also tried as another store and as each other plugin, and must refuse.
+// After it, the same address is opened once more and must no longer be waiting for consent.
 
 const CONNECTION_ID = /^[A-Za-z0-9_-]{1,200}$/;
 const SECRET = /dk_store_[A-Za-z0-9_-]{20,}|sk_(?:test|live)_[0-9A-Za-z]+|rk_(?:test|live)_[0-9A-Za-z]+|whsec_[0-9A-Za-z]+|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/;
@@ -76,12 +79,16 @@ export async function approveAtDinkusKit(page, { link, href, service, landing, r
       await consent.goto(href);
       await consent.waitForLoadState("domcontentloaded");
     }
-    const heading = consent.getByRole("heading", { name: "Connect this store?", exact: true });
+    const heading = consent.getByRole("heading", { name: CONSENT_HEADING, exact: true });
     await heading.waitFor({ timeout: 30_000 }).catch(async () => {
       await failClosed(consent, "DinkusKit did not show Connect this store?.");
     });
-    const reading = consentReading(await consent.locator("main").innerText(), config.store, service);
+    const text = await consent.locator("main").innerText();
+    const reading = consentReading(text, config.store, service);
     if (!reading.ok) await failClosed(consent, reading.reason);
+    const wrong = wrongConsentRefusals(text, config.store, service);
+    if (wrong.error) await failClosed(consent, wrong.error);
+    note(`${service} consent check`, wrong.summary);
     const approve = consent.getByRole("button", { name: approveName, exact: true });
     if (!await approve.count()) {
       const said = (await consent.locator("body").innerText()).split("\n").map(line => line.trim()).find(Boolean) ?? "";
@@ -109,5 +116,28 @@ export async function approveAtDinkusKit(page, { link, href, service, landing, r
     });
   } finally {
     if (popup) await popup.close().catch(() => {});
+  }
+  note(`${service} used approval link`, await usedLinkRefused(page, href, service));
+}
+
+/**
+ * Opens this run's connect address again, in a page of its own, once Approve <service> has been used.
+ * DinkusKit.com must say the connection is no longer waiting for consent, and offer no Approve.
+ */
+async function usedLinkRefused(page, href, service) {
+  const check = await page.context().newPage();
+  try {
+    await filterPage(check, config);
+    await check.goto(href);
+    await check.getByRole("heading", { name: CONSENT_HEADING, exact: true }).waitFor({ timeout: 30_000 }).catch(async () => {
+      await failClosed(check, `DinkusKit did not show ${CONSENT_HEADING} for this run's used approval link.`);
+    });
+    const reading = consentReading(await check.locator("main").innerText(), config.store, service);
+    const approve = await check.getByRole("button", { name: `Approve ${service}`, exact: true }).count();
+    if (reading.ok || approve) await failClosed(check, `DinkusKit.com still offers Approve ${service} on this run's used approval link.`);
+    if (reading.reason !== NO_LONGER_WAITING) await failClosed(check, `This run's used approval link: ${reading.reason}`);
+    return "No longer waiting for consent, and no Approve.";
+  } finally {
+    await check.close().catch(() => {});
   }
 }

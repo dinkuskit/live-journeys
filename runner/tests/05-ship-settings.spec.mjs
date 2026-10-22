@@ -1,6 +1,6 @@
 import { expect, test } from "../support/browser.mjs";
 import { config } from "../support/env.mjs";
-import { SHIP_CONNECT, connectPlugin } from "../support/plugin-connect.mjs";
+import { SHIP_CONNECT, connectPlugin, recordPresses } from "../support/plugin-connect.mjs";
 import { note } from "../support/proof.mjs";
 import {
   CONNECTION, SHIP_PLUGIN_NAME, STORE_ID_LABEL, STORE_KEY_LABEL, openShippingPage, pluginIdFromSettingsUrl, pluginSettingsPath, readShippingPage,
@@ -18,7 +18,8 @@ import { journey, step } from "../support/steps.mjs";
 // Playwright's failure notes, as Commerce settings does.
 // From Ship's Connect release the form holds only the DinkusKit connection, and the Shipping page is where
 // Ship connects: Connect, then Approve ship at DinkusKit.com, only on the beta store and only when Ship
-// isn't connected. Commerce connects first, earlier in the run.
+// isn't connected. Commerce connects first, earlier in the run. Before that, the same Connect runs as it
+// would on any other store, and must press nothing.
 test.afterEach(async ({ page }) => {
   await page.goto("about:blank").catch(() => {});
 });
@@ -121,18 +122,35 @@ async function shipConnect(page) {
     }
   });
 
+  let url;
+  const connect = mayConnect => connectPlugin(page, {
+    texts: SHIP_CONNECT,
+    mayConnect,
+    open: async () => { await openShippingPage(page, url); },
+    read: shown => readShippingPage(shown, config.ship),
+    landing: new URL(url).pathname,
+    ready: shippingDrawn,
+  });
+
+  // A run on any other store may not press Connect, Cancel or Approve. The same walk with that permission
+  // must leave the browser sending no press and no settings save.
+  await step(page, "On any other store, the Shipping page presses nothing", async () => {
+    url = await shippingAdmin(page);
+    const { outcome, sent } = await recordPresses(page.context(), config, async () => {
+      await openShippingPage(page, url);
+      return connect(false).then(
+        ({ siteId }) => `Ship is already connected, to store ${siteId}`,
+        error => `The run stopped before pressing anything: ${error.message}`);
+    });
+    if (sent.length) throw new Error(`Without the beta store's permission, the browser still sent ${sent.join(", ")}.`);
+    note("ship on another store", outcome);
+    return `${outcome}. Nothing was pressed or saved.`;
+  });
+
   await step(page, "The Shipping page is connected to this store", async () => {
-    const url = await shippingAdmin(page);
     await openShippingPage(page, url);
     // Connect and Approve ship change which DinkusKit.com store Ship answers to.
-    const result = await connectPlugin(page, {
-      texts: SHIP_CONNECT,
-      mayConnect: config.store === BETA_STORE.store && config.siteId === BETA_STORE.siteId,
-      open: async () => { await openShippingPage(page, url); },
-      read: shown => readShippingPage(shown, config.ship),
-      landing: new URL(url).pathname,
-      ready: shippingDrawn,
-    });
+    const result = await connect(config.store === BETA_STORE.store && config.siteId === BETA_STORE.siteId);
     if (result.siteId !== config.siteId) throw new Error(`Ship is connected to DinkusKit.com store ${result.siteId}, not this store's ${config.siteId}.`);
     note("ship connect", result.connected ? "connected this run" : "already connected");
     return `Open Ship goes to this store's orders, store ${result.siteId}${result.connected ? ", after this run's Connect and Approve ship" : ""}.`;

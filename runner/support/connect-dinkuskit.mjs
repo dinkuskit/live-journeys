@@ -7,15 +7,20 @@ export const CONNECT_INSTRUCTION = "Install the DinkusKit Payments plugin in you
 export const COMMERCE_INSTRUCTION = "Install the DinkusKit Commerce plugin in your EmDash store, open Commerce Settings and press Connect. You'll come back here to approve it. Then do the same in Payments and Ship.";
 
 // /account/connect. The service name is the registered id ("payments", "commerce", "ship"), not a label,
-// and the button is "Approve <service>". What each service gets is the start of its own paragraph, since
-// DinkusKit.com has added words after Payments' (dinkuskit#70).
+// and the button is "Approve <service>". What each service gets is the start of its own paragraph. From
+// dinkuskit#70, Payments' own key can start checkout payments, and its paragraph says so; the paragraph
+// before it said Payments got no checkout access, and no longer counts.
 export const CONSENT_HEADING = "Connect this store?";
-export const CONSENT_PAYMENTS = "Payments status and processor setup access; this does not grant checkout access.";
+export const CONSENT_PAYMENTS = "Payments status and processor setup access. The Payments plugin also gets its own store key, which can start checkout payments for this store (payments:checkout)";
 const CONSENTS = {
   payments: { label: "Payments", says: CONSENT_PAYMENTS },
   commerce: { label: "Commerce", says: "Commerce gets its own store key." },
   ship: { label: "Ship", says: "The Ship plugin gets its own store key" },
 };
+// What the consent check says once a connection has been used, cancelled or denied.
+export const NO_LONGER_WAITING = "This connection is no longer waiting for consent. Approve was not pressed.";
+// Any store but this one, for trying the consent check as the wrong store. .invalid never resolves.
+const ANOTHER_STORE = "https://another-store.invalid";
 
 // Your Stores (/account/sites) from dinkuskit#70: each store's "Connected plugins" list has a line per
 // plugin, "Commerce plugin: connected <time>, last used <time>" or "Commerce plugin: not connected. Press
@@ -68,8 +73,21 @@ export function consentReading(text, store, service = "payments") {
   if (!lines.includes(`Service: ${service}`)) return { ok: false, reason: `The page is not asking to connect ${label}. Approve was not pressed.` };
   if (!text.includes(says)) return { ok: false, reason: `The page does not describe ${label} access the way DinkusKit.com does. Approve was not pressed.` };
   if (!lines.includes(`Site origin: ${originOf(store)}`)) return { ok: false, reason: "The page is not this store. Approve was not pressed." };
-  if (lines.includes("This connection is no longer waiting for consent.")) return { ok: false, reason: "This connection is no longer waiting for consent. Approve was not pressed." };
+  if (lines.includes("This connection is no longer waiting for consent.")) return { ok: false, reason: NO_LONGER_WAITING };
   return { ok: true };
+}
+
+/**
+ * The consent check tried on the same page as another store, and as each other plugin, before Approve is
+ * pressed. Every one must refuse, or the check that keeps Approve unpressed isn't doing its job:
+ * { summary } says what it refused, { error } names the wrong approval it would have let through.
+ */
+export function wrongConsentRefusals(text, store, service) {
+  if (consentReading(text, ANOTHER_STORE, service).ok) return { error: `The consent check would approve this page for another store. Approve ${service} was not pressed.` };
+  const others = Object.keys(CONSENTS).filter(name => name !== service);
+  const accepted = others.find(other => consentReading(text, store, other).ok);
+  if (accepted) return { error: `The consent check would approve this ${service} page as ${accepted}. Approve ${service} was not pressed.` };
+  return { summary: `Refused as another store and as ${others.join(" and ")}.` };
 }
 
 /**

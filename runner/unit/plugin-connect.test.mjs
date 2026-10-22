@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { COMMERCE_CONNECT, SHIP_CONNECT, connectPlugin, nextConnect, readConnect } from "../support/plugin-connect.mjs";
+import { COMMERCE_CONNECT, SHIP_CONNECT, connectPlugin, nextConnect, pressSent, readConnect, recordPresses } from "../support/plugin-connect.mjs";
 import { shipStoreFromHref } from "../support/ship-settings.mjs";
 
 const SITE = "858232f9-bc07-44f6-b3de-259a8055a9dd";
@@ -91,6 +91,48 @@ test("a run that may not connect presses nothing on a plugin that isn't connecte
   const read = async () => ({ reading: asking, buttons: ["Connect"] });
   // The page is never touched: a press would need it.
   await assert.rejects(connectPlugin(null, { texts: COMMERCE_CONNECT, read }), /only the beta store, https:\/\/beta\.sm0ky\.dev, gets a plugin connected/);
+  // A Connect left waiting is not cancelled either: Cancel is a press too.
+  const waiting = readConnect(commercePage(["Approve at DinkusKit.com", PENDING]), COMMERCE_CONNECT);
+  await assert.rejects(connectPlugin(null, { texts: COMMERCE_CONNECT, read: async () => ({ reading: waiting, buttons: ["Check", "Cancel"] }) }), /only the beta store/);
   const connected = readConnect(commercePage([`Connected to DinkusKit.com, store ${SITE}.`]), COMMERCE_CONNECT);
   assert.deepEqual(await connectPlugin(null, { texts: COMMERCE_CONNECT, read: async () => ({ reading: connected, buttons: [] }) }), { siteId: SITE, connected: false });
+});
+
+test("a press or settings save counts as sent, and a plugin page's own load does not", () => {
+  const settings = { store: "https://beta.sm0ky.dev", account: "https://dinkuskit.com" };
+  const sent = (method, url, body) => pressSent({ method, url, body }, settings);
+  const admin = "https://beta.sm0ky.dev/_emdash/api/plugins/r_commerce/admin";
+  assert.equal(sent("POST", admin, JSON.stringify({ type: "page_load", page: "/settings" })), null);
+  assert.equal(sent("POST", admin, JSON.stringify({ type: "panel_load" })), null);
+  assert.equal(sent("POST", admin, JSON.stringify({ type: "block_action", action_id: "connect.start" })), "block_action /_emdash/api/plugins/r_commerce/admin");
+  assert.equal(sent("POST", admin, JSON.stringify({ type: "form_submit", action_id: "settings", values: {} })), "form_submit /_emdash/api/plugins/r_commerce/admin");
+  assert.equal(sent("GET", admin), null);
+  assert.equal(sent("PUT", "https://beta.sm0ky.dev/_emdash/api/admin/plugins/r_commerce/settings", "{}"), "PUT /_emdash/api/admin/plugins/r_commerce/settings");
+  // Anything but a read at DinkusKit.com is sent, and named without its query, where a connection id would be.
+  assert.equal(sent("POST", "https://dinkuskit.com/account/connect?connection_id=abc", "action=approve"), "POST /account/connect at DinkusKit.com");
+  assert.equal(sent("GET", "https://dinkuskit.com/account/connect?connection_id=abc"), null);
+  // Another site's requests, a store request that isn't JSON, and an address that doesn't parse are not presses.
+  assert.equal(sent("POST", "https://api.stripe.com/v1/payment_methods", "card=x"), null);
+  assert.equal(sent("POST", "https://beta.sm0ky.dev/_emdash/api/auth/session", "not json"), null);
+  assert.equal(sent("POST", "not a url", "{}"), null);
+});
+
+test("presses are recorded only while the walk runs, from every page of the browser", async () => {
+  const listeners = new Set();
+  const context = { on: (event, fn) => listeners.add(fn), off: (event, fn) => listeners.delete(fn) };
+  const request = (method, url, body = null) => ({ method: () => method, url: () => url, postData: () => body });
+  const emit = r => { for (const fn of listeners) fn(r); };
+  const settings = { store: "https://beta.sm0ky.dev", account: "https://dinkuskit.com" };
+  const quiet = await recordPresses(context, settings, async () => {
+    emit(request("POST", "https://beta.sm0ky.dev/_emdash/api/plugins/r_ship/admin", JSON.stringify({ type: "page_load", page: "/shipping" })));
+    return "read only";
+  });
+  assert.deepEqual(quiet, { outcome: "read only", sent: [] });
+  const pressed = await recordPresses(context, settings, async () => {
+    emit(request("POST", "https://beta.sm0ky.dev/_emdash/api/plugins/r_ship/admin", JSON.stringify({ type: "block_action", action_id: "connect" })));
+  });
+  assert.deepEqual(pressed.sent, ["block_action /_emdash/api/plugins/r_ship/admin"]);
+  // The recorder lets go of the browser when the walk ends, even when it throws.
+  await assert.rejects(recordPresses(context, settings, async () => { throw new Error("stopped"); }), /stopped/);
+  assert.equal(listeners.size, 0);
 });

@@ -3,7 +3,7 @@ import {
   CHECKOUT_SETTINGS, CONNECTION, KEY_UNKNOWN, SETTINGS_UP_TO_DATE, STORE_KEY, commerceSettings, openCommercePage, readCommercePage,
 } from "../support/commerce-settings.mjs";
 import { config } from "../support/env.mjs";
-import { COMMERCE_CONNECT, connectPlugin, pressButton } from "../support/plugin-connect.mjs";
+import { COMMERCE_CONNECT, connectPlugin, pressButton, recordPresses } from "../support/plugin-connect.mjs";
 import { note } from "../support/proof.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { BETA_STORE } from "../support/store-updates.mjs";
@@ -53,7 +53,7 @@ async function getCheckoutSettings(page) {
 // owner connects Commerce on its own Settings page: Connect, then Approve commerce at DinkusKit.com, only
 // on the beta store and only when Commerce isn't connected. Then, on the beta store only, Get checkout
 // settings. DinkusKit.com gives them only once Payments is connected, so this journey runs after Payments
-// status.
+// status. Before any of that, the same Connect runs as it would on any other store, and must press nothing.
 test("Commerce settings", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   let plugin;
@@ -139,8 +139,8 @@ test("Commerce settings", { tag: "@running" }, journey(async ({ page }) => {
   // Connect and Approve commerce change which DinkusKit.com store Commerce answers to.
   const mayConnect = config.store === BETA_STORE.store && config.siteId === BETA_STORE.siteId;
   const url = `${config.store}${plugin.page}`;
-  const connect = started => connectPlugin(page, {
-    texts: COMMERCE_CONNECT, started, mayConnect,
+  const connect = (started, allowed = mayConnect) => connectPlugin(page, {
+    texts: COMMERCE_CONNECT, started, mayConnect: allowed,
     open: async () => { await openCommercePage(page, url); },
     read: readCommercePage,
     landing: plugin.page,
@@ -149,6 +149,20 @@ test("Commerce settings", { tag: "@running" }, journey(async ({ page }) => {
   const thisStore = ({ siteId }) => {
     if (siteId !== config.siteId) throw new Error(`Commerce is connected to DinkusKit.com store ${siteId}, not this store's ${config.siteId || "(DINKUS_E2E_SITE_ID not set)"}.`);
   };
+
+  // A run on any other store may not press Connect, Cancel or Approve, and skips Get checkout settings. The
+  // same walk with that permission must leave the browser sending no press and no settings save.
+  await step(page, "On any other store, Commerce Settings presses nothing", async () => {
+    const { outcome, sent } = await recordPresses(page.context(), config, async () => {
+      if (!await openCommercePage(page, url)) throw new Error("Commerce Settings has no DinkusKit section, though the settings form is Commerce's Connect release.");
+      return connect(false, false).then(
+        ({ siteId }) => `Commerce is already connected, to store ${siteId}, and Get checkout settings was left alone`,
+        error => `The run stopped before pressing anything: ${error.message}`);
+    });
+    if (sent.length) throw new Error(`Without the beta store's permission, the browser still sent ${sent.join(", ")}.`);
+    note("commerce on another store", outcome);
+    return `${outcome}. Nothing was pressed or saved.`;
+  });
 
   await step(page, "Commerce Settings shows Commerce connected to this store", async () => {
     if (!await openCommercePage(page, url)) throw new Error("Commerce Settings has no DinkusKit section, though the settings form is Commerce's Connect release.");

@@ -93,6 +93,45 @@ export function nextConnect(reading, buttons, { plugin, service, started = false
   return blocked(`${plugin}'s page shows no connection to DinkusKit.com and no Connect.`);
 }
 
+const READS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * What a request the browser sent would change, or null: a press on a plugin page (Block Kit's block_action
+ * or form_submit), a save of a plugin's settings form, or anything but a read sent to DinkusKit.com. A
+ * plugin page's own load (page_load) changes nothing the run chose. Only the method and path are named.
+ */
+export function pressSent({ method, url, body }, { store, account }) {
+  if (READS.has(String(method).toUpperCase())) return null;
+  let target;
+  try { target = new URL(url); } catch { return null; }
+  if (target.origin === new URL(account).origin) return `${method} ${target.pathname} at DinkusKit.com`;
+  if (target.origin !== new URL(store).origin) return null;
+  let path = target.pathname;
+  try { path = decodeURIComponent(path); } catch {}
+  if (/^\/_emdash\/api\/admin\/plugins\/[^/]+\/settings$/.test(path)) return `${method} ${path}`;
+  let type = null;
+  try { type = JSON.parse(body ?? "")?.type ?? null; } catch {}
+  return type === "block_action" || type === "form_submit" ? `${type} ${path}` : null;
+}
+
+/**
+ * Runs `run` and lists each press or change the browser sent meanwhile, from any page of the run's browser
+ * (pressSent says which count). Returns { outcome: what run returned, sent }.
+ */
+export async function recordPresses(context, settings, run) {
+  const sent = [];
+  const onRequest = request => {
+    const press = pressSent({ method: request.method(), url: request.url(), body: request.postData() }, settings);
+    if (press) sent.push(press);
+  };
+  context.on("request", onRequest);
+  try {
+    return { outcome: await run(), sent };
+  } finally {
+    context.off("request", onRequest);
+  }
+}
+
 /** The visible buttons in the page's main area. */
 export async function mainButtons(page) {
   return (await page.locator("main").getByRole("button").allInnerTexts()).map(label => label.trim()).filter(Boolean);
