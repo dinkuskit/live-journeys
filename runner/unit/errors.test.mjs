@@ -158,3 +158,17 @@ test("the run keeps no Playwright trace or page snapshot, and no journey turns a
     assert.doesNotMatch(readFileSync(new URL(`../tests/${file}`, import.meta.url), "utf8"), /\btrace\s*:/, file);
   }
 });
+
+test("a stopped Connect gets a fixed kind, never the page's own words", () => {
+  assert.equal(failureKind('Commerce still asks to connect after this run\'s Connect: "Connect did not finish. Press Connect to start again."'),
+    "Connect: the plugin refused (did not finish)");
+  assert.equal(failureKind('Commerce still asks to connect after this run\'s Connect: "Something the page said about https://x.test/?secret=1"'),
+    "Connect: the plugin refused (other banner)");
+  assert.equal(failureKind("Commerce still waits for DinkusKit.com after this run's Approve commerce: \"Not approved yet.\""),
+    "Connect: still waiting after Approve and Check");
+  assert.equal(failureKind("DinkusKit.com did not approve this connection (store_proof_failed); it sent the owner to DinkusKit's /account/connect."),
+    "Connect: Approve refused (store_proof_failed), sent to DinkusKit's /account/connect");
+  assert.equal(failureKind("DinkusKit.com did not approve this connection; it sent the owner to another store page."),
+    "Connect: Approve refused, sent to another store page");
+  assert.equal(failureKind("This run's used approval link: Something else"), "Connect: the used approval link check failed");
+});
