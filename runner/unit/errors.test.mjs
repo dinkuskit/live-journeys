@@ -172,3 +172,9 @@ test("a stopped Connect gets a fixed kind, never the page's own words", () => {
     "Connect: Approve refused, sent to another store page");
   assert.equal(failureKind("This run's used approval link: Something else"), "Connect: the used approval link check failed");
 });
+
+test("a Connect press that failed or changed nothing gets a fixed kind", () => {
+  assert.equal(failureKind("Commerce's Connect press got HTTP 500."), "an answer of HTTP 500");
+  assert.equal(failureKind("Commerce's Connect press got no answer within a minute."), "Connect: a press got no answer");
+  assert.equal(failureKind("Commerce's page didn't change after Connect."), "Connect: the page didn't change after Connect");
+});

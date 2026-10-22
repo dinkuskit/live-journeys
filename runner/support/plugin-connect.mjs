@@ -151,11 +151,22 @@ export async function pressButton(page, name, plugin) {
   const count = await button.count();
   if (count !== 1) throw new Error(`${plugin}'s page has ${count} buttons named ${name}, not one.`);
   const before = await main.innerText();
+  // The press goes to the plugin's admin route as a block_action; only its status is kept.
+  const answer = page.waitForResponse(response => {
+    const request = response.request();
+    if (request.method() !== "POST") return false;
+    try { return JSON.parse(request.postData() ?? "")?.type === "block_action"; } catch { return false; }
+  }, { timeout: 60_000 }).catch(() => null);
   await button.click();
+  const response = await answer;
+  if (!response) throw new Error(`${plugin}'s ${name} press got no answer within a minute.`);
+  if (!response.ok()) throw new Error(`${plugin}'s ${name} press got HTTP ${response.status()}.`);
   await page.waitForFunction(previous => {
     const shown = document.querySelector("main");
     return shown && shown.innerText !== previous;
   }, before, { timeout: 60_000 }).catch(() => {});
+  // Connect always answers with a new section; Check can rightly answer the same "Not approved yet." twice.
+  if (name.startsWith("Connect") && await main.innerText() === before) throw new Error(`${plugin}'s page didn't change after ${name}.`);
 }
 
 /**
