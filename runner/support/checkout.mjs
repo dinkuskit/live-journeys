@@ -3,6 +3,7 @@ import { expect } from "@playwright/test";
 import { config } from "./env.mjs";
 import { openStorePage } from "./signin.mjs";
 import { cartCount } from "./storefront-text.mjs";
+import { storeReturnLinks, storeReturnPage } from "./checkout-text.mjs";
 
 // The storefront's own localStorage keys (template-store guest-cart intent.ts and checkout-protocol.ts).
 const CART_KEY = "dinkus.guest-cart.v1";
@@ -30,7 +31,8 @@ export async function placeTestOrder(page) {
 
 /**
  * Takes a guest shopper to Stripe's hosted Checkout for one physical product: product page, Add to
- * cart, /cart with a US delivery address, then Continue to secure checkout. Returns the checkout
+ * cart, /cart with a US delivery address, then Continue to secure checkout. A cart without the
+ * checkout contact (Template Store #127) sends the shopper to /checkout for it. Returns the checkout
  * contact's email, and `resumed` when the browser already had a checkout pending in Commerce and
  * went back to its Stripe session instead.
  */
@@ -58,6 +60,12 @@ export async function openCheckout(page) {
     await page.goto(config.store + "/cart");
     const checkout = page.locator("[data-guest-cart-checkout]");
     await orFail(expect(checkout).toBeEnabled({ timeout: 45_000 }), async () => `The cart never offered checkout: ${await cartMessage(page)}`);
+    if (!await page.locator("[data-guest-cart-email]").count()) {
+      await checkout.click();
+      await orFail(page.waitForURL(url => storeReturnPage(url.href, config.store) === "checkout page", { timeout: 30_000 }), async () =>
+        `The cart asks for no checkout contact and its checkout button didn't open the store's checkout page: ${await cartMessage(page)}`);
+      await orFail(expect(checkout).toBeEnabled({ timeout: 45_000 }), async () => `The checkout page never offered checkout: ${await cartMessage(page)}`);
+    }
     await orFail(page.locator("[data-guest-cart-delivery]").waitFor({ timeout: 5_000 }), async () =>
       `The cart asks for no delivery address, so ${path} is not a physical product; set DINKUS_E2E_PRODUCT_PATH.`);
     const { shopper } = config;
@@ -278,20 +286,28 @@ async function bankCheckFail(page) {
   return null;
 }
 
-/** Leaves Stripe Checkout unpaid by its link back to the store: Payments gives Stripe the store's cart as the way back. */
+/**
+ * Leaves Stripe Checkout unpaid by its link back to the store, and returns the store page it opened:
+ * Payments gives Stripe the store's cart as the way back, or from payments#79 the store's checkout page.
+ */
 export async function leaveStripe(page) {
-  await orCaptcha(page, followBackLink(page));
+  return orCaptcha(page, followBackLink(page));
 }
 
 async function followBackLink(page) {
-  const back = page.locator(`a[href^="${config.store}/cart"]:visible`).first();
+  const back = page.locator(storeReturnLinks(config.store)).first();
   await orFail(back.waitFor({ timeout: 15_000 }), async () => "Stripe's page shows no link back to the store.");
   await back.click();
   // A Stripe address carries the session, so only a store page is named by its path.
-  await orFail(page.waitForURL(url => url.origin === config.store && url.pathname === "/cart", { timeout: 30_000 }), async () => {
+  await orFail(page.waitForURL(url => storeReturnPage(url.href, config.store) !== null, { timeout: 30_000 }), async () => {
     const at = new URL(page.url());
-    return `Stripe's link back led to ${at.origin === config.store ? at.pathname : at.hostname}, not the store's cart.`;
+    return `Stripe's link back led to ${at.origin === config.store ? at.pathname : at.hostname}, not the store's cart or checkout page.`;
   });
+  const landed = storeReturnPage(page.url(), config.store);
+  // Both pages hold the shopper's cart; a store without the page Payments named shows none.
+  await orFail(page.locator("[data-guest-cart]").first().waitFor({ timeout: 30_000 }), async () =>
+    `Stripe's link back opened ${new URL(page.url()).pathname}, which shows no cart, so the store has no ${landed}.`);
+  return landed;
 }
 
 // A visible captcha is for a person to answer, never the test.
