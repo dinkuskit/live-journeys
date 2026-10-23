@@ -114,8 +114,24 @@ test("a retry that passes after a try that failed before its first step is still
   ] }] });
   reporter.onEnd({ status: "passed" });
   assert.equal(proof.journeyVerdict("Full catalog"), "FLAKY");
-  assert.match(saved()[1], /## Full catalog: FLAKY\n\n\| Step \| Result \| Detail \|\n\| --- \| --- \| --- \|\n\| The journey started \(first try\) \| FAIL \| browserType\.launchPersistentContext/);
+  assert.match(saved()[1], /## Full catalog: FLAKY\n\n\| Step \| Result \| Detail \|\n\| --- \| --- \| --- \|\n\| The try finished without an error \(first try\) \| FAIL \| browserType\.launchPersistentContext/);
   // Run again, the reporter adds no second failed try.
   reporter.onEnd({ status: "passed" });
-  assert.equal(saved()[1].match(/The journey started \(first try\)/g).length, 1);
+  assert.equal(saved()[1].match(/The try finished without an error \(first try\)/g).length, 1);
+});
+
+test("a retry that passes after a try whose steps passed but whose hook failed keeps that failure", (t) => {
+  quiet(t);
+  proof.startJourney("Storefront hook");
+  proof.record("A new shopper can open the store", "PASS");
+  proof.startJourney("Storefront hook", 1);
+  proof.record("A new shopper can open the store", "PASS");
+  const reporter = new VerdictReporter();
+  reporter.onBegin({}, { allTests: () => [{ title: "Storefront hook", results: [
+    { status: "timedOut", error: { message: "Test timeout of 600000ms exceeded while running \"afterEach\" hook." } },
+    { status: "passed" },
+  ] }] });
+  reporter.onEnd({ status: "passed" });
+  assert.equal(proof.journeyVerdict("Storefront hook"), "FLAKY");
+  assert.match(saved()[1], /\| A new shopper can open the store \(first try\) \| PASS \| {2}\|\n\| The try finished without an error \(first try\) \| FAIL \| Test timeout of 600000ms exceeded while running "afterEach" hook\. \|\n\| A new shopper can open the store \| PASS \|/);
 });
