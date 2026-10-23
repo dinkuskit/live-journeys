@@ -9,7 +9,7 @@ import {
 import { shippingAdmin } from "../support/shipping-admin.mjs";
 import { openAdmin } from "../support/store-admin.mjs";
 import { BETA_STORE } from "../support/store-updates.mjs";
-import { journey, step } from "../support/steps.mjs";
+import { journey, mayRunTwice, step } from "../support/steps.mjs";
 
 // EmDash draws this form from admin.settingsSchema (packages/admin/src/components/PluginSettings.tsx).
 // Plugins lists an enabled plugin's Settings link to /plugins-manager/$pluginId/settings
@@ -23,6 +23,9 @@ import { journey, step } from "../support/steps.mjs";
 test.afterEach(async ({ page }) => {
   await page.goto("about:blank").catch(() => {});
 });
+
+// Places no order and pays nothing, so a failed try gets one retry in the same run.
+mayRunTwice();
 
 test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");

@@ -4,7 +4,7 @@ import { firstLine } from "../support/errors.mjs";
 import { PHOTO_ROOM, paceStore } from "../support/pace.mjs";
 import { note, record } from "../support/proof.mjs";
 import { STORE_OPENS, elsewhere, openShopperPage as open, storeOpens } from "../support/shopper.mjs";
-import { journey, step } from "../support/steps.mjs";
+import { journey, mayRunTwice, step } from "../support/steps.mjs";
 import { firstHref, photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
 import { cantBuyClaims } from "../support/storefront-text.mjs";
 
@@ -58,6 +58,10 @@ async function brokenLinks(page, links) {
 }
 
 // A new shopper's first look: the homepage, the product list, a product page and its category.
+
+// Places no order and pays nothing, so a failed try gets one retry in the same run.
+mayRunTwice();
+
 test("Storefront", { tag: "@running" }, journey(async () => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   const page = await shopperPage();

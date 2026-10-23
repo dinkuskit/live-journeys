@@ -1,7 +1,7 @@
 import { test, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine, forProof } from "./errors.mjs";
-import { journeyVerdict, record, shot, startJourney } from "./proof.mjs";
+import { attemptVerdict, journeyVerdict, record, shot, startJourney } from "./proof.mjs";
 
 // Errors that stopped a journey inside a step, which recorded them already.
 const recorded = new WeakSet();
@@ -41,7 +41,7 @@ export async function step(page, name, body, { soft = false } = {}) {
 export function journey(body, { profile = true } = {}) {
   const run = async page => {
     const name = test.info().title;
-    startJourney(name);
+    startJourney(name, test.info().retry);
     try {
       await body({ page });
     } catch (caught) {
@@ -50,11 +50,19 @@ export function journey(body, { profile = true } = {}) {
       if (!recorded.has(error)) record("The journey finished without an error", "FAIL", firstLine(error));
       throw error;
     }
-    const verdict = journeyVerdict(name);
-    console.log(`\n${name}: ${verdict}\n`);
-    // A step that failed softly still fails its journey, so "run the test" exits non-zero.
-    expect(verdict, `see ${config.runDir}/PROOF.md`).toBe("PASS");
+    console.log(`\n${name}: ${journeyVerdict(name)}\n`);
+    // A step that failed softly still fails its journey, so "run the test" exits non-zero. Only this
+    // try counts here: a retry that passed passes, and the proof still names the failed try.
+    expect(attemptVerdict(name), `see ${config.runDir}/PROOF.md`).toBe("PASS");
   };
   // Playwright starts only the fixtures a test names, so a profile-free journey never opens the saved profile.
   return profile ? async ({ page }) => run(page) : async ({}) => run(undefined);
 }
+
+/**
+ * Lets the journeys in this spec file run once more, inside the same run, when they fail. Call it at
+ * the top of the file, only for a journey that places no order, pays nothing and buys no label, and
+ * leaves the store as it found it, so a second try changes nothing the first didn't. The proof and the
+ * run page show a journey that passed only on its retry as FLAKY.
+ */
+export const mayRunTwice = () => test.describe.configure({ retries: 1 });

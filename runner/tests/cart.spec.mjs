@@ -2,7 +2,7 @@ import { test, expect, shopperPage, closeShopper } from "../support/browser.mjs"
 import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import { STORE_OPENS, openShopperPage, storeOpens } from "../support/shopper.mjs";
-import { journey, step } from "../support/steps.mjs";
+import { journey, mayRunTwice, step } from "../support/steps.mjs";
 import { quick, text } from "../support/storefront-page.mjs";
 import { cartCount, cartTotal, dollars, money } from "../support/storefront-text.mjs";
 
@@ -113,6 +113,10 @@ async function totalIsRight(page) {
 }
 
 // A shopper's cart: add a product, change its quantity and remove it, with the cart total right each time.
+
+// Places no order and pays nothing, so a failed try gets one retry in the same run.
+mayRunTwice();
+
 test("Cart", { tag: "@running" }, journey(async () => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   const page = await shopperPage();

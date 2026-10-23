@@ -73,3 +73,31 @@ test("a step's screenshot waits at most 30 s, and one that fails leaves the step
   assert.match(await proof.shot(page, "label"), /-label\.png$/);
   assert.deepEqual(limits, [30_000]);
 });
+
+test("a journey that passes only on its retry is FLAKY, keeps its failed try, and the run still passes", (t) => {
+  quiet(t);
+  proof.startJourney("Payments status");
+  proof.record("Connect is used only when the page asks for it", "FAIL", "Payments status still says \"x\" after Connect again.");
+  assert.equal(proof.journeyVerdict("Payments status"), "FAIL");
+  proof.startJourney("Payments status", 1);
+  proof.record("Connect is used only when the page asks for it", "PASS");
+  assert.equal(proof.attemptVerdict("Payments status"), "PASS");
+  assert.equal(proof.journeyVerdict("Payments status"), "FLAKY");
+  assert.equal(proof.verdicts().journeys.find(j => j.name === "Payments status").verdict, "FLAKY");
+  assert.equal(proof.verdictOf(["PASS", "FLAKY", "SKIP"]), "PASS");
+  assert.match(saved()[1], /\| Connect is used only when the page asks for it \(first try\) \| FAIL \|/);
+  // The same journey run again later under the run id starts clean.
+  proof.startJourney("Payments status");
+  proof.record("Connect is used only when the page asks for it", "PASS");
+  assert.equal(proof.journeyVerdict("Payments status"), "PASS");
+});
+
+test("a retry that fails again fails the journey", (t) => {
+  quiet(t);
+  proof.startJourney("Cart");
+  proof.record("Add to cart", "FAIL", "x");
+  proof.startJourney("Cart", 1);
+  proof.record("Add to cart", "FAIL", "y");
+  assert.equal(proof.journeyVerdict("Cart"), "FAIL");
+  assert.equal(proof.verdicts().verdict, "FAIL");
+});

@@ -33,11 +33,17 @@ export function startRun() {
   write();
 }
 
-/** Starts a journey; the steps recorded after it belong to it until the next one starts. */
-export function startJourney(name) {
+/**
+ * Starts a journey; the steps recorded after it belong to it until the next one starts. A journey run
+ * again under the same run id replaces its earlier steps. Playwright's retry of a journey that may run
+ * twice (`retry` above 0) keeps the failed try's steps, marked `retried`, so the proof shows the journey
+ * passed only on its retry.
+ */
+export function startJourney(name, retry = 0) {
   current = name;
-  // A journey run again under the same run id replaces its earlier steps.
-  steps = steps.filter(s => s.journey !== name);
+  steps = retry > 0
+    ? steps.map(s => s.journey === name ? { ...s, retried: true } : s)
+    : steps.filter(s => s.journey !== name);
   if (!journeys.includes(name)) journeys.push(name);
   write();
 }
@@ -88,15 +94,27 @@ export async function shot(page, name) {
   return file;
 }
 
-/** PASS only when every step passed or was skipped for a stated reason; a journey with no steps yet is INCOMPLETE. */
-function verdictOf(results) {
+/**
+ * PASS only when every step passed or was skipped for a stated reason; a journey with no steps yet is
+ * INCOMPLETE. A run whose journeys passed, some only on their retry, still passes; the table shows which.
+ */
+export function verdictOf(results) {
   if (results.some(r => r === "FAIL")) return "FAIL";
-  return results.length && results.every(r => r === "PASS" || r === "SKIP") ? "PASS" : "INCOMPLETE";
+  return results.length && results.every(r => r === "PASS" || r === "SKIP" || r === FLAKY) ? "PASS" : "INCOMPLETE";
 }
 
-/** A journey's verdict from the steps it has recorded so far. */
+/** A journey that failed its first try and passed its retry. */
+export const FLAKY = "FLAKY";
+
+/** The verdict of a journey's latest try, from the steps it has recorded so far. */
+export function attemptVerdict(name) {
+  return verdictOf(steps.filter(s => s.journey === name && !s.retried).map(s => s.status));
+}
+
+/** A journey's verdict: its latest try's, or FLAKY when that passed only after a failed try. */
 export function journeyVerdict(name) {
-  return verdictOf(steps.filter(s => s.journey === name).map(s => s.status));
+  const verdict = attemptVerdict(name);
+  return verdict === "PASS" && steps.some(s => s.journey === name && s.retried) ? FLAKY : verdict;
 }
 
 const cell = value => String(value).replaceAll("|", "\\|").replaceAll("\n", " ");
@@ -114,7 +132,7 @@ function write() {
     ...results.flatMap(r => [
       "", `## ${r.name}: ${r.verdict}`, "",
       "| Step | Result | Detail |", "| --- | --- | --- |",
-      ...steps.filter(s => s.journey === r.name).map(s => `| ${cell(s.step)} | ${s.status} | ${cell(s.detail)} |`),
+      ...steps.filter(s => s.journey === r.name).map(s => `| ${cell(s.step)}${s.retried ? " (first try)" : ""} | ${s.status} | ${cell(s.detail)} |`),
     ]),
     "", "## Facts", "",
     ...Object.entries(facts).map(([key, value]) => `- ${key}: ${value}`),

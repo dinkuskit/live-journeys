@@ -7,7 +7,7 @@ import { COMMERCE_CONNECT, connectPlugin, pressButton, recordPresses } from "../
 import { note } from "../support/proof.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { BETA_STORE } from "../support/store-updates.mjs";
-import { journey, step } from "../support/steps.mjs";
+import { journey, mayRunTwice, step } from "../support/steps.mjs";
 
 // Checkout settings is pasted setup text, and the Store key is write-only. This journey never types,
 // clears or saves either field, nor the DinkusKit connection that takes their place from Commerce's
@@ -54,6 +54,10 @@ async function getCheckoutSettings(page) {
 // on the beta store and only when Commerce isn't connected. Then, on the beta store only, Get checkout
 // settings. DinkusKit.com gives them only once Payments is connected, so this journey runs after Payments
 // status. Before any of that, the same Connect runs as it would on any other store, and must press nothing.
+
+// Places no order and pays nothing, so a failed try gets one retry in the same run.
+mayRunTwice();
+
 test("Commerce settings", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   let plugin;

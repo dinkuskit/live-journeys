@@ -28,6 +28,7 @@ const lines = [
   ...journeys.map(({ name, verdict }) => `| ${name} | ${verdict} |`),
   ...(journeys.length ? [] : ["| Test run | FAIL: no journey recorded a result |"]),
   ...(finished ? [] : [`| Test run | FAIL: the run ${code ? `exited ${code}` : "was cut off"} |`]),
+  ...(journeys.some(({ verdict }) => verdict === "FLAKY") ? ["", "FLAKY: failed its first try and passed its one retry inside this run. Only journeys that place no order and pay nothing get a retry."] : []),
   ...(facts["update stopped"] ? ["", `Update stopped: ${facts["update stopped"]}`] : []),
   "", `${tested ? "Plugins tested" : "Plugins on the store (no journeys ran)"}: ${facts.plugins ?? "not recorded"}`,
   "", `What each step found, screenshots and console output: ${proof}.`,
@@ -37,7 +38,7 @@ for (const { name, verdict: journeyVerdict } of journeys) {
   if (journeyVerdict === "PASS") continue;
   const steps = (report?.steps ?? []).filter(entry => entry.journey === name);
   lines.push("", `### ${cell(name)}: steps`, "", "| Step | Pass / fail | Kind of failure |", "| --- | --- | --- |",
-    ...steps.map(({ step, status, detail }) => `| ${cell(step)} | ${status} | ${status === "FAIL" ? failureKind(detail) : ""} |`),
+    ...steps.map(({ step, status, detail, retried }) => `| ${cell(step)}${retried ? " (first try)" : ""} | ${status} | ${status === "FAIL" ? failureKind(detail) : ""} |`),
     ...(steps.length ? [] : ["| (no step recorded) | | |"]));
 }
 console.log(lines.join("\n"));
