@@ -28,7 +28,7 @@ const lines = [
   ...journeys.map(({ name, verdict }) => `| ${name} | ${verdict} |`),
   ...(journeys.length ? [] : ["| Test run | FAIL: no journey recorded a result |"]),
   ...(finished ? [] : [`| Test run | FAIL: the run ${code ? `exited ${code}` : "was cut off"} |`]),
-  ...(journeys.some(({ verdict }) => verdict === "FLAKY") ? ["", "FLAKY: failed its first try and passed its one retry inside this run. Only journeys that place no order and pay nothing get a retry."] : []),
+  ...(journeys.some(({ verdict }) => verdict === "FLAKY") ? ["", "FLAKY: failed its first try and passed its one retry inside this run. Only Storefront and Cart get a retry: each opens a clean shopper browser, changes nothing in the store and pays nothing."] : []),
   ...(facts["update stopped"] ? ["", `Update stopped: ${facts["update stopped"]}`] : []),
   "", `${tested ? "Plugins tested" : "Plugins on the store (no journeys ran)"}: ${facts.plugins ?? "not recorded"}`,
   "", `What each step found, screenshots and console output: ${proof}.`,

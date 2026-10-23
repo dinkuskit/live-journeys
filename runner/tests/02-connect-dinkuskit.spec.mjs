@@ -12,7 +12,7 @@ import { COMMERCE_CONNECT, connectPlugin } from "../support/plugin-connect.mjs";
 import { note } from "../support/proof.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { BETA_STORE } from "../support/store-updates.mjs";
-import { journey, mayRunTwice, step } from "../support/steps.mjs";
+import { journey, step } from "../support/steps.mjs";
 
 // Long enough that a person watching can read each screen. A film sets DINKUS_E2E_VIDEO=1.
 const FOLLOW = 3_500;
@@ -51,10 +51,6 @@ async function openSignInLink(page, link) {
 // Before that release the Payments plugin's Connect does, and a store the account already lists is
 // left as it is. Disconnect, Replace key and Show checkout settings on Your Stores are never pressed.
 // Checkout settings, Payments status checks, and Ship are later episodes.
-
-// Places no order and pays nothing, so a failed try gets one retry in the same run.
-mayRunTwice();
-
 test("DinkusKit.com account and connect the store", { tag: "@running" }, journey(async ({ page }) => {
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
     throw new Error(`Only the beta store, ${BETA_STORE.store} (site ${BETA_STORE.siteId}), gets this connect; this run is set to ${config.store || "no store"} (site ${config.siteId || "not set"}).`);

@@ -32,13 +32,12 @@ export default class VerdictReporter {
     if (this.listOnly) return;
     for (const test of this.suite?.allTests() ?? []) {
       const last = test.results.at(-1);
+      // A retried journey keeps its first try's failure, even one that try never recorded itself.
+      const failed = test.results.slice(0, -1).find(r => !["passed", "skipped"].includes(r.status));
+      if (failed) failedTryUnrecorded(test.title, firstLine(failed.error?.message) || `Playwright reported it ${failed.status}`);
       if (!last) failUnrecorded(test.title, "The journey ran", "the run stopped before this journey started");
       else if (!["passed", "skipped"].includes(last.status)) {
         failUnrecorded(test.title, "The journey finished without an error", firstLine(last.error?.message) || `Playwright reported it ${last.status}`);
-      } else {
-        // A retry that passed after a try that failed before it recorded anything still shows FLAKY.
-        const failed = test.results.slice(0, -1).find(r => !["passed", "skipped"].includes(r.status));
-        if (failed) failedTryUnrecorded(test.title, firstLine(failed.error?.message) || `Playwright reported it ${failed.status}`);
       }
     }
     for (const error of this.errors) failUnrecorded(TEST_RUN, "The test run finished without an error", firstLine(error.message));

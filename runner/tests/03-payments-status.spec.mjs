@@ -7,7 +7,7 @@ import {
 import { pluginVersion } from "../support/store-plugins.mjs";
 import { notePlugins } from "../support/store-admin.mjs";
 import { BETA_STORE } from "../support/store-updates.mjs";
-import { journey, mayRunTwice, step } from "../support/steps.mjs";
+import { journey, step } from "../support/steps.mjs";
 
 // The connect address is a bearer for that approval. The step screenshots are the Payments status page,
 // which does not show the address, and the journey leaves a blank page for Playwright's failure notes.
@@ -22,10 +22,6 @@ test.afterEach(async ({ page }) => {
 // Stripe test mode then, without Sign in again or only its last check. In 0.3.0 the owner pastes that key
 // in the plugin's settings; from Payments' Connect release Connect hands the plugin its own, and a page
 // that says to select Connect again gets Connect again and Approve payments once.
-
-// Places no order and pays nothing, so a failed try gets one retry in the same run.
-mayRunTwice();
-
 test("Payments status", { tag: "@running" }, journey(async ({ page }) => {
   // Connect and Approve payments change which DinkusKit account the store's Payments answers to.
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {

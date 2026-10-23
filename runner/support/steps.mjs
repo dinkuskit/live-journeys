@@ -61,8 +61,9 @@ export function journey(body, { profile = true } = {}) {
 
 /**
  * Lets the journeys in this spec file run once more, inside the same run, when they fail. Call it at
- * the top of the file, only for a journey that places no order, pays nothing and buys no label, and
- * leaves the store as it found it, so a second try changes nothing the first didn't. The proof and the
- * run page show a journey that passed only on its retry as FLAKY.
+ * the top of the file, only for a journey that places no order, pays nothing, buys no label and walks
+ * the same path on a second try. A journey that changes the store (installs, Connect, settings, catalog) would
+ * find that change already made and skip the checks its first try failed. The proof and the run page
+ * show a journey that passed only on its retry as FLAKY.
  */
 export const mayRunTwice = () => test.describe.configure({ retries: 1 });

@@ -135,3 +135,15 @@ test("a retry that passes after a try whose steps passed but whose hook failed k
   assert.equal(proof.journeyVerdict("Storefront hook"), "FLAKY");
   assert.match(saved()[1], /\| A new shopper can open the store \(first try\) \| PASS \| {2}\|\n\| The try finished without an error \(first try\) \| FAIL \| Test timeout of 600000ms exceeded while running "afterEach" hook\. \|\n\| A new shopper can open the store \| PASS \|/);
 });
+
+test("a retry that fails again after a try that failed before its first step keeps both failures", (t) => {
+  quiet(t);
+  const reporter = new VerdictReporter();
+  reporter.onBegin({}, { allTests: () => [{ title: "Storefront twice", results: [
+    { status: "failed", error: { message: "browserType.launchPersistentContext: first" } },
+    { status: "failed", error: { message: "browserType.launchPersistentContext: second" } },
+  ] }] });
+  reporter.onEnd({ status: "failed" });
+  assert.equal(proof.journeyVerdict("Storefront twice"), "FAIL");
+  assert.match(saved()[1], /\| The try finished without an error \(first try\) \| FAIL \| browserType\.launchPersistentContext: first \|\n\| The journey finished without an error \| FAIL \| browserType\.launchPersistentContext: second \|/);
+});

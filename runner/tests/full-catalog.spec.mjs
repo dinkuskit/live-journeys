@@ -11,7 +11,7 @@ import { note } from "../support/proof.mjs";
 import { openShopperPage } from "../support/shopper.mjs";
 import { confirmed, notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { pluginVersion, versionAtLeast } from "../support/store-plugins.mjs";
-import { journey, mayRunTwice, step } from "../support/steps.mjs";
+import { journey, step } from "../support/steps.mjs";
 import { photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
 import { dollars, money } from "../support/storefront-text.mjs";
 
@@ -199,10 +199,6 @@ async function completeProduct(page, content, product, { inCommerce, uploaded, c
 // with their own price, weight, photo and page. The test adds what the store lacks and leaves it there for
 // later runs, then checks that the Shop list, every category page and every product page show the whole
 // catalog, and that the owner can still save a product with all of it in place.
-
-// Places no order and pays nothing, so a failed try gets one retry in the same run.
-mayRunTwice();
-
 test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   const plan = catalogPlan(config.catalog);

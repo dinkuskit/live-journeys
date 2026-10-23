@@ -6,7 +6,7 @@ import { note } from "../support/proof.mjs";
 import { consentsOf, installBody, installRefusal, namedInstalls, planInstalls, PUBLISHER_DID } from "../support/registry-install.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { BETA_STORE } from "../support/store-updates.mjs";
-import { journey, mayRunTwice, step } from "../support/steps.mjs";
+import { journey, step } from "../support/steps.mjs";
 
 const API = () => `${config.store}/_emdash/api/admin/plugins`;
 const HEADERS = { "X-EmDash-Request": "1", "Content-Type": "application/json" };
@@ -36,10 +36,6 @@ const listed = plan => plan.map(plugin => plugin.install
 // aggregator in the browser, and this runner's request filter does not allow that origin, so this
 // journey does not click through that page. It posts the same verify and install calls the Install
 // button and Accept & Install send, then shows the result on Plugins. It never types a store key.
-
-// Places no order and pays nothing, so a failed try gets one retry in the same run.
-mayRunTwice();
-
 test("Install the Registry plugins", { tag: "@running" }, journey(async ({ page }) => {
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
     throw new Error(`Only the beta store, ${BETA_STORE.store} (site ${BETA_STORE.siteId}), gets a Registry install; this run is set to ${config.store || "no store"} (site ${config.siteId || "not set"}).`);
