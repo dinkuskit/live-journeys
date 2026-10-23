@@ -134,3 +134,23 @@ test("one message that can't be read is skipped; only a poll with none readable 
   assert.deepEqual(await searchMail("at", "q", { fetcher: fetcher(["a"]) }), ["\ncode 482914"]);
   await assert.rejects(searchMail("at", "q", { fetcher: fetcher(["a", "b"]) }), /503/);
 });
+
+test("the public summary shows a journey that passed only on its retry as FLAKY, with its failed first try's kind", () => {
+  const folder = mkdtempSync(join(tmpdir(), "summary-"));
+  writeFileSync(join(folder, "report.json"), JSON.stringify({
+    verdict: "PASS",
+    journeys: [{ name: "Cart", verdict: "FLAKY" }],
+    steps: [
+      { journey: "Cart", step: "Add to cart", status: "FAIL", detail: "net::ERR_CONNECTION_CLOSED hidden-detail", retried: true },
+      { journey: "Cart", step: "Add to cart", status: "PASS", detail: "hidden-detail" },
+    ],
+  }));
+  const script = new URL("../scripts/run-summary.mjs", import.meta.url).pathname;
+  const out = execFileSync(process.execPath, [script, folder, "0"], { encoding: "utf8" });
+  assert.match(out, /Live journeys: PASS/);
+  assert.match(out, /\| Cart \| FLAKY \|/);
+  assert.match(out, /^FLAKY: failed its first try and passed its one retry/m);
+  assert.match(out, /^\| Add to cart \(first try\) \| FAIL \| network error ERR_CONNECTION_CLOSED \|$/m);
+  assert.match(out, /^\| Add to cart \| PASS \| {2}\|$/m);
+  assert.doesNotMatch(out, /hidden-detail/);
+});

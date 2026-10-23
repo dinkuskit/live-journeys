@@ -73,3 +73,77 @@ test("a step's screenshot waits at most 30 s, and one that fails leaves the step
   assert.match(await proof.shot(page, "label"), /-label\.png$/);
   assert.deepEqual(limits, [30_000]);
 });
+
+test("a journey that passes only on its retry is FLAKY, keeps its failed try, and the run still passes", (t) => {
+  quiet(t);
+  proof.startJourney("Payments status");
+  proof.record("Connect is used only when the page asks for it", "FAIL", "Payments status still says \"x\" after Connect again.");
+  assert.equal(proof.journeyVerdict("Payments status"), "FAIL");
+  proof.startJourney("Payments status", 1);
+  proof.record("Connect is used only when the page asks for it", "PASS");
+  assert.equal(proof.attemptVerdict("Payments status"), "PASS");
+  assert.equal(proof.journeyVerdict("Payments status"), "FLAKY");
+  assert.equal(proof.verdicts().journeys.find(j => j.name === "Payments status").verdict, "FLAKY");
+  assert.equal(proof.verdictOf(["PASS", "FLAKY", "SKIP"]), "PASS");
+  assert.match(saved()[1], /\| Connect is used only when the page asks for it \(first try\) \| FAIL \|/);
+  // The same journey run again later under the run id starts clean.
+  proof.startJourney("Payments status");
+  proof.record("Connect is used only when the page asks for it", "PASS");
+  assert.equal(proof.journeyVerdict("Payments status"), "PASS");
+});
+
+test("a retry that fails again fails the journey", (t) => {
+  quiet(t);
+  proof.startJourney("Cart");
+  proof.record("Add to cart", "FAIL", "x");
+  proof.startJourney("Cart", 1);
+  proof.record("Add to cart", "FAIL", "y");
+  assert.equal(proof.journeyVerdict("Cart"), "FAIL");
+  assert.equal(proof.verdicts().verdict, "FAIL");
+});
+
+test("a retry that passes after a try that failed before its first step is still FLAKY", (t) => {
+  quiet(t);
+  proof.startJourney("Full catalog", 1);
+  proof.record("Every product opens", "PASS");
+  assert.equal(proof.journeyVerdict("Full catalog"), "PASS");
+  const reporter = new VerdictReporter();
+  reporter.onBegin({}, { allTests: () => [{ title: "Full catalog", results: [
+    { status: "failed", error: { message: "browserType.launchPersistentContext: Target page, context or browser has been closed" } },
+    { status: "passed" },
+  ] }] });
+  reporter.onEnd({ status: "passed" });
+  assert.equal(proof.journeyVerdict("Full catalog"), "FLAKY");
+  assert.match(saved()[1], /## Full catalog: FLAKY\n\n\| Step \| Result \| Detail \|\n\| --- \| --- \| --- \|\n\| The try finished without an error \(first try\) \| FAIL \| browserType\.launchPersistentContext/);
+  // Run again, the reporter adds no second failed try.
+  reporter.onEnd({ status: "passed" });
+  assert.equal(saved()[1].match(/The try finished without an error \(first try\)/g).length, 1);
+});
+
+test("a retry that passes after a try whose steps passed but whose hook failed keeps that failure", (t) => {
+  quiet(t);
+  proof.startJourney("Storefront hook");
+  proof.record("A new shopper can open the store", "PASS");
+  proof.startJourney("Storefront hook", 1);
+  proof.record("A new shopper can open the store", "PASS");
+  const reporter = new VerdictReporter();
+  reporter.onBegin({}, { allTests: () => [{ title: "Storefront hook", results: [
+    { status: "timedOut", error: { message: "Test timeout of 600000ms exceeded while running \"afterEach\" hook." } },
+    { status: "passed" },
+  ] }] });
+  reporter.onEnd({ status: "passed" });
+  assert.equal(proof.journeyVerdict("Storefront hook"), "FLAKY");
+  assert.match(saved()[1], /\| A new shopper can open the store \(first try\) \| PASS \| {2}\|\n\| The try finished without an error \(first try\) \| FAIL \| Test timeout of 600000ms exceeded while running "afterEach" hook\. \|\n\| A new shopper can open the store \| PASS \|/);
+});
+
+test("a retry that fails again after a try that failed before its first step keeps both failures", (t) => {
+  quiet(t);
+  const reporter = new VerdictReporter();
+  reporter.onBegin({}, { allTests: () => [{ title: "Storefront twice", results: [
+    { status: "failed", error: { message: "browserType.launchPersistentContext: first" } },
+    { status: "failed", error: { message: "browserType.launchPersistentContext: second" } },
+  ] }] });
+  reporter.onEnd({ status: "failed" });
+  assert.equal(proof.journeyVerdict("Storefront twice"), "FAIL");
+  assert.match(saved()[1], /\| The try finished without an error \(first try\) \| FAIL \| browserType\.launchPersistentContext: first \|\n\| The journey finished without an error \| FAIL \| browserType\.launchPersistentContext: second \|/);
+});
