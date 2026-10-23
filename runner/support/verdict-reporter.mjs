@@ -1,6 +1,6 @@
 import { config } from "./env.mjs";
 import { withoutQueries } from "./errors.mjs";
-import { TEST_RUN, failUnrecorded, startRun, verdicts } from "./proof.mjs";
+import { TEST_RUN, failedTryUnrecorded, failUnrecorded, startRun, verdicts } from "./proof.mjs";
 
 const firstLine = text => withoutQueries(String(text ?? "").replace(/\u001b\[[0-9;]*m/g, "").split("\n").map(line => line.trim()).find(Boolean) ?? "");
 
@@ -35,6 +35,10 @@ export default class VerdictReporter {
       if (!last) failUnrecorded(test.title, "The journey ran", "the run stopped before this journey started");
       else if (!["passed", "skipped"].includes(last.status)) {
         failUnrecorded(test.title, "The journey finished without an error", firstLine(last.error?.message) || `Playwright reported it ${last.status}`);
+      } else {
+        // A retry that passed after a try that failed before it recorded anything still shows FLAKY.
+        const failed = test.results.slice(0, -1).find(r => !["passed", "skipped"].includes(r.status));
+        if (failed) failedTryUnrecorded(test.title, firstLine(failed.error?.message) || `Playwright reported it ${failed.status}`);
       }
     }
     for (const error of this.errors) failUnrecorded(TEST_RUN, "The test run finished without an error", firstLine(error.message));

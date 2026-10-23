@@ -101,3 +101,21 @@ test("a retry that fails again fails the journey", (t) => {
   assert.equal(proof.journeyVerdict("Cart"), "FAIL");
   assert.equal(proof.verdicts().verdict, "FAIL");
 });
+
+test("a retry that passes after a try that failed before its first step is still FLAKY", (t) => {
+  quiet(t);
+  proof.startJourney("Full catalog", 1);
+  proof.record("Every product opens", "PASS");
+  assert.equal(proof.journeyVerdict("Full catalog"), "PASS");
+  const reporter = new VerdictReporter();
+  reporter.onBegin({}, { allTests: () => [{ title: "Full catalog", results: [
+    { status: "failed", error: { message: "browserType.launchPersistentContext: Target page, context or browser has been closed" } },
+    { status: "passed" },
+  ] }] });
+  reporter.onEnd({ status: "passed" });
+  assert.equal(proof.journeyVerdict("Full catalog"), "FLAKY");
+  assert.match(saved()[1], /## Full catalog: FLAKY\n\n\| Step \| Result \| Detail \|\n\| --- \| --- \| --- \|\n\| The journey started \(first try\) \| FAIL \| browserType\.launchPersistentContext/);
+  // Run again, the reporter adds no second failed try.
+  reporter.onEnd({ status: "passed" });
+  assert.equal(saved()[1].match(/The journey started \(first try\)/g).length, 1);
+});

@@ -61,6 +61,20 @@ export function failUnrecorded(name, step, detail) {
   record(step, "FAIL", detail);
 }
 
+/**
+ * Keeps a failed first try in the proof when Playwright retried a journey that then passed, but that
+ * try recorded no step of its own, as when its browser wouldn't open. The journey then shows FLAKY,
+ * not PASS. The reporter runs this once every worker has finished.
+ */
+export function failedTryUnrecorded(name, detail) {
+  load();
+  if (journeyVerdict(name) !== "PASS") return;
+  const entry = { journey: name, step: "The journey started", status: "FAIL", detail, retried: true, at: new Date().toISOString() };
+  const first = steps.findIndex(s => s.journey === name);
+  if (first < 0) steps.push(entry); else steps.splice(first, 0, entry);
+  write();
+}
+
 /** The run's verdict and each journey's, as the report on disk has them. */
 export function verdicts() {
   load();
