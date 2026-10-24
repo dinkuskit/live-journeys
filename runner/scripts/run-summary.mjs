@@ -30,6 +30,8 @@ const lines = [
   ...(finished ? [] : [`| Test run | FAIL: the run ${code ? `exited ${code}` : "was cut off"} |`]),
   ...(journeys.some(({ verdict }) => verdict === "FLAKY") ? ["", "FLAKY: failed its first try and passed its one retry inside this run. Only Storefront and Cart get a retry: each opens a clean shopper browser, changes nothing in the store and pays nothing."] : []),
   ...(facts["update stopped"] ? ["", `Update stopped: ${facts["update stopped"]}`] : []),
+  // ONE-OFF BRANCH: the editor capture, only when it holds nothing but its own fixed words and counts.
+  ...(/^(unreadable|states ((none|(Save|Saving\.\.\.|Saved)\/(on|off)(\+(Save|Saving\.\.\.|Saved)\/(on|off))*)x\d+ ?)+; mutations \d+; dialogs \d+; listboxes \d+; menus \d+; popovers \d+; open \d+; iframes \d+)$/.test(facts["save capture"] ?? "") ? ["", `Save capture: ${facts["save capture"]}`] : []),
   "", `${tested ? "Plugins tested" : "Plugins on the store (no journeys ran)"}: ${facts.plugins ?? "not recorded"}`,
   "", `What each step found, screenshots and console output: ${proof}.`,
 ];

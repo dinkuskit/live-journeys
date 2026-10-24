@@ -1,6 +1,7 @@
 import { newPage, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
+import { note } from "./proof.mjs";
 import { MEDIA_ROOM, PICKER_PAGE_ROOM, paceStore } from "./pace.mjs";
 import { openAdmin } from "./store-admin.mjs";
 import { quick, text } from "./storefront-page.mjs";
@@ -382,6 +383,35 @@ export async function finishProductPage(content, { style, category }) {
   return await fileInCategory(content, category, { mayBeFiled: true }) || styled;
 }
 
+/**
+ * ONE-OFF BRANCH, never merged: for the build thread, what the editor does for 6 seconds after a
+ * category is added, in fixed words and counts only: the shown Save button's label and disabled state
+ * every 300 ms, how many changes the page's markup had, and what popups are open. Noted as "save capture".
+ */
+async function captureSave(page) {
+  const seen = await page.evaluate(async () => {
+    let mutations = 0;
+    const observer = new MutationObserver(list => { mutations += list.length; });
+    observer.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+    const LABELS = ["Save", "Saving...", "Saved"];
+    const samples = [];
+    for (let i = 0; i < 20; i++) {
+      const shown = [...document.querySelectorAll("button[aria-label]")].filter(b => LABELS.includes(b.getAttribute("aria-label")) && b.offsetParent !== null);
+      samples.push(shown.length ? shown.map(b => `${b.getAttribute("aria-label")}/${b.disabled ? "off" : "on"}`).join("+") : "none");
+      await new Promise(done => setTimeout(done, 300));
+    }
+    observer.disconnect();
+    const count = selector => document.querySelectorAll(selector).length;
+    const runs = [];
+    for (const sample of samples) {
+      if (runs.length && runs.at(-1)[0] === sample) runs.at(-1)[1]++;
+      else runs.push([sample, 1]);
+    }
+    return `states ${runs.map(([sample, n]) => `${sample}x${n}`).join(" ")}; mutations ${mutations}; dialogs ${count("[role=dialog]")}; listboxes ${count("[role=listbox]")}; menus ${count("[role=menu]")}; popovers ${count("[data-radix-popper-content-wrapper], [popover]:popover-open")}; open ${count("[data-state=open]")}; iframes ${count("iframe")}`;
+  }).catch(() => "unreadable");
+  note("save capture", seen);
+}
+
 /** Puts the open product page in `category` unless it already is, and saves it. True when it added the category. */
 async function fileInCategory(content, category, { mayBeFiled = false } = {}) {
   const filed = content.getByRole("button", { name: `Remove ${category}` });
@@ -393,6 +423,7 @@ async function fileInCategory(content, category, { mayBeFiled = false } = {}) {
     await at("the category choice", () => picker.locator("label").filter({ hasText: category }).first().click({ timeout: 15_000 }));
     await at("Add selected", () => picker.getByRole("button", { name: "Add selected" }).click());
     await at("the filed category", () => filed.waitFor({ timeout: 15_000 }));
+    await captureSave(content);
   }
   await at("Save", () => saveEditor(content));
   return adding;
