@@ -168,9 +168,12 @@ async function productPageProblems(shopper, product) {
  * was done when a later part fails.
  */
 async function completeProduct(page, content, product, { entry, uploaded }, did) {
+  // A published page whose style or category the test just saved has changes to publish.
+  let changed = false;
   if (entry) {
     await openAdmin(page, entry.editor);
-    await finishProductPage(page, product);
+    changed = await finishProductPage(page, product);
+    if (changed) did.push("page completed");
   } else {
     await addProductPage(page, { title: product.name, style: product.style, category: product.category }, { lost: [] });
     did.push("page");
@@ -210,7 +213,7 @@ async function completeProduct(page, content, product, { entry, uploaded }, did)
   if (!entry?.published) {
     await publishProductPage(page);
     did.push("published");
-  } else if (shown.state === "draft") {
+  } else if (shown.state === "draft" || changed) {
     await republishProductPage(page);
     did.push("published again");
   }
@@ -402,7 +405,10 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
       const now = await productPages(page);
       const missing = products.filter(product => !now.has(product.name)).map(product => `"${product.name}"`);
       if (missing.length) throw new Error(`Content > Products has no page for ${short(missing).join(", ")}.`);
-      const entry = now.get(first.name)[0];
+      // A page the test can't tell from another by its title is never written to.
+      const twins = now.get(first.name).length;
+      if (twins > 1) throw new Error(`Content > Products has ${twins} pages titled "${first.name}", so the test can't tell which is the catalog's; remove the extra one.`);
+      const [entry] = now.get(first.name);
       let panel = await openProductPanel(page, entry.editor);
       // A page saved before Commerce kept its own note of pages opens on "Not a product yet"; Add price
       // and stock then opens the product the page names, and makes none.
@@ -410,6 +416,8 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
         if (!entry.commerceId) throw new Error(`"${first.name}"'s page names no Commerce product.`);
         ({ panel } = await addPriceAndStock(page, first.sku, {}, { link: true }));
       }
+      const shown = await panelProduct(panel);
+      if (shown.sku !== first.sku) throw new Error(`"${first.name}"'s panel shows SKU ${shown.sku || "none"} instead of ${first.sku}, so the test saved nothing.`);
       await setWeight(panel, first.ounces);
       return `Content > Products lists ${plural(total(now), "product page")}; "${first.name}" saved at ${first.ounces} oz in its panel`;
     }, soft);

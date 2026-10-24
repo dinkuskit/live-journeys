@@ -332,18 +332,21 @@ const STYLE = "Illustration style (TEE, HOODIE, CAP, or BEANIE)";
 
 /**
  * Finishes the product page open in `content`: it gets the style `style` when it has none and goes in
- * the category `category` unless it's there, and is saved.
+ * the category `category` unless it's there, and is saved. True when that changed the page, so a
+ * published page needs its changes published.
  */
 export async function finishProductPage(content, { style, category }) {
   const box = await field(content, STYLE, "The product page editor");
-  if (!(await box.inputValue()).trim()) await box.fill(style);
-  await fileInCategory(content, category, { mayBeFiled: true });
+  const styled = !(await box.inputValue()).trim();
+  if (styled) await box.fill(style);
+  return await fileInCategory(content, category, { mayBeFiled: true }) || styled;
 }
 
-/** Puts the open product page in `category` unless it already is, and saves it. */
+/** Puts the open product page in `category` unless it already is, and saves it. True when it added the category. */
 async function fileInCategory(content, category, { mayBeFiled = false } = {}) {
   const filed = content.getByRole("button", { name: `Remove ${category}` });
-  if (!mayBeFiled || !await filed.waitFor({ timeout: 5_000 }).then(() => true, () => false)) {
+  const adding = !mayBeFiled || !await filed.waitFor({ timeout: 5_000 }).then(() => true, () => false);
+  if (adding) {
     await content.getByRole("button", { name: "Add reference" }).click();
     const picker = content.getByRole("dialog", { name: "Add references" });
     await picker.getByPlaceholder("Search content...").fill(category);
@@ -352,6 +355,7 @@ async function fileInCategory(content, category, { mayBeFiled = false } = {}) {
     await filed.waitFor({ timeout: 15_000 });
   }
   await saveEditor(content);
+  return adding;
 }
 
 /** Publishes the product page open in `content`, which is what puts its product on sale. */
