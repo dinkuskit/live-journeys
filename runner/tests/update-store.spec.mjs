@@ -101,7 +101,26 @@ test("Update the store", { tag: "@update" }, journey(async ({ page }) => {
         const now = await readApi(page, "", { timeout: CHECK_TIME }).then(body => pluginVersion(body, plugin.id), () => null);
         stop(`${plugin.name}'s update to ${plugin.latest} got no answer (${firstLine(response)}); the store now runs ${plugin.name} ${now ?? "(couldn't read its version)"}.`);
       }
-      if (!response.ok()) stop(`${plugin.name} stays on ${plugin.installed}, not ${plugin.latest}: ${refusal(response.status(), await response.json().catch(() => null))}.`);
+      let answer = response;
+      // ONE-OFF BRANCH, never merged: Ronald approved exactly these two permissions for
+      // dinkus-commerce-beta 0.6.0-beta.1 in the project thread on 24 Oct 2026. Any other ask, plugin or
+      // version still stops, and this agrees to nothing about public routes or agent tools.
+      const OKAYED = ["admin.editor-draft:patch", "admin.editor-draft:read"];
+      const refused = answer.ok() ? null : await answer.json().catch(() => null);
+      const asked = [...refused?.error?.details?.capabilityChanges?.added ?? []].sort();
+      const verification = refused?.error?.details?.verification ?? {};
+      if (refused?.error?.code === "CAPABILITY_ESCALATION" && plugin.name === "dinkus-commerce-beta" && plugin.latest === "0.6.0-beta.1"
+        && JSON.stringify(asked) === JSON.stringify(OKAYED) && verification.profileCid && verification.releaseCid) {
+        note("update consent", `agreed to ${OKAYED.join(", ")} for dinkus-commerce-beta 0.6.0-beta.1, as Ronald approved`);
+        await paceStore();
+        countStoreRequest(url);
+        answer = await page.context().request.post(url, { headers: HEADERS, maxRedirects: 0, timeout: UPDATE_TIME, data: {
+          version: plugin.latest, confirmCapabilityChanges: true,
+          acknowledgedProfileCid: verification.profileCid, acknowledgedReleaseCid: verification.releaseCid,
+        } }).catch(error => error);
+        if (answer instanceof Error) stop(`${plugin.name}'s agreed update to ${plugin.latest} got no answer (${firstLine(answer)}).`);
+      } else if (refused) stop(`${plugin.name} stays on ${plugin.installed}, not ${plugin.latest}: ${refusal(answer.status(), refused)}.`);
+      if (!answer.ok()) stop(`${plugin.name} stays on ${plugin.installed}, not ${plugin.latest}: ${refusal(answer.status(), await answer.json().catch(() => null))}.`);
       return `${plugin.name} updated from ${plugin.installed} to ${plugin.latest}`;
     });
   }
