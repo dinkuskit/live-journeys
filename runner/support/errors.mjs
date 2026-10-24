@@ -48,7 +48,11 @@ export function forProof(error) {
 
 // A failed step's kind, from what the proof keeps of its error. The public run page prints only these
 // fixed words and numbers, since the error's own words can carry what the page said.
+const PAGE_PARTS = new Set(["the title", "the style", "the slug", "the first Save", "Add reference", "the category search", "the category choice", "Add selected", "the filed category", "Save"]);
 const KINDS = [
+  // products-admin.mjs `at`: which part of a product page's editor stopped, from its fixed few.
+  [/^At (.+?) of the product page: .*?Timeout (\d+)ms exceeded/, match => `timed out after ${Math.round(Number(match[2]) / 1000)} s at ${PAGE_PARTS.has(match[1]) ? match[1] : "a part"} of the product page`],
+  [/^At (.+?) of the product page: /, match => `failed at ${PAGE_PARTS.has(match[1]) ? match[1] : "a part"} of the product page`],
   [/Timeout (\d+)ms exceeded/, match => `timed out after ${Math.round(Number(match[1]) / 1000)} s`],
   [/net::(ERR_[A-Z_]+)/, match => `network error ${match[1]}`],
   [/has been closed|browser has disconnected/, () => "the browser closed"],

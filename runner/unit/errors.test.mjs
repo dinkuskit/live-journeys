@@ -139,6 +139,9 @@ test("an error that can't change gives way to a copy of the same kind, without w
 
 test("a failed step's kind is one of a few fixed phrases, never the error's own words", () => {
   assert.equal(failureKind("locator.waitFor: Timeout 30000ms exceeded."), "timed out after 30 s");
+  assert.equal(failureKind("At Add reference of the product page: locator.click: Timeout 60000ms exceeded."), "timed out after 60 s at Add reference of the product page");
+  assert.equal(failureKind("At the first Save of the product page: EmDash said no"), "failed at the first Save of the product page");
+  assert.equal(failureKind("At secret words of the product page: locator.click: Timeout 60000ms exceeded."), "timed out after 60 s at a part of the product page");
   assert.equal(failureKind("page.goto: net::ERR_NAME_NOT_RESOLVED at https://beta.sm0ky.dev/synthetic"), "network error ERR_NAME_NOT_RESOLVED");
   assert.equal(failureKind("locator.click: Target page, context or browser has been closed"), "the browser closed");
   assert.equal(failureKind("locator.getAttribute: Error: strict mode violation: getByRole('link', { name: 'synthetic' }) resolved to 2 elements:"),
