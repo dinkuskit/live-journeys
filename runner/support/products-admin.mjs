@@ -317,15 +317,27 @@ export async function addCategory(content, title, made) {
 export async function addProductPage(content, { title, style, category }, made) {
   await openAdmin(content, `${config.store}/_emdash/admin/content/products/new`);
   const editor = "The new product page editor";
-  await (await field(content, "Product title", editor)).fill(title);
-  await (await field(content, STYLE, editor)).fill(style);
-  made.pagePath = `/products/${await slugOf(content)}`;
-  made.page = await saveNew(content, "products") ?? "";
+  await at("the title", async () => (await field(content, "Product title", editor)).fill(title));
+  await at("the style", async () => (await field(content, STYLE, editor)).fill(style));
+  made.pagePath = `/products/${await at("the slug", () => slugOf(content))}`;
+  made.page = await at("the first Save", () => saveNew(content, "products")) ?? "";
   if (!made.page) {
     made.lost.push(`product page "${title}"`);
     throw new Error(`Saving the product page "${title}" never opened its editor, and EmDash's answer didn't say where it is.`);
   }
   await fileInCategory(content, category);
+}
+
+/**
+ * Runs `act`, and when it fails says which part of the page's editor stopped (`part`, one of a fixed
+ * few, which the public run page may print as the failure's kind says).
+ */
+async function at(part, act) {
+  try {
+    return await act();
+  } catch (error) {
+    throw new Error(`At ${part} of the product page: ${firstLine(error)}`);
+  }
 }
 
 const STYLE = "Illustration style (TEE, HOODIE, CAP, or BEANIE)";
@@ -347,14 +359,14 @@ async function fileInCategory(content, category, { mayBeFiled = false } = {}) {
   const filed = content.getByRole("button", { name: `Remove ${category}` });
   const adding = !mayBeFiled || !await filed.waitFor({ timeout: 5_000 }).then(() => true, () => false);
   if (adding) {
-    await content.getByRole("button", { name: "Add reference" }).click();
+    await at("Add reference", () => content.getByRole("button", { name: "Add reference" }).click());
     const picker = content.getByRole("dialog", { name: "Add references" });
-    await picker.getByPlaceholder("Search content...").fill(category);
-    await picker.locator("label").filter({ hasText: category }).first().click({ timeout: 15_000 });
-    await picker.getByRole("button", { name: "Add selected" }).click();
-    await filed.waitFor({ timeout: 15_000 });
+    await at("the category search", () => picker.getByPlaceholder("Search content...").fill(category));
+    await at("the category choice", () => picker.locator("label").filter({ hasText: category }).first().click({ timeout: 15_000 }));
+    await at("Add selected", () => picker.getByRole("button", { name: "Add selected" }).click());
+    await at("the filed category", () => filed.waitFor({ timeout: 15_000 }));
   }
-  await saveEditor(content);
+  await at("Save", () => saveEditor(content));
   return adding;
 }
 
