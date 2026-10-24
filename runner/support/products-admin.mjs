@@ -90,13 +90,28 @@ async function panelSays(panel, act, message) {
 // What may cover the editor's Save, as the public run page may name it: dialogs EmDash or the panel open.
 const DIALOGS = ["Review proposed changes", "Add references"];
 
-/** What stands in the editor's way, in fixed words: an open dialog it names, or that none is open. */
-async function inTheWay(page) {
-  const open = page.getByRole("dialog");
-  const count = await open.count().catch(() => 0);
-  if (!count) return "no dialog is open";
-  for (const name of DIALOGS) if (await page.getByRole("dialog", { name }).count().catch(() => 0)) return `the dialog ${name} is open`;
-  return "another dialog is open";
+/**
+ * What stands in the way of `button`, in fixed words: an open dialog it names, else what the page shows
+ * at the button's middle (the button itself, a frame such as the panel's, a toast, or another element).
+ */
+async function inTheWay(page, button) {
+  const count = await page.getByRole("dialog").count().catch(() => 0);
+  if (count) {
+    for (const name of DIALOGS) if (await page.getByRole("dialog", { name }).count().catch(() => 0)) return `the dialog ${name} is open`;
+    return "another dialog is open";
+  }
+  const found = await button.evaluate(el => {
+    const box = el.getBoundingClientRect();
+    if (box.bottom < 0 || box.top > innerHeight || box.right < 0 || box.left > innerWidth) return "off the screen";
+    const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    if (!top) return "under nothing";
+    if (top === el || el.contains(top)) return el.disabled || el.getAttribute("aria-disabled") === "true" ? "the button, disabled" : "the button itself";
+    if (top.closest("iframe")) return "a frame";
+    if (top.closest("[data-sonner-toast], [role=status], [role=alert], [aria-live]")) return "a toast";
+    if (top.closest("aside, [role=complementary]")) return "a sidebar";
+    return "another element";
+  }, null, { timeout: 5_000 }).catch(() => "unreadable");
+  return `no dialog is open, and at Save the page shows ${found}`;
 }
 
 /**
@@ -107,7 +122,7 @@ async function inTheWay(page) {
 export async function saveEditor(page) {
   const save = page.locator('button[aria-label="Save"]:visible').first();
   if (!await save.count() || !await save.isEnabled()) return;
-  if (!await save.click({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`The editor's Save took no click: ${await inTheWay(page)}.`);
+  if (!await save.click({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`The editor's Save took no click: ${await inTheWay(page, save)}.`);
   if (!await page.locator('button[aria-label="Saved"]:visible').first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
     throw new Error("EmDash didn't save the product page within 30 seconds.");
   }
