@@ -89,13 +89,14 @@ async function panelSays(panel, act, message) {
 
 /**
  * Presses the editor's Save, when it has something to save, and waits for EmDash to say Saved. The
- * editor's button carries its label as its accessible name, which the panel's own Save doesn't.
+ * editor's button carries its label as its accessible name, which the panel's own Save doesn't. The
+ * editor also keeps a hidden copy of that button, which never takes a click, so only a shown one counts.
  */
 export async function saveEditor(page) {
-  const save = page.locator('button[aria-label="Save"]').first();
+  const save = page.locator('button[aria-label="Save"]:visible').first();
   if (!await save.count() || !await save.isEnabled()) return;
   await save.click();
-  if (!await page.locator('button[aria-label="Saved"]').first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+  if (!await page.locator('button[aria-label="Saved"]:visible').first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
     throw new Error("EmDash didn't save the product page within 30 seconds.");
   }
 }
