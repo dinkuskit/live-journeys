@@ -47,8 +47,6 @@ export const config = {
   order: read("DINKUS_E2E_ORDER").replace(/^#/, ""),
   service: read("DINKUS_E2E_SERVICE", "GA"),
   ordersAdmin,
-  // Commerce Products sits beside Commerce Orders, so a beta install's Orders setting covers both.
-  productsAdmin: read("DINKUS_E2E_PRODUCTS_ADMIN", ordersAdmin.replace(/\/orders\/?$/, "/products")),
   // The Ship plugin's Shipping page in the store admin; empty finds it in the admin's menu.
   shippingAdmin: read("DINKUS_E2E_SHIPPING_ADMIN"),
   productPath: read("DINKUS_E2E_PRODUCT_PATH"),

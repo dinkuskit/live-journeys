@@ -4,11 +4,11 @@ import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import { PAGE_ROOM, paceStore } from "../support/pace.mjs";
 import {
-  addCategory, addProduct, addProductPage, archive, findProduct, onProduct, publishedLink, setPrice, setWeight, shownProductId, trash, uploadPhoto,
+  addCategory, addPriceAndStock, addProductPage, archive, choosePhoto, openPanel, openProductPanel, panelProduct, publishProductPage, publishedLink,
+  setPrice, setWeight, trash, uploadPhoto,
 } from "../support/products-admin.mjs";
-import { record } from "../support/proof.mjs";
 import { openShopperPage } from "../support/shopper.mjs";
-import { confirmed, notePlugins, openAdmin } from "../support/store-admin.mjs";
+import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { journey, step } from "../support/steps.mjs";
 import { photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
 import { dollars, money } from "../support/storefront-text.mjs";
@@ -25,22 +25,6 @@ function runNames() {
     category: `Onboarding category ${stamp}`,
     photo: `onboarding-${stamp}.png`,
   };
-}
-
-/** The open Commerce product page has no Archive or Restore, so this run could not take its product off the store. */
-async function archiveMissing(page) {
-  await page.getByText("Commerce / Products", { exact: true }).waitFor({ timeout: 30_000 });
-  return !await page.getByRole("button", { name: /^(Archive|Restore) product$/ }).count();
-}
-
-const CANT_REMOVE = "It needs a Commerce release with archive.";
-
-/**
- * Opens this run's product. Null only when Commerce Products was read through and doesn't list it;
- * a lookup that fails throws.
- */
-async function openRunProduct(page, name) {
-  return await findProduct(page, name) ? name : null;
 }
 
 /**
@@ -199,117 +183,64 @@ const after = seconds => seconds ? ` after ${seconds} s` : "";
 const withPhoto = state => state.hasPhoto ? " with its photo"
   : state.photoHash ? " (its photo not looked for, since an earlier store check failed)" : " (no photo to look for, since none was chosen)";
 
-// Onboarding episode: one product with a category. The owner adds one product, sets a price and a
-// weight, gives it a photo, and publishes a page in a new category. Manage products proves those
-// controls and then renames, archives and restores; this journey stops once the page is in its
-// category. The tidy at the end is how Manage products takes its own product off the store. Archive
-// is not a step of this story.
+// Onboarding episode: one product with a category. The owner adds a product page in a new category,
+// gives it its Commerce product with a price and a weight and a photo in the page's Dinkus Commerce
+// panel, and publishes it, which puts it on sale. Manage products proves those controls and then
+// renames, archives and restores; this journey stops once the store sells the product. The tidy at the
+// end is how Manage products takes its own product off the store. Archive is not a step of this story.
 test("One product with a category", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   const run = runNames();
-  // Commerce keeps the product open in the saved profile's page; Media and Content work in a second tab.
+  // The product page's editor, with its panel, stays in the saved profile's page; Media and categories work in a second tab.
   const content = await newPage(page.context());
   const shopper = await shopperPage();
   // What the store should show, and what this run made, so the tidy can take it off the store.
-  const state = {
-    id: "", idShown: false, name: run.product, adminName: run.product, cents: 1200, productPath: "", categoryPath: "",
-    checkNewProduct: false, cantArchive: false, archived: false, hasPhoto: false, photoHash: "",
-  };
-  // `product` is "asked" from the moment Add product is pressed, and true once Commerce confirms it; the
-  // page and category keep their store addresses from just before each is saved and their editor's once
-  // it opens. `lost` names an entry saved without the test learning where its editor is.
+  const state = { id: "", name: run.product, cents: 1200, productPath: "", categoryPath: "", archived: false, hasPhoto: false, photoHash: "" };
+  // `product` is "asked" from the moment the panel may make it, and true once the page is saved with
+  // it; the page and category keep their store addresses from just before each is saved and their
+  // editor's once it opens. `lost` names an entry saved without the test learning where its editor is.
   const made = { product: false, page: "", category: "", pagePath: "", categoryPath: "", lost: [] };
   const soft = { soft: true };
   try {
-    // Archive is the tidy, not the story. Without it this run's product would stay in the shop, so that's
-    // read off a product the store already has, and nothing of that product is changed.
-    await step(page, "The owner can open Commerce Products", async () => {
-      await openAdmin(page, config.productsAdmin);
+    await step(page, "The owner adds a product page in a new category", async () => {
+      await openAdmin(page, `${config.store}/_emdash/admin/content/products`);
       await notePlugins(page);
-      if (!await page.getByRole("button", { name: "Add product", exact: true }).waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
-        throw new Error(`${config.productsAdmin} shows no Add product form.`);
-      }
-      const existing = page.getByRole("button", { name: /^Open / });
-      if (!await existing.count()) {
-        // The new product's own page gets the check instead, before it has a price; unpriced, the store doesn't list it.
-        state.checkNewProduct = true;
-        return "Commerce Products opened; no products yet, so the new product's page shows whether Commerce can archive before it gets a price";
-      }
-      await existing.first().click();
-      if (await archiveMissing(page)) {
-        throw new Error(`Commerce on this store can't archive a product yet, so the journey stops before adding one it couldn't take off the store again. ${CANT_REMOVE}`);
-      }
-      await openAdmin(page, config.productsAdmin);
-      await page.getByRole("button", { name: "Add product", exact: true }).waitFor({ timeout: 30_000 });
-      return "Commerce Products opened, and its product pages offer Archive or Restore product";
-    });
-
-    await step(page, "The owner adds one product", async () => {
-      // A product Commerce adds without confirming it still gets cleaned up.
-      await addProduct(page, { name: run.product, sku: run.sku }, made);
-      if (state.checkNewProduct && await archiveMissing(page)) {
-        state.cantArchive = true;
-        throw new Error(`Commerce on this store can't archive a product yet, so the journey stops before pricing "${run.product}"; without a price the store doesn't list it. ${CANT_REMOVE}`);
-      }
-      return `added "${run.product}" (SKU ${run.sku})`;
+      await addCategory(content, run.category, made);
+      await addProductPage(page, { title: run.product, style: "CAP", category: run.category }, made);
+      return `saved "${run.product}" (unpublished) at ${made.pagePath} in the new category ${made.categoryPath}`;
     });
 
     await step(page, "The owner sets a price and a weight", async () => {
-      // The product page shows the ID a product page's "Commerce product" field takes.
-      const id = await shownProductId(page);
-      state.idShown = Boolean(id);
-      if (state.idShown) state.id = id;
-      await setPrice(page, "12.00");
-      await setWeight(page, 8);
-      return `"${run.product}" at $12.00, 8 oz${state.idShown ? `; Product ID ${state.id}` : ""}`;
+      const { panel, id } = await addPriceAndStock(page, run.sku, made);
+      state.id = id;
+      await setPrice(panel, "12.00");
+      await setWeight(panel, 8);
+      return `Add price and stock made "${run.product}" (SKU ${run.sku}) at $12.00, 8 oz; the page keeps Commerce product ${id}`;
     });
 
     await step(content, "The owner gives the product a photo", async () => {
       await uploadPhoto(content, run.photo, run.product);
-      await onProduct(page, state.adminName);
-      await page.getByRole("button", { name: "Choose image", exact: true }).click();
-      const use = page.getByRole("button", { name: `Use ${run.photo}`, exact: true });
-      await use.waitFor({ timeout: 30_000 });
-      // The library shows each photo just above its Use button, so that picture is the file chosen.
-      const hash = await imageHash(page, await use.locator("xpath=preceding::img[1]").getAttribute("src", quick).catch(() => null));
-      if (!hash) throw new Error(`Commerce's image picker shows no picture the test could fetch above "Use ${run.photo}".`);
-      await use.click();
-      await confirmed(page, "Image saved");
+      let hash = "";
+      // The picker shows each photo just above its Use button, so that picture is the file chosen.
+      await choosePhoto(await openPanel(page), run.photo, { beforeUse: async use => {
+        hash = await imageHash(page, await use.locator("xpath=preceding::img[1]").getAttribute("src", quick).catch(() => null));
+        if (!hash) throw new Error(`Commerce's image picker shows no picture the test could fetch above "Use ${run.photo}".`);
+      } });
       Object.assign(state, { hasPhoto: true, photoHash: hash });
-      return `uploaded ${run.photo} to the Media library and chose it on the product's Commerce page, which said "Image saved"`;
+      return `uploaded ${run.photo} to the Media library and chose it in the product page's Dinkus Commerce panel, which said "Image saved"`;
     }, soft);
 
-    const shopRight = await step(shopper, "The Shop list shows the new product with its name, price and photo", async () => {
-      // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first.
-      await openShopperPage(shopper, "/");
-      const { problems, seconds } = await storeShows(shopper, state);
-      if (problems.length) throw new Error(`${problems.join("; ")}${after(seconds)}.`);
-      return `"${state.name}" at ${dollars(state.cents)}${withPhoto(state)}${after(seconds)}`;
-    }, soft);
-    // A photo the store lost fails this step, not the page check after it too.
-    if (!shopRight) state.hasPhoto = false;
-
-    const pageStep = "The owner publishes a page and puts it in a category";
-    await step(content, pageStep, async () => {
-      if (!state.id) throw new Error("The test couldn't learn the product's ID: Commerce's product page doesn't show it and the Shop list doesn't list the product.");
-      // addProductPage files the page in the category and then publishes. That is the only order these helpers do.
-      await addCategory(content, run.category, made);
-      await addProductPage(content, { title: run.product, style: "CAP", productId: state.id, category: run.category }, made);
+    await step(shopper, "Publishing the page puts the product on sale", async () => {
+      await openAdmin(page, made.page);
+      await publishProductPage(page);
       Object.assign(state, { productPath: made.pagePath, categoryPath: made.categoryPath });
-      // The owner's list of product pages says it's published and links to its address.
       const listed = await publishedLink(content, run.product);
       if (listed !== new URL(state.productPath, config.store).href) {
         throw new Error(listed === null ? `Published ${state.productPath}, but EmDash's list of product pages doesn't show it as Published with a View published link.`
           : `EmDash's list of product pages links "${run.product}" to ${listed} instead of ${state.productPath}.`);
       }
-      // Linking the page needs the ID, which an owner can only copy from Commerce's product page.
-      if (!state.idShown) throw new Error(`Published ${state.productPath} in ${state.categoryPath}, but Commerce's product page shows no Product ID, so the test copied it from the Shop list's markup.`);
-      return `published ${state.productPath} in the new category ${state.categoryPath}, linked by the Product ID Commerce shows; EmDash lists it as Published, with View published linking to it`;
-    }, soft);
-
-    const showsStep = "The product page and its category page show the product";
-    if (!state.productPath) record(showsStep, "SKIP", "the product page wasn't published, so there's no page to check");
-    else await step(shopper, showsStep, async () => {
+      // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first.
+      await openShopperPage(shopper, "/");
       const { problems, seconds } = await storeShows(shopper, state);
       if (problems.length) throw new Error(`${problems.join("; ")}${after(seconds)}.`);
       return `the Shop card links to ${state.productPath}, which shows "${state.name}" at ${dollars(state.cents)}${withPhoto(state)} and Add to cart; ${state.categoryPath} lists it${after(seconds)}`;
@@ -319,38 +250,32 @@ test("One product with a category", { tag: "@running" }, journey(async ({ page }
     // Archive here is the tidy Manage products already does. It is not a filmed step.
     if (made.product || made.page || made.category || made.lost.length) await step(shopper, "The test takes its product, page and category off the store", async () => {
       const problems = [];
-      if (state.cantArchive) problems.push(`"${run.product}" stays in Commerce Products without a price, since this Commerce can't archive it; the store doesn't list it`);
-      else if (made.product) {
-        // A confirmation the journey missed can leave its notes stale, so the product's own page says what it is now.
-        // A lookup that fails proves nothing either way, so it's a finding (and `name` stays undefined).
-        const name = await openRunProduct(page, state.adminName)
-          .catch(error => { problems.push(`looking for "${run.product}" in Commerce Products failed, so it may still be on the store: ${firstLine(error)}`); });
-        if (name === null) {
-          // A product Commerce never confirmed adding may not exist at all.
-          if (made.product === true) problems.push(`Commerce Products lists no "${run.product}", so the test couldn't archive it`);
-        } else if (name) {
-          if (await page.getByRole("button", { name: "Archive product", exact: true }).count()) {
-            await archive(page, name).then(() => { state.archived = true; }, error => problems.push(`archiving "${name}" in Commerce failed: ${firstLine(error)}`));
-          } else if (await page.getByRole("button", { name: "Restore product", exact: true }).count()) state.archived = true;
-          else problems.push(`"${name}" offers neither Archive product nor Restore product`);
-        }
+      if (made.product && made.page) {
+        // The panel says what the product is now, whatever this run's notes say.
+        const panel = await openProductPanel(page, made.page).catch(error => { problems.push(`opening "${run.product}"'s Dinkus Commerce panel failed, so its product may still be on the store: ${firstLine(error)}`); });
+        const shown = panel ? await panelProduct(panel) : null;
+        if (shown?.state === "draft" || shown?.state === "on sale") {
+          await archive(panel).then(() => { state.archived = true; }, error => problems.push(`archiving "${shown.name}" in its panel failed: ${firstLine(error)}`));
+        } else if (shown?.state === "archived") state.archived = true;
+        else if (shown?.state === "none") problems.push(`Commerce may have made SKU ${run.sku} without the page keeping it; look for it under Commerce settings' Products without a page`);
+        else if (shown) problems.push(`"${run.product}"'s panel shows its product as ${shown.state}`);
       }
       // Each finding names what's left, so the owner can take it off the store by hand.
-      for (const [what, url] of [[`product page "${run.product}"`, made.page], [`category "${run.category}"`, made.category]]) {
-        if (url) await trash(content, url).catch(error => problems.push(`moving the ${what} to the Trash failed: ${firstLine(error)}`));
+      for (const [what, url, tab] of [[`product page "${run.product}"`, made.page, page], [`category "${run.category}"`, made.category, content]]) {
+        if (url) await trash(tab, url).catch(error => problems.push(`moving the ${what} to the Trash failed: ${firstLine(error)}`));
       }
       for (const what of made.lost) problems.push(`the ${what} may have been saved without the test learning where, so look for it under Content in the store admin`);
       // A step that stopped the journey early can leave the shopper's browser not yet signed in to a store
       // that keeps every page behind Cloudflare Access, so it opens the store first.
       if (await openShopperPage(shopper, "/").then(() => true, error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return false; })) {
-        problems.push(...(await storeHides(shopper, state)).problems);
+        problems.push(...(await storeHides(shopper, { ...state, productPath: made.pagePath, categoryPath: made.categoryPath })).problems);
         // Every address the run saved stops answering within a minute, published or not.
         for (const path of [made.pagePath, made.categoryPath].filter(Boolean)) {
           problems.push(...(await catchUp(shopper, path, response => response.status() === 200 ? [`${path} still answers HTTP 200`] : [])).problems);
         }
       }
       if (problems.length) throw new Error(`${problems.join("; ")}.`);
-      return `${state.archived ? `archived "${state.adminName}" in Commerce` : "Commerce never added the product"}${made.page || made.category ? " and moved its page and category to EmDash's Trash" : ""}; the store shows none of them`;
+      return `${state.archived ? `archived "${state.name}" in its panel` : "Commerce never made the product"}${made.page || made.category ? " and moved its page and category to EmDash's Trash" : ""}; the store shows none of them`;
     }, soft);
     await closeShopper(shopper);
     await content.close();

@@ -193,9 +193,12 @@ release waits on promote and the reviewed merge. This runner does not do either.
 On a store the Live journeys workflow is not running, `npm test` still runs every
 `@running` journey with that store's settings file:
 `DINKUS_E2E_ENV_FILE=<that store's settings file> npm test`. That pass is not the
-release gate. On a store whose Commerce can't rename and archive a product,
-Manage products stops at its first step; on one older than 0.3.0-beta.4, Full
-catalog adds nothing. See the runner README's "Run on GitHub".
+release gate. On a store whose Commerce has no Dinkus Commerce panel on its
+product pages (before 0.6.0-beta.1), Manage products and One product with a
+category stop at their price and stock step and Full catalog adds nothing; on a
+store without the template's publish check (template-store#152), a product the
+panel makes stays a Draft, so their steps that publish a page and expect its
+product on sale fail. See the runner README's "Run on GitHub".
 
 ## Rules
 
@@ -251,20 +254,20 @@ catalog adds nothing. See the runner README's "Run on GitHub".
   wrong one, a quantity the header or a reload doesn't keep, or a Remove that
   leaves the item or doesn't stay empty after a reload. Report each finding with
   the amounts the proof gives.
-- Manage products stops at its first step when Commerce on the store can't
-  rename or archive a product yet. Report that the store needs a Commerce release
-  with both (dinkus-commerce-beta 0.3.0-beta.2 or later) and that nothing was
-  added. On a store with no products yet it finds that out on the product it
-  added, before giving it a price, so report that product as left in Commerce
-  Products without a price, where the store doesn't list it. It also stops when
-  the product can't be added. Its other steps are soft:
+- Manage products stops when Content > Products won't open, when its product
+  page can't be added, or when the page's Dinkus Commerce panel can't give it a
+  product with a price and a weight (no panel means Commerce before
+  0.6.0-beta.1; report that the store needs it). When "Publishing the page puts
+  the product on sale" fails because the panel still says Draft, report that the
+  store lacks the template's publish check (template-store#152), not a Commerce
+  fault. Its other steps are soft:
   report each page that didn't follow a change, with how long the test waited.
   When the last step fails, name what it couldn't take off the store, so the
   owner can archive or trash it by hand.
-- Full catalog stops when Commerce Products won't open or a category can't be
+- Full catalog stops when Content > Products won't open or a category can't be
   published. Its other steps are soft: report each product a page leaves out or
   shows wrong, with the page. When it adds nothing because the store's Commerce
-  is older than 0.3.0-beta.4, report that the store needs that release first.
+  is older than 0.6.0-beta.1, report that the store needs that release first.
 - Mark as completed stops when the owner can't open Commerce Orders, when an
   order can't be placed, or when EmDash won't make the agent's key. Its other
   steps are soft: report a refused completion with Commerce's answer, and an

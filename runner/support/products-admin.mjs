@@ -2,11 +2,12 @@ import { newPage, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
 import { MEDIA_ROOM, PICKER_PAGE_ROOM, paceStore } from "./pace.mjs";
-import { confirmed, openAdmin } from "./store-admin.mjs";
+import { openAdmin } from "./store-admin.mjs";
 import { quick, text } from "./storefront-page.mjs";
 
-// What an owner does with products in the store admin: Commerce Products, the Media library, and
-// EmDash's product pages and categories. Manage products and Full catalog share these.
+// What an owner does with products in the store admin: EmDash's product pages (Content > Products) with
+// their Dinkus Commerce panel, the Media library, and categories. Manage products, Full catalog and One
+// product with a category share these.
 
 /** Answers the question the admin asks before an action with one of its buttons. */
 export async function answer(page, question, choice) {
@@ -16,119 +17,164 @@ export async function answer(page, question, choice) {
   await dialog.getByRole("button", { name: choice, exact: true }).click();
 }
 
+// The Dinkus Commerce panel on a Content > Products page is the one product screen: it makes the page's
+// Commerce product and holds its price, weight, photos, name and archive. Its state line reads "Draft:
+// publish to sell it", "On sale" or "Archived: off the shop", then the SKU; a page with no product yet
+// says "Not a product yet".
+const PANEL_READY = /^Not a product yet|\u00b7 SKU /;
+const PANEL_STATES = { "Draft": "draft", "On sale": "on sale", "Archived": "archived" };
+
 /**
- * Opens a product in Commerce Products, paging through the list until it finds it. False only when
- * every page was read and none lists it; a page that won't open or turn fails instead.
+ * Opens the Dinkus Commerce panel on the product page editor showing in `page` and returns it once
+ * it has drawn. A page whose editor offers no panel, or a panel that won't draw, fails.
  */
-export async function findProduct(page, name) {
-  await openAdmin(page, config.productsAdmin);
-  for (;;) {
-    await page.getByRole("button", { name: "Add product", exact: true }).waitFor({ timeout: 30_000 });
-    const open = page.getByRole("button", { name: `Open ${name}`, exact: true });
-    if (await open.count()) {
-      await open.click();
-      await page.getByRole("heading", { name, level: 2 }).waitFor({ timeout: 30_000 });
-      return true;
-    }
-    if (!await nextPage(page)) return false;
+export async function openPanel(page) {
+  const trigger = page.getByLabel("Settings", { exact: true }).getByRole("button", { name: "Dinkus Commerce", exact: true });
+  // On a phone-sized window the editor's settings open from its Settings button.
+  const settings = page.getByRole("main").getByRole("button", { name: "Settings", exact: true });
+  if (!await trigger.or(settings).first().waitFor({ timeout: 60_000 }).then(() => true, () => false)) {
+    throw new Error("The product page's editor shows no Dinkus Commerce panel.");
+  }
+  if (!await trigger.isVisible()) await settings.click();
+  if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
+  const panel = trigger.locator("xpath=..");
+  if (!await panel.getByText(PANEL_READY).first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+    const said = await text(panel.locator('[role="alert"]'));
+    throw new Error(said ? `The Dinkus Commerce panel says "${said}".` : "The Dinkus Commerce panel didn't draw within 30 seconds.");
+  }
+  return panel;
+}
+
+/** Opens the product page editor at `editor` with its Dinkus Commerce panel open. */
+export async function openProductPanel(page, editor) {
+  await openAdmin(page, editor);
+  return openPanel(page);
+}
+
+/**
+ * What the open panel says of the page's product: "none" before it has one, else "draft", "on sale"
+ * or "archived" with its SKU and name.
+ */
+export async function panelProduct(panel) {
+  const said = await text(panel.getByText(PANEL_READY));
+  if (/^Not a product yet/.test(said)) return { state: "none" };
+  const [, state = "", sku = ""] = said.match(/^(Draft|On sale|Archived)\b.*\u00b7 SKU (.+)$/) ?? [];
+  return { state: PANEL_STATES[state] ?? `unknown ("${said}")`, sku, name: await text(panel.getByRole("heading", { level: 2 })) };
+}
+
+/**
+ * Does `act` (a press in the open panel) and waits for Commerce's answer, which must be a success
+ * toast saying `message` (a string, or a pattern); anything else fails with what Commerce said. The
+ * panel draws the answer as it arrives, so what's read after this comes from the new drawing.
+ */
+async function panelSays(panel, act, message) {
+  const page = panel.page();
+  // The panel draws itself again whenever the page is saved; those loads aren't the press's answer.
+  const answered = page.waitForResponse(r => r.request().method() === "POST" && /\/plugin-extensions\/[^/]+\/panel\//.test(new URL(r.url()).pathname)
+    && r.request().postDataJSON()?.type !== "panel_load", { timeout: 30_000 });
+  answered.catch(() => {});
+  await act();
+  const response = await answered.catch(() => null);
+  if (!response) throw new Error(`Commerce never answered, so it never said "${message.source ?? message}".`);
+  const body = await response.json().catch(() => null);
+  const toast = body?.data?.toast;
+  if (toast?.type === "success" && (typeof message === "string" ? toast.message === message : message.test(toast.message))) {
+    await page.getByText(toast.message, { exact: true }).first().waitFor({ timeout: 15_000 }).catch(() => {});
+    return body.data;
+  }
+  const banner = body?.data?.blocks?.find(block => block?.type === "banner")?.title;
+  const reason = toast?.message ?? banner ?? body?.error?.message ?? `HTTP ${response.status()}`;
+  throw new Error(`Commerce refused it: "${reason}"`);
+}
+
+/**
+ * Presses the editor's Save, when it has something to save, and waits for EmDash to say Saved. The
+ * editor's button carries its label as its accessible name, which the panel's own Save doesn't.
+ */
+export async function saveEditor(page) {
+  const save = page.locator('button[aria-label="Save"]').first();
+  if (!await save.count() || !await save.isEnabled()) return;
+  await save.click();
+  if (!await page.locator('button[aria-label="Saved"]').first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+    throw new Error("EmDash didn't save the product page within 30 seconds.");
   }
 }
 
 /**
- * Every product Commerce Products lists, read page by page: how many rows carry each name, and how
- * many pages the list took.
+ * Gives the saved product page open in `page` its Commerce product, as an owner does, and saves the
+ * page with it. With `link`, a product with this SKU that has no page yet is chosen ("Or its SKU", then
+ * Sell it here); otherwise, or when Commerce has none by that SKU, Add price and stock makes a Draft
+ * with that SKU. A page that already names a product gets that one. Commerce's change to the page's
+ * Commerce product field is applied when EmDash asks. `made.product` is "asked" from the moment a
+ * product may be made and true once the page is saved with it, so a caller can archive a product
+ * Commerce made even when the page never kept it. Returns the panel and the product's ID.
  */
-export async function listedProducts(page) {
-  await openAdmin(page, config.productsAdmin);
-  const names = new Map();
-  for (let pages = 1; ; pages++) {
-    await page.getByRole("button", { name: "Add product", exact: true }).waitFor({ timeout: 30_000 });
-    const opens = await page.getByRole("button", { name: /^Open / })
-      .evaluateAll(buttons => buttons.map(button => (button.getAttribute("aria-label") || button.textContent).trim()));
-    for (const name of opens.map(open => open.replace(/^Open /, ""))) names.set(name, (names.get(name) ?? 0) + 1);
-    if (!await nextPage(page)) return { names, pages };
+export async function addPriceAndStock(page, sku, made = {}, { link = false } = {}) {
+  let panel = await openPanel(page);
+  if ((await panelProduct(panel)).state !== "none") throw new Error("The product page already has a Commerce product.");
+  let said = null;
+  const bySku = panel.getByRole("textbox", { name: "Or its SKU", exact: true });
+  if (link && await bySku.count()) {
+    await bySku.fill(sku);
+    said = await panelSays(panel, () => panel.getByRole("button", { name: "Sell it here", exact: true }).click(), "Linked. Save to keep it.").catch(() => null);
+    // A refused link draws the panel again with nothing linked, so Add price and stock follows.
+    if (!said) panel = await openPanel(page);
   }
+  if (!said) {
+    await panel.getByRole("textbox", { name: "SKU (optional)", exact: true }).fill(sku);
+    made.product = "asked";
+    said = await panelSays(panel, () => panel.getByRole("button", { name: "Add price and stock", exact: true }).click(),
+      /^(Draft made\. Save, then Publish to sell it\.|Linked\. Save to keep it\.)$/);
+  }
+  // EmDash asks before Commerce's change reaches the editor; a page that already named the product needs none.
+  if (said.patch) {
+    const review = page.getByRole("dialog", { name: "Review proposed changes" });
+    if (!await review.waitFor({ timeout: 15_000 }).then(() => true, () => false)) throw new Error("EmDash never asked to apply Commerce's change to the page.");
+    await review.getByRole("button", { name: "Apply changes", exact: true }).click();
+    await review.waitFor({ state: "hidden", timeout: 15_000 });
+  }
+  await saveEditor(page);
+  const id = (await page.getByRole("textbox", { name: /^Commerce product/ }).inputValue().catch(() => "")).trim();
+  if (!id) throw new Error("The product page's Commerce product field is still empty after Save.");
+  if (made.product) made.product = true;
+  return { panel: await openPanel(page), id };
 }
 
-/** Turns Commerce Products to its next page; false when the shown page is the last. */
-async function nextPage(page) {
-  const next = page.getByRole("button", { name: "Next", exact: true });
-  if (!await next.count()) return false;
-  const before = await listedRows(page);
-  await next.click();
-  await expect.poll(() => listedRows(page), { timeout: 30_000 }).not.toEqual(before);
-  return true;
+/** Saves the regular price in the open panel. */
+export async function setPrice(panel, regular) {
+  await panel.getByRole("textbox", { name: "Regular", exact: true }).fill(regular);
+  await panelSays(panel, () => panel.getByRole("button", { name: "Save", exact: true }).click(), "Product saved");
 }
 
-/**
- * The rows the shown page of Commerce Products lists, each read with the text beside its Open button
- * ("name — SKU"). SKUs are unique, so the rows tell one page from the next even when products share a name.
- */
-function listedRows(page) {
-  return page.getByRole("button", { name: /^Open / }).evaluateAll(buttons => buttons.map(button => {
-    let row = button;
-    while (row.parentElement && row.textContent === button.textContent) row = row.parentElement;
-    return row.textContent;
-  }));
-}
-
-/** Opens a product in Commerce Products; a product the list doesn't have fails. */
-export async function openProduct(page, name) {
-  if (!await findProduct(page, name)) throw new Error(`Commerce Products doesn't list "${name}".`);
-}
-
-/**
- * Adds a physical product on the open Commerce Products page. `made.product` is "asked" from the moment
- * Add product is pressed and true once Commerce confirms it, so a caller can take off the store a product
- * Commerce added without confirming it.
- */
-export async function addProduct(page, { name, sku }, made = {}) {
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill(name);
-  await page.getByRole("textbox", { name: "SKU", exact: true }).fill(sku);
-  await page.getByRole("radio", { name: "Physical", exact: true }).check();
-  made.product = "asked";
-  await page.getByRole("button", { name: "Add product", exact: true }).click();
-  await confirmed(page, "Product added");
-  made.product = true;
-}
-
-/** Makes sure the saved profile's page shows this product in Commerce, opening it again when a step left it elsewhere. */
-export async function onProduct(page, name) {
-  if (await page.getByRole("heading", { name, level: 2 }).isVisible() && await page.getByText("Commerce / Products", { exact: true }).isVisible()) return;
-  await openProduct(page, name);
-}
-
-/** The Product ID the open Commerce product page shows, which a product page's "Commerce product" field takes; "" when it shows none. */
-export async function shownProductId(page) {
-  const id = await text(page.locator("main pre, main code"));
-  return /^[\w-]{8,}$/.test(id) ? id : "";
-}
-
-/** Saves the open Commerce product's regular price. */
-export async function setPrice(page, regular) {
-  await page.getByRole("textbox", { name: "Regular", exact: true }).fill(regular);
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await confirmed(page, "Product saved");
-}
-
-/** Saves the open Commerce product's weight in ounces, and checks Commerce kept it. */
-export async function setWeight(page, ounces) {
-  const weight = page.getByRole("textbox", { name: "Weight (oz)", exact: true });
+/** Saves the weight in ounces in the open panel, and checks Commerce kept it. */
+export async function setWeight(panel, ounces) {
+  const weight = panel.getByRole("textbox", { name: "Weight (oz)", exact: true });
   await weight.fill(String(ounces));
-  await page.getByRole("button", { name: "Save weight", exact: true }).click();
-  await confirmed(page, "Weight saved");
+  await panelSays(panel, () => panel.getByRole("button", { name: "Save weight", exact: true }).click(), "Weight saved");
   // Commerce draws the product again from what it stored, so the field now shows the saved weight.
   await expect(weight, "Commerce didn't keep the weight").toHaveValue(String(ounces), { timeout: 15_000 });
 }
 
-/** Archives the open Commerce product, answering the question Commerce asks first. */
-export async function archive(page, name) {
-  await onProduct(page, name);
-  const button = page.getByRole("button", { name: "Archive product", exact: true });
-  if (!await button.count()) throw new Error("Commerce's product page has no Archive product.");
-  await button.click();
-  await answer(page, `Archive ${name}?`, "Archive");
-  await confirmed(page, "Product archived");
+/** Renames the product in the open panel. */
+export async function rename(panel, name) {
+  await panel.getByRole("textbox", { name: "Name", exact: true }).fill(name);
+  await panelSays(panel, () => panel.getByRole("button", { name: "Rename", exact: true }).click(), "Product renamed");
+}
+
+/** Archives the product in the open panel, answering the question Commerce asks first. */
+export async function archive(panel) {
+  const button = panel.getByRole("button", { name: "Archive product", exact: true });
+  if (!await button.count()) throw new Error("The Dinkus Commerce panel has no Archive product.");
+  const name = await text(panel.getByRole("heading", { level: 2 }));
+  await panelSays(panel, async () => {
+    await button.click();
+    await answer(panel.page(), `Archive ${name}?`, "Archive");
+  }, "Product archived");
+}
+
+/** Restores the archived product in the open panel; Commerce brings it back as a Draft. */
+export async function restore(panel) {
+  await panelSays(panel, () => panel.getByRole("button", { name: "Restore", exact: true }).click(), "Restored as a Draft");
 }
 
 /** Uploads a plain square photo to the Media library, as an owner does before choosing it for a product. */
@@ -179,27 +225,29 @@ export async function uploadPhotos(page, photos, room = MEDIA_ROOM) {
 }
 
 /**
- * Chooses the Media library photo `fileName` as the open Commerce product's image. Commerce's picker
- * lists the library twelve photos at a time, so it turns the picker's pages until it finds the photo.
+ * Chooses the Media library photo `fileName` as the product's image in the open panel. Commerce's
+ * picker lists the library twelve photos at a time, newest first, so it turns the picker's pages until
+ * it finds the photo. Returns the photo's Use button just before it's pressed, so a caller can read the
+ * picture above it.
  */
-export async function choosePhoto(page, fileName) {
-  await page.getByRole("button", { name: /^(Choose|Change) image$/ }).click();
-  const use = page.getByRole("button", { name: `Use ${fileName}`, exact: true });
-  const shown = () => page.getByRole("button", { name: /^Use / }).evaluateAll(buttons => buttons.map(button => button.textContent));
+export async function choosePhoto(panel, fileName, { beforeUse = async () => {} } = {}) {
+  await panel.getByRole("button", { name: /^(Choose|Change) image$/ }).click();
+  const use = panel.getByRole("button", { name: `Use ${fileName}`, exact: true });
+  const shown = () => panel.getByRole("button", { name: /^Use / }).evaluateAll(buttons => buttons.map(button => button.textContent));
   for (;;) {
-    if (!await page.getByRole("button", { name: /^Use / }).first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+    if (!await panel.getByRole("button", { name: /^Use / }).first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
       throw new Error("Commerce's image picker shows no photos to use.");
     }
     if (await use.count()) break;
-    const next = page.getByRole("button", { name: "Next", exact: true });
+    const next = panel.getByRole("button", { name: "Next", exact: true });
     if (!await next.count()) throw new Error(`Commerce's image picker doesn't offer ${fileName}.`);
     const before = await shown();
     await paceStore(PICKER_PAGE_ROOM);
     await next.click();
     await expect.poll(shown, { timeout: 30_000 }).not.toEqual(before);
   }
-  await use.click();
-  await confirmed(page, "Image saved");
+  await beforeUse(use);
+  await panelSays(panel, () => use.click(), "Image saved");
 }
 
 /** An EmDash editor's field by its label; an editor without it fails with that plain reason. */
@@ -234,8 +282,11 @@ export async function publish(page, collection) {
   const published = page.waitForResponse(r => r.request().method() === "POST" && new RegExp(`/_emdash/api/content/${collection}/[^/]+/publish`).test(r.url()), { timeout: 30_000 });
   // When the click or the question fails first, this wait's own failure mustn't go unhandled; awaiting it below still fails the step.
   published.catch(() => {});
-  await page.getByRole("button", { name: "Publish now" }).click();
-  await answer(page, "Publish now?", "Publish now");
+  // An entry published before, with changes saved since, offers Publish changes instead.
+  const button = page.getByRole("button", { name: /^Publish (now|changes)$/ }).first();
+  const label = await button.getAttribute("aria-label") ?? (await button.innerText()).trim();
+  await button.click();
+  await answer(page, `${label}?`, label);
   const response = await published;
   if (response.ok()) return;
   const body = await response.json().catch(() => null);
@@ -259,40 +310,38 @@ export async function addCategory(content, title, made) {
 }
 
 /**
- * Adds a product page for the Commerce product `productId` in the category `category`, drawn in
- * `style`, and publishes it. `made` learns its address and editor as `addCategory` tells them.
+ * Adds a product page titled `title`, drawn in `style`, puts it in the category `category` and saves
+ * it, unpublished: a page gets its Commerce product in its panel once saved, and goes on sale when
+ * published. `made` learns its address and editor as `addCategory` tells them.
  */
-export async function addProductPage(content, { title, style, productId, category }, made) {
+export async function addProductPage(content, { title, style, category }, made) {
   await openAdmin(content, `${config.store}/_emdash/admin/content/products/new`);
   const editor = "The new product page editor";
   await (await field(content, "Product title", editor)).fill(title);
-  await fillProductPage(content, { style, productId }, editor);
+  await (await field(content, STYLE, editor)).fill(style);
   made.pagePath = `/products/${await slugOf(content)}`;
   made.page = await saveNew(content, "products") ?? "";
   if (!made.page) {
     made.lost.push(`product page "${title}"`);
     throw new Error(`Saving the product page "${title}" never opened its editor, and EmDash's answer didn't say where it is.`);
   }
-  await fileAndPublish(content, category);
+  await fileInCategory(content, category);
 }
+
+const STYLE = "Illustration style (TEE, HOODIE, CAP, or BEANIE)";
 
 /**
- * Finishes the saved but unpublished product page whose editor is at `editor`: it gets the Commerce
- * product `productId`, the style `style` and the category `category`, and is published.
+ * Finishes the product page open in `content`: it gets the style `style` when it has none and goes in
+ * the category `category` unless it's there, and is saved.
  */
-export async function finishProductPage(content, editor, { style, productId, category }) {
-  await openAdmin(content, editor);
-  await fillProductPage(content, { style, productId }, "The product page editor");
-  await fileAndPublish(content, category, { mayBeFiled: true });
+export async function finishProductPage(content, { style, category }) {
+  const box = await field(content, STYLE, "The product page editor");
+  if (!(await box.inputValue()).trim()) await box.fill(style);
+  await fileInCategory(content, category, { mayBeFiled: true });
 }
 
-async function fillProductPage(content, { style, productId }, editor) {
-  await (await field(content, "Illustration style (TEE, HOODIE, CAP, or BEANIE)", editor)).fill(style);
-  await (await field(content, "Commerce product (optional)", editor)).fill(productId);
-}
-
-/** Puts the open product page in `category` unless it already is, saves it and publishes it. */
-async function fileAndPublish(content, category, { mayBeFiled = false } = {}) {
+/** Puts the open product page in `category` unless it already is, and saves it. */
+async function fileInCategory(content, category, { mayBeFiled = false } = {}) {
   const filed = content.getByRole("button", { name: `Remove ${category}` });
   if (!mayBeFiled || !await filed.waitFor({ timeout: 5_000 }).then(() => true, () => false)) {
     await content.getByRole("button", { name: "Add reference" }).click();
@@ -302,12 +351,28 @@ async function fileAndPublish(content, category, { mayBeFiled = false } = {}) {
     await picker.getByRole("button", { name: "Add selected" }).click();
     await filed.waitFor({ timeout: 15_000 });
   }
-  const save = content.getByRole("button", { name: "Save", exact: true });
-  if (await save.isEnabled()) {
-    await save.click();
-    await expect(save).toBeDisabled({ timeout: 15_000 }).catch(() => {});
-  }
+  await saveEditor(content);
+}
+
+/** Publishes the product page open in `content`, which is what puts its product on sale. */
+export async function publishProductPage(content) {
+  await saveEditor(content);
   await publish(content, "products").catch(error => { throw new Error(`Publishing the product page failed: ${firstLine(error)}`); });
+}
+
+/**
+ * Publishes the product page open in `content` again, as an owner does to put a restored product back
+ * on sale: a published page with nothing new to publish offers only Unpublish, so it's unpublished first.
+ */
+export async function republishProductPage(content) {
+  const unpublish = content.getByRole("button", { name: /^Unpublish / });
+  if (await unpublish.count()) {
+    await unpublish.first().click();
+    if (!await content.getByRole("button", { name: /^Publish (now|changes)$/ }).first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+      throw new Error("Unpublishing the product page didn't bring back its Publish button.");
+    }
+  }
+  await publishProductPage(content);
 }
 
 /**
