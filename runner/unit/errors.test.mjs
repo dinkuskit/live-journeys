@@ -142,6 +142,7 @@ test("a failed step's kind is one of a few fixed phrases, never the error's own 
   assert.equal(failureKind("At Add reference of the product page: locator.click: Timeout 60000ms exceeded."), "timed out after 60 s at Add reference of the product page");
   assert.equal(failureKind("At the first Save of the product page: EmDash said no"), "failed at the first Save of the product page");
   assert.equal(failureKind("At Save of the product page: The editor's Save took no click: the dialog Review proposed changes is open."), "the editor's Save took no click (the dialog Review proposed changes is open)");
+  assert.equal(failureKind("At Save of the product page: The editor's Save took no click: no dialog is open, and at Save the page shows a toast."), "the editor's Save took no click (no dialog is open, and at Save the page shows a toast)");
   assert.equal(failureKind("At secret words of the product page: locator.click: Timeout 60000ms exceeded."), "timed out after 60 s at a part of the product page");
   assert.equal(failureKind("page.goto: net::ERR_NAME_NOT_RESOLVED at https://beta.sm0ky.dev/synthetic"), "network error ERR_NAME_NOT_RESOLVED");
   assert.equal(failureKind("locator.click: Target page, context or browser has been closed"), "the browser closed");
