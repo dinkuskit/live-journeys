@@ -50,6 +50,8 @@ export function forProof(error) {
 // fixed words and numbers, since the error's own words can carry what the page said.
 const PAGE_PARTS = new Set(["the title", "the style", "the slug", "the first Save", "Add reference", "the category search", "the category choice", "Add selected", "the filed category", "Save"]);
 const KINDS = [
+  // products-admin.mjs saveEditor: what covered the editor's Save, in its own fixed words.
+  [/The editor's Save took no click: (no dialog is open|the dialog (?:Review proposed changes|Add references) is open|another dialog is open)\./, match => `the editor's Save took no click (${match[1]})`],
   // products-admin.mjs `at`: which part of a product page's editor stopped, from its fixed few.
   [/^At (.+?) of the product page: .*?Timeout (\d+)ms exceeded/, match => `timed out after ${Math.round(Number(match[2]) / 1000)} s at ${PAGE_PARTS.has(match[1]) ? match[1] : "a part"} of the product page`],
   [/^At (.+?) of the product page: /, match => `failed at ${PAGE_PARTS.has(match[1]) ? match[1] : "a part"} of the product page`],
