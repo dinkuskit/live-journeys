@@ -116,15 +116,18 @@ async function inTheWay(page, button) {
 }
 
 /**
- * Presses the editor's Save, when it has something to save, and waits for EmDash to say Saved. The
- * editor's button carries its label as its accessible name, which the panel's own Save doesn't, and
- * only a shown one counts. When it takes no click, the failure says what covers it.
+ * Saves the editor's changes and waits for EmDash to say Saved. EmDash also saves a change by itself a
+ * moment after it's made, and its button then reads Saving... and Saved, so a press that loses that race
+ * is fine. The editor's button carries its label as its accessible name, which the panel's own Save
+ * doesn't, and only a shown one counts. When it never says Saved, the failure says what covers it.
  */
 export async function saveEditor(page) {
   const save = page.locator('button[aria-label="Save"]:visible').first();
-  if (!await save.count() || !await save.isEnabled()) return;
-  if (!await save.click({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`The editor's Save took no click: ${await inTheWay(page, save)}.`);
+  const saving = page.locator('button[aria-label="Saving..."]:visible');
+  if (await save.count() && !await save.isEnabled() && !await saving.count()) return;
+  if (await save.count() && await save.isEnabled()) await save.click({ timeout: 5_000 }).catch(() => {});
   if (!await page.locator('button[aria-label="Saved"]:visible').first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+    if (await save.count() && await save.isEnabled()) throw new Error(`The editor's Save took no click: ${await inTheWay(page, save)}.`);
     throw new Error("EmDash didn't save the product page within 30 seconds.");
   }
 }
