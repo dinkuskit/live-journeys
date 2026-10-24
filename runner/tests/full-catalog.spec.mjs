@@ -186,12 +186,13 @@ async function completeProduct(page, content, product, { entry, uploaded }, did)
     did.push(made.product ? "added" : "linked");
     shown = await panelProduct(panel);
   }
+  // A page naming some other product is never written to, so the SKU is checked before anything changes it.
+  if (shown.sku !== product.sku) throw new Error(`its page's panel shows SKU ${shown.sku || "none"} instead of ${product.sku}`);
   if (shown.state === "archived") {
     await restore(panel);
     did.push("restored");
     shown = await panelProduct(panel);
   }
-  if (shown.sku !== product.sku) throw new Error(`its page's panel shows SKU ${shown.sku || "none"} instead of ${product.sku}`);
   // The panel shows the price and weight Commerce stored, so only one that differs is saved, and reported.
   const price = (product.cents / 100).toFixed(2);
   if (await panel.getByRole("textbox", { name: "Regular", exact: true }).inputValue() !== price) {
