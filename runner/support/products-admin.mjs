@@ -87,15 +87,27 @@ async function panelSays(panel, act, message) {
   throw new Error(`Commerce refused it: "${reason}"`);
 }
 
+// What may cover the editor's Save, as the public run page may name it: dialogs EmDash or the panel open.
+const DIALOGS = ["Review proposed changes", "Add references"];
+
+/** What stands in the editor's way, in fixed words: an open dialog it names, or that none is open. */
+async function inTheWay(page) {
+  const open = page.getByRole("dialog");
+  const count = await open.count().catch(() => 0);
+  if (!count) return "no dialog is open";
+  for (const name of DIALOGS) if (await page.getByRole("dialog", { name }).count().catch(() => 0)) return `the dialog ${name} is open`;
+  return "another dialog is open";
+}
+
 /**
  * Presses the editor's Save, when it has something to save, and waits for EmDash to say Saved. The
- * editor's button carries its label as its accessible name, which the panel's own Save doesn't. The
- * editor also keeps a hidden copy of that button, which never takes a click, so only a shown one counts.
+ * editor's button carries its label as its accessible name, which the panel's own Save doesn't, and
+ * only a shown one counts. When it takes no click, the failure says what covers it.
  */
 export async function saveEditor(page) {
   const save = page.locator('button[aria-label="Save"]:visible').first();
   if (!await save.count() || !await save.isEnabled()) return;
-  await save.click();
+  if (!await save.click({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`The editor's Save took no click: ${await inTheWay(page)}.`);
   if (!await page.locator('button[aria-label="Saved"]:visible').first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
     throw new Error("EmDash didn't save the product page within 30 seconds.");
   }
