@@ -46,16 +46,18 @@ second site, and it is not a base EmDash install. See
   products entry links to it; otherwise its Shop card has no page to open.
 - For Cart, at least one listed product with a price that shoppers can add to
   the cart. Cart adds it to its own clean browser's cart and removes it again.
-- For Manage products, Commerce with rename and archive (dinkus-commerce-beta
-  0.3.0-beta.2 or later), Template Store's products and categories collections,
-  and a store admin sign-in allowed to add products, upload media and publish
-  content. A store whose admin asks for EmDash's own sign-in (a passkey or an
+- For Manage products and One product with a category, Commerce with the
+  Dinkus Commerce panel on Content > Products pages (dinkus-commerce-beta
+  0.6.0-beta.1 or later), a Template Store with the publish check that puts a
+  page's product on sale (template-store#152), Template Store's products and
+  categories collections, and a store admin sign-in allowed to edit and publish
+  content and upload media. A store whose admin asks for EmDash's own sign-in (a passkey or an
   emailed link) needs it made once by hand: run with
   `DINKUS_E2E_ADMIN_SIGNIN=wait`. Each run leaves one archived product named
   "Live test product <date and time> renamed" and its photo in the Media library;
   its product page and category go to EmDash's Trash. Empty the Trash or delete
   the photos by hand whenever you like.
-- For Full catalog, Commerce 0.3.0-beta.4 or later and the same admin sign-in and
+- For Full catalog, Commerce 0.6.0-beta.1 or later and the same admin sign-in and
   collections as Manage products. Its first run adds the whole catalog (24
   products in 3 categories unless `DINKUS_E2E_CATALOG` says otherwise), each with
   a photo in the Media library, and the catalog stays on the store for later runs.

@@ -14,12 +14,12 @@ journeys plan:
 | [Buy and ship](tests/buy-and-ship.spec.mjs) | `@running` | A Stripe TEST order on the store, the order in Commerce, a Pitney Bowes sandbox label in Ship, and Commerce marking the order Completed with the same tracking number |
 | [Storefront](tests/storefront.spec.mjs) | `@running` | A new shopper's first look: the homepage, the product list, a product page and its category page |
 | [Cart](tests/cart.spec.mjs) | `@running` | A new shopper adds a product to the cart, changes its quantity and removes it, with the cart total right each time |
-| [Manage products](tests/manage-products.spec.mjs) | `@running` | The owner adds a product, gives it a photo that stays after a reload and a published page in a new category that the store links to, changes its price and name, and archives and restores it, with the store following each change |
-| [Full catalog](tests/full-catalog.spec.mjs) | `@running` | The store carries a catalog as big as a real shop's (3 categories of 8 products unless set otherwise), each product with its own price, weight, photo and page: the owner adds what's missing, the Shop list, every category page and every product page show the whole catalog, and the owner can still save a product with all of it in place |
+| [Manage products](tests/manage-products.spec.mjs) | `@running` | On the one product screen (a Content > Products page and its Dinkus Commerce panel), the owner adds a product page in a new category, gives it price and stock, sees the Draft stay off the store, gives it a photo that stays after a reload, publishes the page to put it on sale, changes its price and name, and archives and restores it, with the store following each change |
+| [Full catalog](tests/full-catalog.spec.mjs) | `@running` | The store carries a catalog as big as a real shop's (3 categories of 8 products unless set otherwise), each product with its own price, weight, photo and page: the owner adds what's missing on each product's page and its Dinkus Commerce panel, the Shop list, every category page and every product page show the whole catalog, and the owner can still save a product with all of it in place |
 | [Mark as completed](tests/mark-completed.spec.mjs) | `@running` | The owner marks a paid TEST order completed in Commerce Orders, typing a carrier and tracking number, and an agent completes another through Commerce's orders API, sending neither; both end Completed |
 | [Problems](tests/problems.spec.mjs) | `@running` | A shopper's checkout going wrong: Stripe turns down a declined card, a card without enough funds and a card that fails the bank's security check, each with a clear message and no order; the shopper leaves Stripe for the cart, finds the way back to the same checkout and pays once with the test card, and the owner completes that one order |
 | [Buy a label in the store admin](tests/store-admin-label.spec.mjs) | `@running` | The owner ships a paid Stripe TEST order from the store admin's Shipping page, which the Ship plugin draws from hosted Ship: See prices, Buy label at the quoted price and Print label, then, once Commerce has completed the order, Print label again and Cancel label, with the order staying Completed |
-| [One product with a category](tests/onboarding-product.spec.mjs) | `@running` | The owner adds one product with a price, a weight, a photo, and a published page in a new category. Archive is only the tidy afterward, not the story |
+| [One product with a category](tests/onboarding-product.spec.mjs) | `@running` | The owner adds one product page in a new category, gives it price and stock, a weight and a photo in its Dinkus Commerce panel, and publishes it, which puts it on sale. Archive is only the tidy afterward, not the story |
 
 `npm test` runs every `@running` journey, one at a time in file-name order, so
 the five numbered setup journeys run first and the store is connected before
@@ -40,11 +40,15 @@ as another store and as each other plugin, and must refuse. Just after, the run
 opens the same approval link again, and DinkusKit.com must say it is no longer
 waiting for consent, with no Approve. Each setup journey tells the
 releases apart by what its page shows, so it passes on the release before Connect
-too. Manage products needs
-a Commerce release that can rename and archive a product, and Full catalog one
-whose product screens cope with a full catalog (0.3.0-beta.4 or later); on an
-older Commerce, Manage products stops before adding anything and Full catalog
-adds nothing, each saying why. Buy a label in the store admin needs the Ship
+too. Manage products, Full catalog and One product with a category need a
+Commerce with the Dinkus Commerce panel on Content > Products pages
+(0.6.0-beta.1 or later, the one product screen); before it Commerce had a
+Products page of its own, which these journeys no longer drive, so on an older
+Commerce they fail at their first panel step and Full catalog adds nothing. A
+product the panel makes is a Draft until its page is published, and only the
+store's publish check (template-store#152) puts it on sale; on a store without
+that check, the steps that publish a page and expect its product on sale fail,
+and so does every later store check of that product. Buy a label in the store admin needs the Ship
 plugin installed and connected, as dinkus-ship-beta is on the beta store, where
 it first passed on 20 Oct.
 
@@ -148,14 +152,11 @@ browser's cart, changes it and removes it again, and never checks out, so it
 places no order and leaves nothing behind in the store.
 
 Manage products works in the store admin with the saved profile, as an owner
-does: Commerce Products in one tab, EmDash's Media library and content editor in
-another. After each change it checks the store in a clean shopper browser. Its
+does: the product page's editor with its Dinkus Commerce panel in one tab,
+EmDash's Media library and categories in another. After each change it checks the store in a clean shopper browser. Its
 photo is one the browser draws for each run, labeled with the product's name, so
 every run uploads a file of its own: the Media library keeps one copy of
-identical files, under the first one's name. It needs a Commerce release that
-can rename and archive a product
-(dinkus-commerce-beta 0.3.0-beta.2 or later). On an older one it stops before
-adding anything, judging from a product the store already has. It tidies up
+identical files, under the first one's name. It tidies up
 after itself, but Commerce archives products rather than deleting them, so each
 run leaves one archived product named "Live test product <date and time>
 renamed" and its photo in the Media library. Its product page and category go
@@ -167,8 +168,8 @@ Tees", "Catalog Hoodies" and "Catalog Caps", each holding products named
 "Catalog Tee 01" and so on, every one with its own price, weight, photo and
 published page. `DINKUS_E2E_CATALOG` sets the size, as categories x products per
 category (`3x8` unless set, up to `4x50`). The first run on a store adds the
-whole catalog as an owner would, in Commerce Products, the Media library and
-EmDash's content editor, which takes about a minute a product; later runs find
+whole catalog as an owner would, on each product's page and its Dinkus Commerce
+panel, in the Media library and in EmDash's categories, which takes about a minute a product; later runs find
 it there, add only what's missing, and spend about four minutes checking it. A
 bigger catalog gets more time before the journey times out: ten seconds for
 each product it checks, and two minutes for each it adds. The catalog stays on
@@ -295,7 +296,6 @@ the environment, which wins.
 | `DINKUS_E2E_SERVICE` | `GA` | The label service (Ground Advantage) |
 | `DINKUS_E2E_COMPLETE_WAIT_SECONDS` | `420` | How long to wait for Commerce's background check |
 | `DINKUS_E2E_ORDERS_ADMIN` | the Registry Commerce plugin's Orders page | Commerce Orders in the store admin |
-| `DINKUS_E2E_PRODUCTS_ADMIN` | the Products page beside `DINKUS_E2E_ORDERS_ADMIN` | Commerce Products in the store admin, for Manage products and Full catalog |
 | `DINKUS_E2E_SHIPPING_ADMIN` | the admin menu's Shipping page | The Ship plugin's Shipping page in the store admin, for Buy a label in the store admin |
 | `DINKUS_E2E_CATALOG` | `3x8` | For Full catalog, the standing catalog's size as categories x products per category, from `1x1` to `4x50` |
 | `DINKUS_E2E_ORDERS_TO_COMPLETE` | new orders | For Mark as completed, one or two different Processing TEST orders for the owner and then the agent to complete (`1003,1004`) instead of placing new ones. Anything else stops the journey before it places or completes an order |
@@ -356,7 +356,7 @@ finding.
 
 ### Manage products
 
-Its first two steps stop the journey when they fail, since nothing after them
+Its first three steps stop the journey when they fail, since nothing after them
 can run; every later step is soft. After each change the journey reloads the
 store's pages until they show it, for up to a minute, and says how long the store
 took. The price, name and restore steps look for the photo too, until a step
@@ -367,37 +367,37 @@ the end, even after a failed step.
 
 | Step | What it proves |
 | --- | --- |
-| The owner can open Commerce Products | Commerce Products opens in the store admin with its Add product form, and its product pages offer Rename and Archive product (or Restore). When they don't, the journey stops before adding a product it couldn't take off the store again. On a store with no products yet, the new product's page gets this check before it has a price, since the store doesn't list an unpriced product |
-| The owner adds a product with a price and a weight | The owner adds a physical product in Commerce Products and saves its price ($12.00) and weight (8 oz). Commerce confirms each save and shows the product's ID. When it doesn't, the journey stops here |
-| The owner uploads a photo and makes it the product's image | The owner uploads a photo to EmDash's Media library, then presses Choose image on the product's Commerce page and picks that photo, and Commerce says "Image saved" |
-| The photo is still the product's image after a reload | After Commerce Products is opened afresh, the product's page shows the same photo under Images (the Media library file the owner picked), loaded, with Change image beside it ("No image", another image, or one that doesn't load, fails). Skipped when the photo wasn't chosen |
-| The Shop list shows the new product with its name, price and photo | The homepage's Shop list shows the product's name, $12.00 and the photo the owner chose, loaded (the store's placeholder or another photo fails) |
-| The owner gives the product its own page in a new category | The owner makes and publishes a category in EmDash, then a product page linked to the product by the Product ID Commerce shows, puts the page in the category and publishes it. EmDash's list of product pages then shows it as Published, with View published linking to its address |
-| The product page and its category page show the product | The Shop card links to the new page, which shows the name, price and chosen photo, a ready Add to cart and a link to its category; the category page lists the product with its name, price and chosen photo. Skipped when the page wasn't published |
+| The owner opens Content > Products | Content > Products opens in the store admin with its list of product pages, and the run notes the plugin versions |
+| The owner adds a product page in a new category | The owner makes and publishes a category in EmDash, then a product page drawn as a cap, puts it in the category and saves it, unpublished. When it can't, the journey stops here |
+| The owner adds price and stock with a price and a weight | In the page's Dinkus Commerce panel the owner types a SKU and presses Add price and stock, applies the change EmDash asks about and saves the page, which then keeps the product's ID in its Commerce product field. The panel shows the product named after the page, with that SKU, as a Draft; the owner saves $12.00 and 8 oz, and Commerce says "Product saved" and "Weight saved". When it doesn't, the journey stops here |
+| A Draft product stays off the store | While its page is unpublished, the Shop list and the category page don't list the product and its page offers no price or Add to cart |
+| The owner uploads a photo and makes it the product's image | The owner uploads a photo to EmDash's Media library, then presses Choose image in the panel and picks that photo, and Commerce says "Image saved" |
+| The photo is still the product's image after a reload | After the page's editor is opened afresh, the panel shows the same photo under Images (the Media library file the owner picked), loaded, with Change image beside it ("No image", another image, or one that doesn't load, fails). Skipped when the photo wasn't chosen |
+| Publishing the page puts the product on sale | The owner publishes the page. EmDash's list of product pages shows it as Published, with View published linking to its address; the panel then says On sale; the Shop list shows the product's name, $12.00 and the chosen photo, linked to the page; the page shows them with a ready Add to cart and a link to its category; and the category page lists it. Needs the store's publish check (template-store#152): without it the product stays a Draft and this step fails |
 | The product's links open its page | Pressing the product's Shop card, and View details on its category page, opens its page, which answers HTTP 200 headed with the product's name. Skipped when the page wasn't published |
-| A new price shows on the store | After the owner saves $13.50, the Shop list, the product page and the category page all show it |
-| A new name shows on the store | After the owner renames the product in Commerce, the Shop list, the product page's heading and the category card all show the new name |
-| Archiving the product takes it off the store | After the owner archives it, the Shop list and the category page stop listing it, and its page answers HTTP 404 saying the product is no longer available |
-| Restoring the product puts it back on the store | After the owner restores it, the Shop list, its page and its category page show it again with its new name and price. Skipped when it wasn't archived |
-| The test takes its product, page and category off the store | The test archives the product, under whatever name and state Commerce shows for it then, and moves its page and category to EmDash's Trash; within a minute the store lists none of them and their addresses stop answering HTTP 200. Runs whenever the journey added anything, or pressed Add product |
+| A new price shows on the store | After the owner saves $13.50 in the panel, the Shop list, the product page and the category page all show it |
+| A new name shows on the store | After the owner renames the product in the panel, the Shop list, the product page's heading and the category card all show the new name |
+| Archiving the product takes it off the store | After the owner archives it in the panel, the Shop list and the category page stop listing it, and its page answers HTTP 404 saying the product is no longer available |
+| Restoring the product and publishing its page again puts it back on the store | The owner presses Restore and the panel shows the product as a Draft, as Commerce restores it; the owner unpublishes and publishes the page again, the panel says On sale, and the Shop list, its page and its category page show it again with its new name and price. Skipped when it wasn't archived |
+| The test takes its product, page and category off the store | The test archives the product in its page's panel, whatever state the panel shows for it then, and moves its page and category to EmDash's Trash; within a minute the store lists none of them and their addresses stop answering HTTP 200. Runs whenever the journey added anything, or pressed Add price and stock |
 
 ### Full catalog
 
 Its first two steps stop the journey when they fail, since products need
-Commerce Products and their pages need a category; every later step is soft, so
+Content > Products and their pages need a category; every later step is soft, so
 one run lists everything the store gets wrong with a full catalog. A big catalog
 means many photos and admin calls, so this journey paces itself the most (see the
 store's request limit under [Requests stay within the selected sites](#requests-stay-within-the-selected-sites)).
 
 | Step | What it proves |
 | --- | --- |
-| Commerce Products opens and lists every product | Commerce Products opens in the store admin and every page of its list turns, however many products the store has |
-| The catalog's categories are published | Each of the catalog's categories is a published category in EmDash, with a page on the store. The owner adds and publishes any that are missing, and publishes one an earlier run saved but didn't publish; two unpublished categories by one title stop the journey, since the test can't tell which to publish, and so does a list that doesn't answer the test's search, rather than having a category added twice. On a store running Commerce before 0.3.0-beta.4 a missing category stops the journey with nothing added |
-| The owner adds what the catalog lacks | Every catalog product Commerce doesn't have, or the store doesn't show whole, gets what it lacks as an owner gives it: added in Commerce Products (or restored, when archived) with its price and weight, its own photo uploaded to the Media library and chosen as its image when Commerce shows none, and a published page in its category. A price or weight Commerce already has right isn't saved again, and a product Commerce already has whole, which the store shows wrong anyway, is named as such and left to the next steps. New products' photos go up together before they're added; when they don't all go up, that's reported and each of those products gets its photo uploaded as it's added. A product Commerce already has gets its photo uploaded only when its screen shows no image. A product the test can't complete is reported with what was done for it first. A page an earlier run saved but didn't publish is finished and published rather than added again; a published page the store doesn't show is reported and left for the owner, unless the product was just restored, since the store hid it while it was archived (the later steps check it). So is a product whose name Commerce Products lists more than once, archived products included, since the test can't tell which one is the catalog's. It decides only from what the store shows, so when the Shop list or a category page won't open, or the Shop list shows no products without saying it has none, it adds nothing and fails. Each product it adds gives the journey two more minutes before it times out. Passes with nothing to do once the store has the whole catalog. On a store running Commerce before 0.3.0-beta.4 it adds nothing and fails, since there the owner couldn't save products with a full catalog in place |
+| Content > Products opens and lists every product page | Content > Products opens in the store admin, and the run reads every product page EmDash has (a hundred at a time, as the admin's list does), with whether each is published and the Commerce product it names |
+| The catalog's categories are published | Each of the catalog's categories is a published category in EmDash, with a page on the store. The owner adds and publishes any that are missing, and publishes one an earlier run saved but didn't publish; two unpublished categories by one title stop the journey, since the test can't tell which to publish, and so does a list that doesn't answer the test's search, rather than having a category added twice. On a store running Commerce before 0.6.0-beta.1 a missing category stops the journey with nothing added |
+| The owner adds what the catalog lacks | Every catalog product the store doesn't show whole gets what it lacks as an owner gives it, on its product page: a page in its category when it has none (put in the category when it isn't), its Commerce product from the page's Dinkus Commerce panel (the product with its SKU that has no page yet, else a new one from Add price and stock, or the one the page already names), restored when archived, its price and weight saved where the panel shows them different, its own photo uploaded and chosen when the panel shows none, and the page published, or published again when its product is a Draft or the test just completed its style or category. Products without a page get their photos uploaded together first; when they don't all go up, that's reported and each of those products gets its photo uploaded as it's added. A product the test can't complete is reported with what was done for it first, and one whose title Content > Products has more than once is reported and left alone, since the test can't tell which page is the catalog's. A product whose panel had nothing to change, which the store shows wrong anyway, is named as such and left to the next steps. It decides only from what the store shows, so when the Shop list or a category page won't open, or the Shop list shows no products without saying it has none, it adds nothing and fails. Each product it adds gives the journey two more minutes before it times out. Passes with nothing to do once the store has the whole catalog. On a store running Commerce before 0.6.0-beta.1 it adds nothing and fails. A product it adds goes on sale only through the store's publish check (template-store#152) |
 | The Shop list shows every catalog product with its own price and photo | The homepage's Shop list shows each catalog product once, at its own price, with its own photo, loaded (the store's placeholder, "No image", or one photo shown for two products fails), linked to its page |
 | Each category page lists its products with their own price and photo | Each category's page lists its own products the same way, each linked to the page its Shop card links to, and none of the other categories' |
 | Every catalog product's page opens with its name, price and Add to cart | The shopper opens every catalog product's page from its Shop link, one at a time and at the shopper's pace. Each answers HTTP 200, is headed with the product's name, shows its price, and has an Add to cart button wired to the cart that a shopper can press (the test never presses it). When the Shop list couldn't be read or showed none of the catalog's products, it fails with that one reason |
-| The owner saves a product's weight with the whole catalog in place | With every page of Commerce Products read again and the whole catalog listed, the owner opens "Catalog Tee 01" and saves its weight, and Commerce keeps it. On Commerce 0.3.0-beta.3 this failed once a store had more than about six products |
+| The owner saves a product's weight with the whole catalog in place | With every product page read again and each catalog product's page there, the owner opens "Catalog Tee 01"'s page (only when exactly one page has that title, and only when its panel shows the SKU CATALOG-TEE-01) and saves its weight in the panel, and Commerce keeps it. A page saved before Commerce kept its own list of product pages opens on "Not a product yet"; the owner presses Add price and stock, which opens the product the page names and makes none. On Commerce 0.3.0-beta.3 this failed once a store had more than about six products |
 
 ### Mark as completed
 

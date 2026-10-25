@@ -48,7 +48,18 @@ export function forProof(error) {
 
 // A failed step's kind, from what the proof keeps of its error. The public run page prints only these
 // fixed words and numbers, since the error's own words can carry what the page said.
+const PAGE_PARTS = new Set(["the title", "the style", "the slug", "the first Save", "Add reference", "the category search", "the category choice", "Add selected", "the filed category", "Save"]);
 const KINDS = [
+  // The product journeys' panel checks: what the Dinkus Commerce panel showed instead.
+  [/panel shows the product as (draft|archived|on sale|not a product yet) instead of (on sale|draft|archived)/, match => `the panel showed ${match[1]}, not ${match[2]}`],
+  // The storefront checks: which page answered, from the journeys' own words, never the page's path.
+  [/the (homepage|product page) answered HTTP (\d{3})/, match => `the ${match[1]} answered HTTP ${match[2]}`],
+  [/(?:^|; )\/categories\/\S+ answered HTTP (\d{3})/, match => `the category page answered HTTP ${match[1]}`],
+  // products-admin.mjs saveEditor: what covered the editor's Save, in its own fixed words.
+  [/The editor's Save took no click: (no dialog is open(?:, and at Save the page shows (?:off the screen|under nothing|the button, disabled|the button itself|a frame|a toast|a sidebar|another element|unreadable))?|the dialog (?:Review proposed changes|Add references) is open|another dialog is open)\./, match => `the editor's Save took no click (${match[1]})`],
+  // products-admin.mjs `at`: which part of a product page's editor stopped, from its fixed few.
+  [/^At (.+?) of the product page: .*?Timeout (\d+)ms exceeded/, match => `timed out after ${Math.round(Number(match[2]) / 1000)} s at ${PAGE_PARTS.has(match[1]) ? match[1] : "a part"} of the product page`],
+  [/^At (.+?) of the product page: /, match => `failed at ${PAGE_PARTS.has(match[1]) ? match[1] : "a part"} of the product page`],
   [/Timeout (\d+)ms exceeded/, match => `timed out after ${Math.round(Number(match[1]) / 1000)} s`],
   [/net::(ERR_[A-Z_]+)/, match => `network error ${match[1]}`],
   [/has been closed|browser has disconnected/, () => "the browser closed"],
