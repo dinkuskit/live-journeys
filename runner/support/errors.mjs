@@ -52,6 +52,9 @@ const PAGE_PARTS = new Set(["the title", "the style", "the slug", "the first Sav
 const KINDS = [
   // The product journeys' panel checks: what the Dinkus Commerce panel showed instead.
   [/panel shows the product as (draft|archived|on sale|not a product yet) instead of (on sale|draft|archived)/, match => `the panel showed ${match[1]}, not ${match[2]}`],
+  // The storefront checks: which page answered, from the journeys' own words, never the page's path.
+  [/the (homepage|product page) answered HTTP (\d{3})/, match => `the ${match[1]} answered HTTP ${match[2]}`],
+  [/(?:^|; )\/categories\/\S+ answered HTTP (\d{3})/, match => `the category page answered HTTP ${match[1]}`],
   // products-admin.mjs saveEditor: what covered the editor's Save, in its own fixed words.
   [/The editor's Save took no click: (no dialog is open(?:, and at Save the page shows (?:off the screen|under nothing|the button, disabled|the button itself|a frame|a toast|a sidebar|another element|unreadable))?|the dialog (?:Review proposed changes|Add references) is open|another dialog is open)\./, match => `the editor's Save took no click (${match[1]})`],
   // products-admin.mjs `at`: which part of a product page's editor stopped, from its fixed few.
