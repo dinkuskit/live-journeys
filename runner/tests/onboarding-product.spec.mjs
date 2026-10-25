@@ -130,6 +130,17 @@ async function productPageProblems(shopper, response, { name, cents, hasPhoto, p
  * Everything wrong with how the store shows this run's product now (the Shop list, and its page and
  * category page once published), with the longest the store took to catch up.
  */
+/** Waits up to 15 seconds for the page's Dinkus Commerce panel to show its product as `want`. */
+async function panelSays(page, editor, want) {
+  let shown;
+  for (let tries = 0; tries < 4; tries++) {
+    if (tries) await page.waitForTimeout(5_000);
+    shown = await panelProduct(await openProductPanel(page, editor));
+    if (shown.state === want) return;
+  }
+  throw new Error(`the page's Dinkus Commerce panel shows the product as ${shown.state === "none" ? "not a product yet" : shown.state} instead of ${want}`);
+}
+
 async function storeShows(shopper, state) {
   const { id, name, cents, hasPhoto, photoHash, productPath, categoryPath } = state;
   const checks = [await catchUp(shopper, "/", async response => {
@@ -239,11 +250,14 @@ test("One product with a category", { tag: "@running" }, journey(async ({ page }
         throw new Error(listed === null ? `Published ${state.productPath}, but EmDash's list of product pages doesn't show it as Published with a View published link.`
           : `EmDash's list of product pages links "${run.product}" to ${listed} instead of ${state.productPath}.`);
       }
+      // The panel says whether the publish put the product on sale, so a store that doesn't show it says why.
+      const problems = await panelSays(page, made.page, "on sale").then(() => [], error => [`after publishing, ${firstLine(error)}`]);
       // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first.
       await openShopperPage(shopper, "/");
-      const { problems, seconds } = await storeShows(shopper, state);
+      const { problems: storeProblems, seconds } = await storeShows(shopper, state);
+      problems.push(...storeProblems);
       if (problems.length) throw new Error(`${problems.join("; ")}${after(seconds)}.`);
-      return `the Shop card links to ${state.productPath}, which shows "${state.name}" at ${dollars(state.cents)}${withPhoto(state)} and Add to cart; ${state.categoryPath} lists it${after(seconds)}`;
+      return `the panel says On sale; the Shop card links to ${state.productPath}, which shows "${state.name}" at ${dollars(state.cents)}${withPhoto(state)} and Add to cart; ${state.categoryPath} lists it${after(seconds)}`;
     }, soft);
   } finally {
     // Whatever this run added comes off the store again, even when a step above stopped the journey.
