@@ -139,6 +139,7 @@ test("an error that can't change gives way to a copy of the same kind, without w
 
 test("a failed step's kind is one of a few fixed phrases, never the error's own words", () => {
   assert.equal(failureKind("locator.waitFor: Timeout 30000ms exceeded."), "timed out after 30 s");
+  assert.equal(failureKind("after publishing, the page's Dinkus Commerce panel shows the product as draft instead of on sale; /products/x answered HTTP 404."), "the panel showed draft, not on sale");
   assert.equal(failureKind("At Add reference of the product page: locator.click: Timeout 60000ms exceeded."), "timed out after 60 s at Add reference of the product page");
   assert.equal(failureKind("At the first Save of the product page: EmDash said no"), "failed at the first Save of the product page");
   assert.equal(failureKind("At Save of the product page: The editor's Save took no click: the dialog Review proposed changes is open."), "the editor's Save took no click (the dialog Review proposed changes is open)");
