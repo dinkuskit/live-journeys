@@ -141,7 +141,15 @@ async function cardProblems(card, where, { name, cents, hasPhoto, photoHash, pat
 
 /** What's wrong with how the product page shows this run's product. */
 async function productPageProblems(shopper, response, { name, cents, hasPhoto, photoHash, categoryPath }) {
-  if (response.status() !== 200) return [`the product page answered HTTP ${response.status()}`];
+  if (response.status() !== 200) {
+    // Diagnostic (never merge): which layer keeps answering 404, Cloudflare's cache, the browser's, or the store.
+    const headers = response.headers();
+    const edge = /^[A-Z]+$/.test(headers["cf-cache-status"] ?? "") ? headers["cf-cache-status"] : "none";
+    const age = /^\d+$/.test(headers["age"] ?? "") ? headers["age"] : "-";
+    const direct = await shopper.request.get(response.url(), { headers: { "cache-control": "no-cache", pragma: "no-cache" }, maxRedirects: 0 })
+      .then(r => String(r.status()), () => "failed");
+    return [`the product page answered HTTP ${response.status()} (edge ${edge}, age ${age}, direct ${direct})`];
+  }
   const product = shopper.locator("[data-product-page]");
   if (!await product.count()) return ["the product page shows no product"];
   const problems = [];

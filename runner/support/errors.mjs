@@ -53,6 +53,7 @@ const KINDS = [
   // The product journeys' panel checks: what the Dinkus Commerce panel showed instead.
   [/panel shows the product as (draft|archived|on sale|not a product yet) instead of (on sale|draft|archived)/, match => `the panel showed ${match[1]}, not ${match[2]}`],
   // The storefront checks: which page answered, from the journeys' own words, never the page's path.
+  [/the product page answered HTTP (\d{3}) \(edge ([A-Z]+|none), age (\d+|-), direct (\d{3}|failed)\)/, match => `the product page answered HTTP ${match[1]} (edge ${match[2]}, age ${match[3]}, direct ${match[4]})`],
   [/the (homepage|product page) answered HTTP (\d{3})/, match => `the ${match[1]} answered HTTP ${match[2]}`],
   [/(?:^|; )\/categories\/\S+ answered HTTP (\d{3})/, match => `the category page answered HTTP ${match[1]}`],
   // products-admin.mjs saveEditor: what covered the editor's Save, in its own fixed words.
