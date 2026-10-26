@@ -186,10 +186,15 @@ export async function setWeight(panel, ounces) {
   await expect(weight, "Commerce didn't keep the weight").toHaveValue(String(ounces), { timeout: 15_000 });
 }
 
-/** Renames the product in the open panel. */
-export async function rename(panel, name) {
-  await panel.getByRole("textbox", { name: "Name", exact: true }).fill(name);
-  await panelSays(panel, () => panel.getByRole("button", { name: "Rename", exact: true }).click(), "Product renamed");
+/**
+ * Renames the product as an owner does: the page title is its one name (Commerce
+ * catalog-page-title-is-name-20261026), so the title of the published product page at `editor` is
+ * changed and published.
+ */
+export async function rename(page, editor, name) {
+  await openAdmin(page, editor);
+  await (await field(page, "Product title", "The product page editor")).fill(name);
+  await publishProductPage(page);
 }
 
 /** Archives the product in the open panel, answering the question Commerce asks first. */

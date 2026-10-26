@@ -374,7 +374,7 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
     if (!priceRight) state.hasPhoto = false;
 
     const nameRight = await step(shopper, "A new name shows on the store", async () => {
-      await rename(await openProductPanel(page, made.page), run.renamed);
+      await rename(page, made.page, run.renamed);
       state.name = run.renamed;
       const { problems, seconds } = await storeShows(shopper, state);
       if (problems.length) throw new Error(`${problems.join("; ")}${after(seconds)}.`);
