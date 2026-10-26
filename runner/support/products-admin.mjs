@@ -58,7 +58,7 @@ export async function openProductPanel(page, editor) {
 export async function panelProduct(panel) {
   const said = await text(panel.getByText(PANEL_READY));
   if (/^Not a product yet/.test(said)) return { state: "none" };
-  const [, state = "", sku = ""] = said.match(/^(Draft|On sale|Archived)\b.*\u00b7 SKU (.+)$/) ?? [];
+  const [, state = "", sku = ""] = said.match(/^(Draft|On sale|Archived)\b.*?\u00b7 SKU (.+?)(?: \u00b7 |$)/) ?? [];
   return { state: PANEL_STATES[state] ?? `unknown ("${said}")`, sku, name: await text(panel.getByRole("heading", { level: 2 })) };
 }
 
