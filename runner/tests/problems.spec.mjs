@@ -1,6 +1,6 @@
 import { test, expect } from "../support/browser.mjs";
 import {
-  CaptchaShown, checkoutStatus, confirmCheckout, failBankCheck, leaveStripe, openCheckout, payOnStripe, requireTestMode, resumeCheckout,
+  CaptchaShown, checkoutStatus, confirmCheckout, failBankCheck, leaveStripe, openCheckout, payAndCloseTab, requireTestMode, resumeCheckout,
   stopIfCaptcha, stripeRefusal, submitCard,
 } from "../support/checkout.mjs";
 import { storeReturnPage, stripeSession, thankYouShown } from "../support/checkout-text.mjs";
@@ -105,7 +105,8 @@ async function cartWayBack(page, shopper) {
 }
 
 // A shopper's checkout going wrong: Stripe turns down cards that can't pay, the shopper leaves Stripe
-// for the store and comes back, and pays once with the test card. One checkout and one order per run,
+// for the store and comes back, pays once with the test card and closes the tab before the store's
+// thank-you page, so Commerce has to make the order on its own. One checkout and one order per run,
 // which the owner then completes so no open TEST order is left for Buy and ship to trip over.
 test("Problems", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
@@ -171,22 +172,43 @@ test("Problems", { tag: "@running" }, journey(async ({ page }) => {
     if (!placed.orderId) throw new Error("Commerce's checkout status named no order.");
     return `Commerce recorded the payment for ${placed.orderId}`;
   });
-  else await step(page, "The shopper goes back to Stripe and pays once with the 4242 test card", async () => {
-    if (wayBack) await page.locator("[data-guest-cart-resume]").click();
-    // With no way back in the store, the test reopens the checkout's own Stripe page, as Buy and ship does after a failed run.
-    else if (!await resumeCheckout(page)) throw new Error("Commerce no longer holds the shopper's checkout open, so there is nothing to pay; the test starts no other checkout.");
-    await page.waitForURL(url => url.hostname === "checkout.stripe.com", { timeout: 60_000 });
-    if (stripeSession(page.url()) !== shopper.session) throw new Error("The way back opened a different Stripe checkout than the one the shopper left; the test paid nothing.");
-    await payOnStripe(page, shopper.email);
-    placed = await confirmCheckout(page);
-    if (placed.orderId) note("Problems order", placed.orderId);
-    if (placed.state !== "paid") throw new Error(`Commerce reports this checkout as "${placed.state}", not paid.`);
-    if (!placed.orderId) throw new Error("Commerce's checkout status named no order.");
-    const how = wayBack ? "the shopper went back through the store's link and paid" : "with no way back in the store, the test reopened the checkout's Stripe page and the shopper paid";
-    return `${how}; Commerce recorded the payment for ${placed.orderId}`;
-  });
+  else {
+    await step(page, "The shopper goes back to Stripe, pays once with the 4242 test card and closes the tab", async () => {
+      if (wayBack) await page.locator("[data-guest-cart-resume]").click();
+      // With no way back in the store, the test reopens the checkout's own Stripe page, as Buy and ship does after a failed run.
+      else if (!await resumeCheckout(page)) throw new Error("Commerce no longer holds the shopper's checkout open, so there is nothing to pay; the test starts no other checkout.");
+      await page.waitForURL(url => url.hostname === "checkout.stripe.com", { timeout: 60_000 });
+      if (stripeSession(page.url()) !== shopper.session) throw new Error("The way back opened a different Stripe checkout than the one the shopper left; the test paid nothing.");
+      await payAndCloseTab(page, shopper.email);
+      const how = wayBack ? "the shopper went back through the store's link and paid" : "with no way back in the store, the test reopened the checkout's Stripe page and the shopper paid";
+      return `${how}, then closed the tab before the store's thank-you page`;
+    });
+    // Nothing on the store hears from the shopper now, and Commerce Orders never settles a payment, so
+    // only Commerce's background check (or Payments waking it) can make this order.
+    await step(page, "Commerce makes the order on its own after the shopper closed the tab", async () => {
+      const started = Date.now(), deadline = started + config.completeWaitMs;
+      let added = [];
+      await openAdmin(page, config.ordersAdmin);
+      for (;;) {
+        await ordersListed(page);
+        added = (await testOrders(page)).filter(order => order.number > newestBefore);
+        if (added.length || Date.now() >= deadline) break;
+        await page.waitForTimeout(30_000);
+        await page.reload();
+      }
+      if (!added.length) throw new Error(`No new TEST order in Commerce Orders ${Math.round(config.completeWaitMs / 1000)}s after the shopper paid and closed the tab.`);
+      // Only now does the test ask for the checkout's status, which could otherwise have made the order itself.
+      const { checkout } = await checkoutStatus(page);
+      placed = { orderId: checkout?.order?.orderId ?? null, state: checkout?.state ?? "unknown", thankYou: null, closedTab: true };
+      if (placed.orderId) note("Problems order", placed.orderId);
+      if (placed.state !== "paid") throw new Error(`Commerce Orders shows a new order, but Commerce reports this checkout as "${placed.state}", not paid.`);
+      if (!placed.orderId) throw new Error("Commerce's checkout status named no order.");
+      return `Commerce recorded ${placed.orderId} ${Math.round((Date.now() - started) / 1000)}s after the shopper closed the tab`;
+    });
+  }
 
-  if (!placed.thankYou) record("The thank-you page confirms the order and empties the cart", "SKIP", "Stripe never sent the shopper back to the store");
+  if (!placed.thankYou) record("The thank-you page confirms the order and empties the cart", "SKIP",
+    placed.closedTab ? "the shopper closed the tab, so this run checks no thank-you page; Buy and ship does" : "Stripe never sent the shopper back to the store");
   else await step(page, "The thank-you page confirms the order and empties the cart", async () => thankYouShown(placed.thankYou), soft);
 
   let number;
