@@ -194,13 +194,14 @@ export async function payAndCloseTab(page, email) {
   const storeUrl = url => url.origin === config.store;
   await page.route(storeUrl, route => route.abort());
   try {
-    const redirected = page.waitForRequest(toStore, { timeout: 120_000 });
+    // Settles either way, so a submitCard failure leaves no waiter to reject unhandled later.
+    const redirected = page.waitForRequest(toStore, { timeout: 120_000 }).then(() => true, () => false);
     await submitCard(page, email, "4242424242424242");
-    await redirected.catch(async () => {
+    if (!(await redirected)) {
       if (await captchaShown(page)) throw new CaptchaShown();
       const problem = await texts(page, '[role="alert"], .FieldError');
       throw new Error(`Stripe did not send the shopper back toward the store: ${problem}`);
-    });
+    }
   } finally {
     await page.unroute(storeUrl).catch(() => {});
     await page.goto("about:blank").catch(() => {});
