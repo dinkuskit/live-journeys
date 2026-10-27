@@ -2,6 +2,7 @@ import { newPage, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
 import { MEDIA_ROOM, PICKER_PAGE_ROOM, paceStore } from "./pace.mjs";
+import { savedRegular } from "./panel-answer.mjs";
 import { openAdmin } from "./store-admin.mjs";
 import { quick, text } from "./storefront-page.mjs";
 
@@ -58,7 +59,7 @@ export async function openProductPanel(page, editor) {
 export async function panelProduct(panel) {
   const said = await text(panel.getByText(PANEL_READY));
   if (/^Not a product yet/.test(said)) return { state: "none" };
-  const [, state = "", sku = ""] = said.match(/^(Draft|On sale|Archived)\b.*\u00b7 SKU (.+)$/) ?? [];
+  const [, state = "", sku = ""] = said.match(/^(Draft|On sale|Archived)\b.*?\u00b7 SKU (.+?)(?: \u00b7 |$)/) ?? [];
   return { state: PANEL_STATES[state] ?? `unknown ("${said}")`, sku, name: await text(panel.getByRole("heading", { level: 2 })) };
 }
 
@@ -173,8 +174,16 @@ export async function addPriceAndStock(page, sku, made = {}, { link = false } = 
 
 /** Saves the regular price in the open panel. */
 export async function setPrice(panel, regular) {
-  await panel.getByRole("textbox", { name: "Regular", exact: true }).fill(regular);
-  await panelSays(panel, () => panel.getByRole("button", { name: "Save", exact: true }).click(), "Product saved");
+  // The panel draws itself again when the page is saved, which EmDash also does by itself a moment after
+  // a change. A drawing that lands between typing the price and pressing Save sends an empty Regular,
+  // and Commerce answers "Product saved" with no price at all, leaving a product it calls On sale off
+  // the shop. So the price counts only when Commerce's answer shows it, and a lost one is typed again.
+  for (let attempt = 1; ; attempt += 1) {
+    await panel.getByRole("textbox", { name: "Regular", exact: true }).fill(regular);
+    const kept = savedRegular(await panelSays(panel, () => panel.getByRole("button", { name: "Save", exact: true }).click(), "Product saved"));
+    if (kept === regular) return;
+    if (attempt === 2) throw new Error(`Commerce saved the product without the price ${regular}: its panel shows ${kept ? kept : "no price"}.`);
+  }
 }
 
 /** Saves the weight in ounces in the open panel, and checks Commerce kept it. */
@@ -186,10 +195,15 @@ export async function setWeight(panel, ounces) {
   await expect(weight, "Commerce didn't keep the weight").toHaveValue(String(ounces), { timeout: 15_000 });
 }
 
-/** Renames the product in the open panel. */
-export async function rename(panel, name) {
-  await panel.getByRole("textbox", { name: "Name", exact: true }).fill(name);
-  await panelSays(panel, () => panel.getByRole("button", { name: "Rename", exact: true }).click(), "Product renamed");
+/**
+ * Renames the product as an owner does: the page title is its one name (Commerce
+ * catalog-page-title-is-name-20261026), so the title of the published product page at `editor` is
+ * changed and published.
+ */
+export async function rename(page, editor, name) {
+  await openAdmin(page, editor);
+  await (await field(page, "Product title", "The product page editor")).fill(name);
+  await publishProductPage(page);
 }
 
 /** Archives the product in the open panel, answering the question Commerce asks first. */
