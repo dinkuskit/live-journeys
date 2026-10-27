@@ -173,8 +173,23 @@ export async function addPriceAndStock(page, sku, made = {}, { link = false } = 
 
 /** Saves the regular price in the open panel. */
 export async function setPrice(panel, regular) {
-  await panel.getByRole("textbox", { name: "Regular", exact: true }).fill(regular);
-  await panelSays(panel, () => panel.getByRole("button", { name: "Save", exact: true }).click(), "Product saved");
+  // The panel draws itself again when the page is saved, which EmDash also does by itself a moment after
+  // a change. A drawing that lands between typing the price and pressing Save sends an empty Regular,
+  // and Commerce answers "Product saved" with no price at all, leaving a product it calls On sale off
+  // the shop. So the price counts only when Commerce's answer shows it, and a lost one is typed again.
+  for (let attempt = 1; ; attempt += 1) {
+    await panel.getByRole("textbox", { name: "Regular", exact: true }).fill(regular);
+    const kept = savedRegular(await panelSays(panel, () => panel.getByRole("button", { name: "Save", exact: true }).click(), "Product saved"));
+    if (kept === regular) return;
+    if (attempt === 2) throw new Error(`Commerce saved the product without the price ${regular}: its panel shows ${kept ? kept : "no price"}.`);
+  }
+}
+
+/** The Regular price in the product form of Commerce's panel answer `data` ("" when blank or missing). */
+export function savedRegular(data) {
+  const field = (data?.blocks ?? []).filter(block => block?.type === "form").flatMap(block => block.fields ?? [])
+    .find(field => field?.action_id === "regular");
+  return typeof field?.initial_value === "string" ? field.initial_value.trim() : "";
 }
 
 /** Saves the weight in ounces in the open panel, and checks Commerce kept it. */
