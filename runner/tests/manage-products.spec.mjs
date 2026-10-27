@@ -140,7 +140,47 @@ async function cardProblems(card, where, { name, cents, hasPhoto, photoHash, pat
 }
 
 /** What's wrong with how the product page shows this run's product. */
-async function productPageProblems(shopper, response, { name, cents, hasPhoto, photoHash, categoryPath }) {
+// Diagnostic (never merge): which of the store's checks keeps a published product page at 404, in
+// fixed words only. page: what the 404 page drew (notfound = EmDash gave the store no published page
+// for this path; item = the page was found but Commerce's item lookup came back empty; removed = it
+// counted the product as gone). item: Commerce's public item route for this run's product. shop and
+// cat: whether the Shop list and category page link the product page (both come from the same list
+// of published pages). cms: the owner's view of the page and its category.
+const DIAG = { owner: null, pageId: "", categoryId: "" };
+const tag = value => /^[a-z0-9-]{1,20}$/.test(String(value)) ? String(value) : "other";
+async function whereItStops(shopper, { id, productPath, categoryPath }) {
+  const words = [];
+  const main = await text(shopper.locator("main")).catch(() => "");
+  words.push(`page ${await shopper.locator("[data-product-removed]").count() ? "removed" : await shopper.locator("[data-product-page]").count() ? "item" : /Product not found/.test(main) ? "notfound" : "other"}`);
+  const plugin = config.ordersAdmin.match(/\/plugins\/([^/]+)\//)?.[1] ?? "";
+  const item = await shopper.request.get(new URL(`/_emdash/api/plugins/${plugin}/catalog/public/item?itemId=${encodeURIComponent(id)}`, config.store).href, { maxRedirects: 0 })
+    .then(async r => { const body = await r.json().catch(() => undefined); const data = body && typeof body === "object" && "data" in body ? body.data : body;
+      return `${r.status()} ${data === null ? "null" : data?.id === id ? "same" : data === undefined ? "unreadable" : "other"}`; }, () => "failed");
+  words.push(`item ${item}`);
+  for (const [label, path] of [["shop", "/"], ["cat", categoryPath]]) {
+    const found = await shopper.request.get(new URL(path, config.store).href, { maxRedirects: 0 })
+      .then(async r => `${r.status()} ${(await r.text()).includes(`href="${productPath}"`) ? "linked" : "unlinked"}`, () => "failed");
+    words.push(`${label} ${found}`);
+  }
+  if (DIAG.owner) {
+    const read = async (collection, entry) => DIAG.owner.request.get(new URL(`/_emdash/api/content/${collection}/${entry}`, config.store).href, { maxRedirects: 0 })
+      .then(async r => ({ status: r.status(), item: (await r.json().catch(() => null))?.data?.item ?? null }), () => ({ status: 0, item: null }));
+    const pageRead = await read("products", DIAG.pageId);
+    // With a newer draft, EmDash's read gives the draft's values and the published ones under liveData.
+    const fields = pageRead.item?.liveData ?? pageRead.item?.data ?? {};
+    const link = value => value === id ? "same" : value ? "other" : "none";
+    words.push(`cms ${pageRead.status} ${tag(pageRead.item?.status)} slug ${`/products/${pageRead.item?.slug}` === productPath ? "same" : "other"} link ${link(fields.commerce_item_id)} label ${fields.visual_label ? "yes" : "no"} title ${fields.title ? "yes" : "no"} draft ${pageRead.item?.draftRevisionId ? `yes link ${link(pageRead.item?.data?.commerce_item_id)}` : "no"}`);
+    const catRead = await read("categories", DIAG.categoryId);
+    words.push(`category ${catRead.status} ${tag(catRead.item?.status)} slug ${`/categories/${catRead.item?.slug}` === categoryPath ? "same" : "other"}`);
+    const list = await DIAG.owner.request.get(new URL("/_emdash/api/content/products?status=published&limit=100", config.store).href, { maxRedirects: 0 })
+      .then(async r => { const items = (await r.json().catch(() => null))?.data?.items; return `${r.status()} ${Array.isArray(items) ? items.some(entry => entry?.id === DIAG.pageId) ? "listed" : `unlisted-of-${items.length}` : "unreadable"}`; }, () => "failed");
+    words.push(`published ${list}`);
+  }
+  return words.join(", ");
+}
+
+async function productPageProblems(shopper, response, state) {
+  const { name, cents, hasPhoto, photoHash, categoryPath } = state;
   if (response.status() !== 200) {
     // Diagnostic (never merge): which layer keeps answering 404, Cloudflare's cache, the browser's, or the store.
     const headers = response.headers();
@@ -148,7 +188,7 @@ async function productPageProblems(shopper, response, { name, cents, hasPhoto, p
     const age = /^\d+$/.test(headers["age"] ?? "") ? headers["age"] : "-";
     const direct = await shopper.request.get(response.url(), { headers: { "cache-control": "no-cache", pragma: "no-cache" }, maxRedirects: 0 })
       .then(r => String(r.status()), () => "failed");
-    return [`the product page answered HTTP ${response.status()} (edge ${edge}, age ${age}, direct ${direct})`];
+    return [`the product page answered HTTP ${response.status()} (edge ${edge}, age ${age}, direct ${direct}; ${await whereItStops(shopper, state)})`];
   }
   const product = shopper.locator("[data-product-page]");
   if (!await product.count()) return ["the product page shows no product"];
@@ -342,6 +382,7 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
     }, soft);
 
     // Publishing is what puts a Draft on sale: the store's publish check tells Commerce.
+    Object.assign(DIAG, { owner: page, pageId: made.page.split("/").pop(), categoryId: made.category.split("/").pop() });
     const shopRight = await step(shopper, "Publishing the page puts the product on sale", async () => {
       await openAdmin(page, made.page);
       await publishProductPage(page);
