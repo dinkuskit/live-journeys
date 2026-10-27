@@ -185,6 +185,29 @@ export async function payOnStripe(page, email) {
 }
 
 /**
+ * Pays with the 4242 test card, then leaves the way a shopper who closes the tab does: Stripe's
+ * redirect back to the store is stopped before it reaches the store, and the tab goes blank. The
+ * store never hears from the shopper again, so only Commerce's background check can make the order.
+ */
+export async function payAndCloseTab(page, email) {
+  const toStore = request => new URL(request.url()).origin === config.store;
+  const storeUrl = url => url.origin === config.store;
+  await page.route(storeUrl, route => route.abort());
+  try {
+    const redirected = page.waitForRequest(toStore, { timeout: 120_000 });
+    await submitCard(page, email, "4242424242424242");
+    await redirected.catch(async () => {
+      if (await captchaShown(page)) throw new CaptchaShown();
+      const problem = await texts(page, '[role="alert"], .FieldError');
+      throw new Error(`Stripe did not send the shopper back toward the store: ${problem}`);
+    });
+  } finally {
+    await page.unroute(storeUrl).catch(() => {});
+    await page.goto("about:blank").catch(() => {});
+  }
+}
+
+/**
  * Fills Stripe's hosted Checkout with one of Stripe's test cards and submits it. Stripe keeps the
  * fields on the page itself, not in frames, under stable ids.
  */

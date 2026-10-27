@@ -17,7 +17,7 @@ journeys plan:
 | [Manage products](tests/manage-products.spec.mjs) | `@running` | On the one product screen (a Content > Products page and its Dinkus Commerce panel), the owner adds a product page in a new category, gives it price and stock, sees the Draft stay off the store, gives it a photo that stays after a reload, publishes the page to put it on sale, changes its price and name, and archives and restores it, with the store following each change |
 | [Full catalog](tests/full-catalog.spec.mjs) | `@running` | The store carries a catalog as big as a real shop's (3 categories of 8 products unless set otherwise), each product with its own price, weight, photo and page: the owner adds what's missing on each product's page and its Dinkus Commerce panel, the Shop list, every category page and every product page show the whole catalog, and the owner can still save a product with all of it in place |
 | [Mark as completed](tests/mark-completed.spec.mjs) | `@running` | The owner marks a paid TEST order completed in Commerce Orders, typing a carrier and tracking number, and an agent completes another through Commerce's orders API, sending neither; both end Completed |
-| [Problems](tests/problems.spec.mjs) | `@running` | A shopper's checkout going wrong: Stripe turns down a declined card, a card without enough funds and a card that fails the bank's security check, each with a clear message and no order; the shopper leaves Stripe for the cart, finds the way back to the same checkout and pays once with the test card, and the owner completes that one order |
+| [Problems](tests/problems.spec.mjs) | `@running` | A shopper's checkout going wrong: Stripe turns down a declined card, a card without enough funds and a card that fails the bank's security check, each with a clear message and no order; the shopper leaves Stripe for the cart, finds the way back to the same checkout, pays once with the test card and closes the tab, Commerce makes the order on its own, and the owner completes that one order |
 | [Buy a label in the store admin](tests/store-admin-label.spec.mjs) | `@running` | The owner ships a paid Stripe TEST order from the store admin's Shipping page, which the Ship plugin draws from hosted Ship: See prices, Buy label at the quoted price and Print label, then, once Commerce has completed the order, Print label again and Cancel label, with the order staying Completed |
 | [One product with a category](tests/onboarding-product.spec.mjs) | `@running` | The owner adds one product page in a new category, gives it price and stock, a weight and a photo in its Dinkus Commerce panel, and publishes it, which puts it on sale. Archive is only the tidy afterward, not the story |
 
@@ -200,7 +200,10 @@ presses Fail, and again if Stripe's test page is still open seconds later.
 Then it leaves by Stripe's link back to the store, which Payments
 points at the cart (from payments#79, at the store's checkout page), follows
 that page's way back to the same checkout and pays once with the 4242 test
-card. The owner completes the order in Commerce Orders, so the run leaves no
+card, then closes the tab before Stripe's redirect reaches the store, so no
+store page asks Commerce about the checkout; Commerce's background check (woken
+by Payments, or its 5-minute schedule) has to make the order on its own within
+`DINKUS_E2E_COMPLETE_WAIT_SECONDS`. The owner completes the order in Commerce Orders, so the run leaves no
 order open. If Stripe takes a payment from a card it should turn down, the test
 pays nothing more and checks and completes that order instead. On a store whose
 cart offers no way back to an open checkout (Template Store before #100), the
@@ -419,8 +422,8 @@ the key was made, the last step deletes it.
 
 ### Problems
 
-The steps that open Commerce Orders, open the checkout and pay stop the journey
-when they fail, since nothing after them can run; every other step is soft, so
+The steps that open Commerce Orders, open the checkout, pay and wait for the
+order stop the journey when they fail, since nothing after them can run; every other step is soft, so
 one run reports every card's message. A captcha on Stripe stops the journey at
 once, unpaid, since nobody answers it for the test.
 
@@ -433,8 +436,9 @@ once, unpaid, since nobody answers it for the test.
 | A card that fails the bank's security check is turned down with a clear message and no order | 4000 0027 6000 3184 brings up Stripe's test bank check; the test presses Fail (again if the test page ignored a press), Stripe says it can't authenticate the payment method, and Commerce still waits for payment |
 | The shopper leaves Stripe by its back link and lands back in the store | Stripe's link back to the store opens the store's cart, or from payments#79 the store's checkout page, and that page holds the shopper's cart; a store without the page Payments names fails here |
 | The store offers a way back to the same Stripe checkout | On that page, after "Check checkout status", the "Return to secure checkout" link goes to the same Stripe checkout, and the checkout button stays locked, so the shopper can't start a second one |
-| The shopper goes back to Stripe and pays once with the 4242 test card | The shopper follows that link (or, when the store offers none, the test opens the checkout's own Stripe page) and pays once, and Commerce records the payment |
-| The thank-you page confirms the order and empties the cart | As in Buy and ship |
+| The shopper goes back to Stripe, pays once with the 4242 test card and closes the tab | The shopper follows that link (or, when the store offers none, the test opens the checkout's own Stripe page), pays once, and the browser never reaches the store again: Stripe's redirect is stopped and the tab goes blank |
+| Commerce makes the order on its own after the shopper closed the tab | With nobody on the store, a new TEST order appears in Commerce Orders within `DINKUS_E2E_COMPLETE_WAIT_SECONDS` (Commerce Orders lists orders but never settles a payment); only then does the test ask Commerce for the checkout's status, which says paid and names the order (commerce#197 case C) |
+| The thank-you page confirms the order and empties the cart | Skipped here, since the shopper closed the tab; Buy and ship checks it |
 | Commerce Orders lists one new order for the checkout, Processing | The order is listed Processing, and it is the only TEST order newer than the one noted at the start |
 | The owner marks the order completed, so the run leaves no order open | As in Mark as completed, with no carrier or tracking number, since nothing was sent. Only a Processing TEST order is completed |
 
