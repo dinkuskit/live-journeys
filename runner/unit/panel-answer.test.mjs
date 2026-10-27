@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { savedRegular } from "../support/products-admin.mjs";
+import { savedRegular } from "../support/panel-answer.mjs";
 
 // Commerce's panel answer to Save, as products.ts draws it: the product form, then the weight form.
 const answer = regular => ({ blocks: [

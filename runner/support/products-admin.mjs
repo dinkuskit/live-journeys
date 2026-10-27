@@ -2,6 +2,7 @@ import { newPage, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
 import { MEDIA_ROOM, PICKER_PAGE_ROOM, paceStore } from "./pace.mjs";
+import { savedRegular } from "./panel-answer.mjs";
 import { openAdmin } from "./store-admin.mjs";
 import { quick, text } from "./storefront-page.mjs";
 
@@ -183,13 +184,6 @@ export async function setPrice(panel, regular) {
     if (kept === regular) return;
     if (attempt === 2) throw new Error(`Commerce saved the product without the price ${regular}: its panel shows ${kept ? kept : "no price"}.`);
   }
-}
-
-/** The Regular price in the product form of Commerce's panel answer `data` ("" when blank or missing). */
-export function savedRegular(data) {
-  const field = (data?.blocks ?? []).filter(block => block?.type === "form").flatMap(block => block.fields ?? [])
-    .find(field => field?.action_id === "regular");
-  return typeof field?.initial_value === "string" ? field.initial_value.trim() : "";
 }
 
 /** Saves the weight in ounces in the open panel, and checks Commerce kept it. */
