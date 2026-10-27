@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { savedRegular } from "../support/panel-answer.mjs";
+import { panelSaid, savedRegular } from "../support/panel-answer.mjs";
 
 // Commerce's panel answer to Save, as products.ts draws it: the product form, then the weight form.
 const answer = regular => ({ blocks: [
@@ -17,4 +17,14 @@ test("a Save that kept no price reads as no price", () => {
   assert.equal(savedRegular(answer("")), "");
   assert.equal(savedRegular({ blocks: [{ type: "form", fields: [{ action_id: "sale", initial_value: "1.00" }] }] }), "");
   assert.equal(savedRegular(null), "");
+});
+
+test("a Save that left Regular empty is an answer, so the lost price is typed again", () => {
+  const saved = /^(Product saved|Add a Regular price to sell it)$/;
+  assert.equal(panelSaid({ type: "success", message: "Product saved" }, saved), true);
+  assert.equal(panelSaid({ type: "info", message: "Add a Regular price to sell it" }, saved), true);
+  assert.equal(panelSaid({ type: "success", message: "Weight saved" }, "Weight saved"), true);
+  assert.equal(panelSaid({ type: "error", message: "Add a Regular price to sell it" }, saved), false, "a refusal is never an answer");
+  assert.equal(panelSaid({ type: "info", message: "Add a Regular price to sell it" }, "Product saved"), false);
+  assert.equal(panelSaid(undefined, saved), false);
 });

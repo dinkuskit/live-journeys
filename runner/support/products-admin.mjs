@@ -2,7 +2,7 @@ import { newPage, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
 import { MEDIA_ROOM, PICKER_PAGE_ROOM, paceStore } from "./pace.mjs";
-import { savedRegular } from "./panel-answer.mjs";
+import { panelSaid, savedRegular } from "./panel-answer.mjs";
 import { openAdmin } from "./store-admin.mjs";
 import { quick, text } from "./storefront-page.mjs";
 
@@ -20,10 +20,10 @@ export async function answer(page, question, choice) {
 
 // The Dinkus Commerce panel on a Content > Products page is the one product screen: it makes the page's
 // Commerce product and holds its price, weight, photos, name and archive. Its state line reads "Draft:
-// publish to sell it", "On sale" or "Archived: off the shop", then the SKU; a page with no product yet
-// says "Not a product yet".
+// publish to sell it", "On sale", "Published: off the shop" (a published page's product with no Regular
+// price) or "Archived: off the shop", then the SKU; a page with no product yet says "Not a product yet".
 const PANEL_READY = /^Not a product yet|\u00b7 SKU /;
-const PANEL_STATES = { "Draft": "draft", "On sale": "on sale", "Archived": "archived" };
+const PANEL_STATES = { "Draft": "draft", "On sale": "on sale", "Published": "published with no price", "Archived": "archived" };
 
 /**
  * Opens the Dinkus Commerce panel on the product page editor showing in `page` and returns it once
@@ -59,7 +59,7 @@ export async function openProductPanel(page, editor) {
 export async function panelProduct(panel) {
   const said = await text(panel.getByText(PANEL_READY));
   if (/^Not a product yet/.test(said)) return { state: "none" };
-  const [, state = "", sku = ""] = said.match(/^(Draft|On sale|Archived)\b.*?\u00b7 SKU (.+?)(?: \u00b7 |$)/) ?? [];
+  const [, state = "", sku = ""] = said.match(/^(Draft|On sale|Published|Archived)\b.*?\u00b7 SKU (.+?)(?: \u00b7 |$)/) ?? [];
   return { state: PANEL_STATES[state] ?? `unknown ("${said}")`, sku, name: await text(panel.getByRole("heading", { level: 2 })) };
 }
 
@@ -79,7 +79,7 @@ async function panelSays(panel, act, message) {
   if (!response) throw new Error(`Commerce never answered, so it never said "${message.source ?? message}".`);
   const body = await response.json().catch(() => null);
   const toast = body?.data?.toast;
-  if (toast?.type === "success" && (typeof message === "string" ? toast.message === message : message.test(toast.message))) {
+  if (panelSaid(toast, message)) {
     await page.getByText(toast.message, { exact: true }).first().waitFor({ timeout: 15_000 }).catch(() => {});
     return body.data;
   }
@@ -176,11 +176,12 @@ export async function addPriceAndStock(page, sku, made = {}, { link = false } = 
 export async function setPrice(panel, regular) {
   // The panel draws itself again when the page is saved, which EmDash also does by itself a moment after
   // a change. A drawing that lands between typing the price and pressing Save sends an empty Regular,
-  // and Commerce answers "Product saved" with no price at all, leaving a product it calls On sale off
-  // the shop. So the price counts only when Commerce's answer shows it, and a lost one is typed again.
+  // and Commerce saves no price at all: before catalog-unpriced-product-warning-20261027 it answered
+  // "Product saved", since then "Add a Regular price to sell it". So the price counts only when Commerce's
+  // answer shows it, and a lost one is typed again.
   for (let attempt = 1; ; attempt += 1) {
     await panel.getByRole("textbox", { name: "Regular", exact: true }).fill(regular);
-    const kept = savedRegular(await panelSays(panel, () => panel.getByRole("button", { name: "Save", exact: true }).click(), "Product saved"));
+    const kept = savedRegular(await panelSays(panel, () => panel.getByRole("button", { name: "Save", exact: true }).click(), /^(Product saved|Add a Regular price to sell it)$/));
     if (kept === regular) return;
     if (attempt === 2) throw new Error(`Commerce saved the product without the price ${regular}: its panel shows ${kept ? kept : "no price"}.`);
   }
