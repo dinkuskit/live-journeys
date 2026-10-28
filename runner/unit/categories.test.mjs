@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { findListed } from "../support/agent-api.mjs";
-import { categoryHides } from "../support/store-check.mjs";
+import { categoryHides } from "../support/category-page.mjs";
 
 test("a category the store's other products are in must keep answering once the run's product is gone", () => {
   const path = "/categories/catalog-caps";
