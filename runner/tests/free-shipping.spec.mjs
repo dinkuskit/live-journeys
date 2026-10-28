@@ -37,7 +37,8 @@ async function readCharge(page) {
 
 /**
  * A shopper buys `quantity` of the store's product with the 4242 test card. Returns the product's
- * unit price, what Stripe's page said before paying, and the checkout as confirmCheckout reads it.
+ * unit price, what Stripe's page said before paying (its text, and the amount its order summary
+ * asks for), and the checkout as confirmCheckout reads it.
  * A checkout an earlier run left pending in Commerce is paid first, as Buy and ship would pay it, so
  * this one starts from an empty cart; its order goes in `orders` to be completed with this run's.
  */
@@ -55,8 +56,10 @@ async function buy(page, quantity, orders) {
   await expect.poll(async () => await page.locator("#cardNumber").isVisible() || await page.locator('[data-testid="card-accordion-item-button"]').isVisible(),
     { timeout: 60_000 }).toBe(true).catch(() => {});
   const stripe = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+  // The amount Stripe asks for, under "Pay <store>" in its order summary, when it draws one there.
+  const summary = await page.locator("#ProductSummary-totalAmount").first().innerText({ timeout: 2_000 }).catch(() => null);
   await payOnStripe(page, opened.email);
-  return { unit: opened.unitCents, stripe, placed: await confirmCheckout(page) };
+  return { unit: opened.unitCents, stripe, summary, placed: await confirmCheckout(page) };
 }
 
 /** Fails with what differs, when anything does. */
@@ -123,7 +126,7 @@ test("Free shipping over an amount", { tag: "@next" }, journey(async ({ page }) 
       if (order.who === "over" && expected.goods < charge.over) {
         throw new Error(`The product now costs ${dollars(bought.unit)}, so ${quantity} come to ${dollars(expected.goods)}, under the ${dollars(charge.over)} free-shipping amount.`);
       }
-      fine(stripeProblems(bought.stripe, expected), "Stripe's page differs from the order:");
+      fine(stripeProblems(bought.stripe, expected, bought.summary), "Stripe's page differs from the order:");
       const what = expected.shipping ? `${dollars(expected.shipping)} shipping` : "no shipping";
       return `${quantity} × ${dollars(bought.unit)} = ${dollars(expected.goods)}: Stripe asked for ${dollars(expected.total)} with ${what}, and Commerce recorded the payment`;
     }, soft);

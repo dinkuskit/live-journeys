@@ -35,14 +35,29 @@ test("shipping is the flat charge until the goods reach the amount, then nothing
   assert.deepEqual(expectedCharge(charge, 7500), { goods: 7500, shipping: 0, total: 7500, mode: "free" });
 });
 
-test("Stripe's page asks for the total, with a Shipping line only when shipping costs something", () => {
+test("Stripe's page asks for the total, with a Shipping line of the flat charge only when shipping costs something", () => {
   const under = expectedCharge(charge, 1200);
   const over = expectedCharge(charge, 8400);
   assert.deepEqual(stripeProblems("Pay Test Store\n$17.00\nTee (quantity 1)\n$12.00\nShipping\nFlat shipping\n$5.00\nTotal due\n$17.00", under), []);
   assert.deepEqual(stripeProblems("Pay Test Store\n$84.00\nTee (quantity 7)\n$84.00\nTotal due\n$84.00\nShipping address", over), []);
+  // The order summary's total, read from the page, counts as the amount asked for.
+  assert.deepEqual(stripeProblems("Tee (quantity 7)\n$84.00\nShipping address", over, "$84.00"), []);
   assert.deepEqual(stripeProblems("Pay Test Store\n$12.00\nTee (quantity 1)\n$12.00", under),
-    ["it never shows the $17.00 total", "it lists no Shipping line for the $5.00"]);
-  assert.deepEqual(stripeProblems("$89.00\nTee (quantity 7)\nShipping\n$5.00", over), ["it never shows the $84.00 total", "it lists a Shipping line"]);
+    ["it asks for $12.00, not the $17.00 total", "it lists no Shipping line for the $5.00"]);
+  assert.deepEqual(stripeProblems("$89.00\nTee (quantity 7)\nShipping\n$5.00", over),
+    ["it shows no amount to pay, where the order's total is $84.00", "it lists a Shipping line"]);
+  assert.deepEqual(stripeProblems("Pay Test Store\n$19.00\nTee (quantity 1)\n$12.00\nShipping\n$7.00\nTotal due $19.00", under),
+    ["it asks for $19.00, not the $17.00 total", "its Total due is $19.00, not $17.00", "its Shipping line is $7.00, not $5.00"]);
+});
+
+test("Stripe's goods matching the order's total don't pass for the amount it asks for", () => {
+  // Over the amount the order's total is the goods alone, so the item's own $84.00 must not count.
+  const over = expectedCharge(charge, 8400);
+  assert.deepEqual(stripeProblems("Tee (quantity 7)\n$84.00\nTotal due\n$89.00", over), ["its Total due is $89.00, not $84.00"]);
+  assert.deepEqual(stripeProblems("Pay Test Store\n$89.00\nTee (quantity 7)\n$84.00\nTotal due\n$89.00", over),
+    ["it asks for $89.00, not the $84.00 total", "its Total due is $89.00, not $84.00"]);
+  assert.deepEqual(stripeProblems("Tee (quantity 7)\n$84.00", over, "$89.00"), ["it asks for $89.00, not the $84.00 total"]);
+  assert.deepEqual(stripeProblems("Tee (quantity 7)\n$84.00", over), ["it shows no amount to pay, where the order's total is $84.00"]);
 });
 
 test("Commerce's checkout amounts must match the order's goods, shipping and total", () => {

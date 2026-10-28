@@ -45,14 +45,54 @@ export function expectedCharge({ flat, over }, goods) {
 const lines = text => String(text ?? "").split("\n").map(line => line.trim()).filter(Boolean);
 const shown = cents => cents === null ? "nothing" : dollars(cents);
 
-/** Where Stripe's page differs from the order: it asks for the total, with a Shipping line only when shipping is charged. */
-export function stripeProblems(text, expected) {
+const amountOnly = line => /^\$\s?[\d,]+(?:\.\d{1,2})?$/.test(line) ? money(line) : null;
+
+/**
+ * The amount Stripe's page shows beside a label: on the label's own line ("Total due $17.00") or
+ * as the next line that is only an amount, within `reach` lines. Null when no line starts with it.
+ */
+function amountBeside(shownLines, label, reach = 1) {
+  for (const [at, line] of shownLines.entries()) {
+    if (!label.test(line)) continue;
+    const own = line.replace(label, "");
+    if (own.includes("$")) return money(own);
+    const next = shownLines.slice(at + 1, at + 1 + reach).map(amountOnly).find(cents => cents !== null);
+    if (next !== undefined) return next;
+  }
+  return null;
+}
+
+/**
+ * What Stripe's page asks the shopper to pay, in cents: the amount its order summary shows under
+ * "Pay <store>" (`summary`, which the journey reads from the summary's total when Stripe draws one),
+ * its "Total due", and the amount of its Shipping line. Each is null when the page doesn't show it.
+ */
+function stripeAmounts(text, summary = null) {
   const shownLines = lines(text);
+  return {
+    summary: money(summary) ?? amountBeside(shownLines, /^Pay\s[^$]*/),
+    due: amountBeside(shownLines, /^Total due\b/i),
+    shipping: shownLines.includes("Shipping") ? amountBeside(shownLines, /^Shipping$/, 3) : null,
+  };
+}
+
+/**
+ * Where Stripe's page differs from the order: the amount it asks for and its Total due must be the
+ * order's total, and it lists a Shipping line, of the flat charge, only when shipping is charged.
+ */
+export function stripeProblems(text, expected, summary = null) {
+  const shownLines = lines(text);
+  const asked = stripeAmounts(text, summary);
   const problems = [];
-  if (!shownLines.some(line => line.includes(dollars(expected.total)))) problems.push(`it never shows the ${dollars(expected.total)} total`);
+  if (asked.summary === null && asked.due === null) problems.push(`it shows no amount to pay, where the order's total is ${dollars(expected.total)}`);
+  if (asked.summary !== null && asked.summary !== expected.total) problems.push(`it asks for ${dollars(asked.summary)}, not the ${dollars(expected.total)} total`);
+  if (asked.due !== null && asked.due !== expected.total) problems.push(`its Total due is ${dollars(asked.due)}, not ${dollars(expected.total)}`);
   // Payments adds shipping to Stripe as its own line, named "Shipping", only when it costs something.
   const shippingLine = shownLines.includes("Shipping");
   if (expected.shipping && !shippingLine) problems.push(`it lists no Shipping line for the ${dollars(expected.shipping)}`);
+  if (expected.shipping && shippingLine && asked.shipping !== expected.shipping) {
+    problems.push(`its Shipping line is ${shown(asked.shipping)}, not ${dollars(expected.shipping)}`);
+  }
   if (!expected.shipping && shippingLine) problems.push("it lists a Shipping line");
   return problems;
 }
