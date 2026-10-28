@@ -7,9 +7,9 @@ import { storeReturnPage, stripeSession, thankYouShown } from "../support/checko
 import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import { note, record } from "../support/proof.mjs";
-import { numberOf, openOrder, orderShown, ordersListed, testOrders } from "../support/orders-admin.mjs";
+import { completeTestOrder, numberOf, ordersListed, testOrders } from "../support/orders-admin.mjs";
 import { openStorePage } from "../support/signin.mjs";
-import { confirmed, notePlugins, openAdmin } from "../support/store-admin.mjs";
+import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { journey, step } from "../support/steps.mjs";
 
 // Stripe's test cards that never take a payment, each a problem real shoppers run into, with the words
@@ -223,17 +223,7 @@ test("Problems", { tag: "@running" }, journey(async ({ page }) => {
 
   if (!number) record("The owner marks the order completed, so the run leaves no order open", "SKIP", "Commerce Orders didn't list the order");
   else await step(page, "The owner marks the order completed, so the run leaves no order open", async () => {
-    const before = await openOrder(page, number);
-    // The test only ever completes TEST orders.
-    if (!before.test) throw new Error(`Order #${number} isn't a TEST order, so the test leaves it alone.`);
-    if (before.status !== "Processing") throw new Error(`Order #${number} shows ${before.status ?? "no status"}, not Processing, so it can't be marked completed.`);
-    await page.getByRole("button", { name: "Complete order", exact: true }).click();
-    // Nothing was sent, so the optional carrier and tracking number stay empty.
-    await page.getByRole("textbox", { name: "Carrier (optional)", exact: true }).waitFor();
-    await page.getByRole("button", { name: "Complete order", exact: true }).click();
-    await confirmed(page, "Order completed");
-    const after = await orderShown(page);
-    if (after.status !== "Completed") throw new Error(`Commerce said "Order completed", but #${number} shows ${after.status ?? "no status"}.`);
+    await completeTestOrder(page, number);
     return `#${number} Completed, with no carrier or tracking number`;
   }, soft);
 }));

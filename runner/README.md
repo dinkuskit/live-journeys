@@ -20,6 +20,8 @@ journeys plan:
 | [Problems](tests/problems.spec.mjs) | `@running` | A shopper's checkout going wrong: Stripe turns down a declined card, a card without enough funds and a card that fails the bank's security check, each with a clear message and no order; the shopper leaves Stripe for the cart, finds the way back to the same checkout, pays once with the test card and closes the tab, Commerce makes the order on its own, and the owner completes that one order |
 | [Buy a label in the store admin](tests/store-admin-label.spec.mjs) | `@running` | The owner ships a paid Stripe TEST order from the store admin's Shipping page, which the Ship plugin draws from hosted Ship: See prices, Buy label at the quoted price and Print label, then, once Commerce has completed the order, Print label again and Cancel label, with the order staying Completed |
 | [One product with a category](tests/onboarding-product.spec.mjs) | `@running` | The owner adds one product page in a new category, gives it price and stock, a weight and a photo in its Dinkus Commerce panel, and publishes it, which puts it on sale. Archive is only the tidy afterward, not the story |
+| [An agent manages a product](tests/agent-products.spec.mjs) | `@next` | An agent with only an EmDash key makes a Draft product and its page through Commerce's catalog API and EmDash's content API, publishes the page to put it on sale, changes its price from a preview, sees Commerce refuse a change made from an old preview, and archives it, with the store following each change |
+| [Free shipping over an amount](tests/free-shipping.spec.mjs) | `@next` | With the store on a flat shipping charge and a free-shipping amount, set once on DinkusKit.com's Your Stores page and only read by the journey, one Stripe TEST order under the amount pays the flat charge and one whose goods reach the amount pays no shipping: on Stripe, on the thank-you page and in Commerce Orders. Both orders end Completed |
 
 `npm test` runs every `@running` journey, one at a time in file-name order, so
 the five numbered setup journeys run first and the store is connected before
@@ -192,6 +194,15 @@ Access service token would. To complete existing Processing TEST orders instead
 of placing new ones, set `DINKUS_E2E_ORDERS_TO_COMPLETE` (the owner's order,
 then the agent's).
 
+An agent manages a product works as any agent can, with an admin key made and
+deleted the way Mark as completed does it and no browser: Commerce's catalog API
+(`POST catalog`, beside the orders API) for the product, EmDash's content API for
+its page, and EmDash's schema API to learn what a product page needs. It adds one
+product and page named "Live agent product" with the run's date and time, and
+takes both off the store at the end: the product archived, the page in EmDash's
+Trash. A store whose product pages still require placeholder art gets `TEE`.
+It needs a Commerce with the catalog API (0.7.0 and later).
+
 Problems works in one Stripe TEST checkout and places one order. On Stripe's
 hosted Checkout it tries three of Stripe's test cards that never take a payment:
 4000 0000 0000 0002 (declined), 4000 0000 0000 9995 (not enough funds) and
@@ -224,6 +235,19 @@ plugin installed and connected (the store's Store ID and store key in its
 settings), and hosted Ship running on Pitney Bowes's sandbox, which is when Ship
 gives TEST orders sandbox labels. It finds the Shipping page in the admin's menu;
 when the menu has more than one, set `DINKUS_E2E_SHIPPING_ADMIN`.
+
+Free shipping over an amount needs the store set once on DinkusKit.com's Your
+Stores page: Shipping charge "Flat amount in dollars" above $0.00 and a
+free-shipping amount (75.00, say), then Save checkout settings. The same form
+holds the Payments Test/Live choice, so the journey only reads it, signed in as
+the owner, and stops at its first step when the store isn't set that way. Keep
+the amount above any one product's price, so the other journeys' one-item
+orders pay the flat charge. Commerce reads a saved change within 5 minutes, and
+from Commerce 0.7.0 charges no shipping once an order's goods reach the amount.
+The journey places two Stripe TEST orders the way Buy and ship places one: one
+item under the amount, then the fewest of the same product whose goods reach it,
+typed into the cart's quantity box (up to 99). The owner completes both in
+Commerce Orders, so the run leaves no order open.
 
 From Payments' and Ship's sidebar folder changes, their menu pages sit in
 EmDash sidebar folders: Payments status is "Payment settings" in "Dinkus
@@ -429,6 +453,25 @@ the key was made, the last step deletes it.
 | Commerce Orders shows the agent's order Completed | In the store admin the agent's order is listed Completed, and its page shows "Not recorded" for the carrier and the tracking number |
 | The test deletes the agent's key | EmDash deletes the key, and a call with it then gets HTTP 401. Runs whenever the key was made |
 
+### An agent manages a product
+
+The steps that make the agent's key and its product stop the journey when they
+fail; every other step is soft. Whenever the key was made, the last step
+deletes it.
+
+| Step | What it proves |
+| --- | --- |
+| The owner opens Content > Products | The saved profile is signed in to the store admin, which the key needs |
+| The test makes a one-hour key for the agent | As in Mark as completed |
+| An agent makes a Draft product and its page through the store's APIs | With only the key, the agent reads which fields a product page requires, has Commerce make a Draft product (`create`), saves an unpublished page carrying the product in its Commerce product field, links the two (`link`), and saves $12.00 in stock (`prices`) and 8 oz (`weight`). Commerce then shows the product with the run's name and SKU, still a Draft |
+| A Draft product stays off the store | The Shop list doesn't offer it and its page doesn't sell it while the page is unpublished |
+| Publishing the page through EmDash's API puts the product on sale | The agent publishes the page; within 30 seconds Commerce has the product on sale, and the Shop list and its page show it at $12.00 with Add to cart |
+| A price the agent changes from a preview shows on the store | The agent reads the product, sends $13.50 with that read's preview code (`expected`, the first 12 hex digits of SHA-256 over Commerce's `get` answer), Commerce saves it, and the store shows $13.50 |
+| Commerce refuses a change made from an old preview | Sent with the code from before the price change, a change to $9.99 is refused with "The product changed since that preview", and the product reads exactly as before |
+| Archiving the product through the API takes it off the store | The agent archives it at a fresh preview; the Shop list drops it and its page says it's no longer available, with HTTP 404 |
+| The test takes its product and page off the store | The product is archived and the page is in EmDash's Trash, and the store shows neither. Runs whenever the agent made either |
+| The test deletes the agent's key | As in Mark as completed |
+
 ### Problems
 
 The steps that open Commerce Orders, open the checkout, pay and wait for the
@@ -479,6 +522,23 @@ up to `DINKUS_E2E_COMPLETE_WAIT_SECONDS` twice, it gets twice that on top of the
 | Print label still opens the same PDF once the order is Completed | With the order Completed, the Shipping list still shows "Label bought", the order's page still shows the label, and Print label opens the same PDF as before (the same SHA-256). Before ship#45 the Shipping page lost the label once Commerce completed the order, so it couldn't be printed or cancelled |
 | Cancel label voids the sandbox label and the order stays Completed | Cancel label first asks, saying the sandbox label is voided with Pitney Bowes and the order stays as it is in Commerce. After the confirm the page says exactly "Label cancelled.", promising no refund for postage nobody paid, shows no live label and Status "Label cancelled", says the order is Completed in Commerce, and lists the label under Earlier labels as cancelled |
 | Shipping lists the order as Label cancelled and Commerce keeps it Completed | The Shipping list shows "Label cancelled", and Commerce Orders still shows the order Completed with the label's carrier and tracking number |
+
+### Free shipping over an amount
+
+The first step stops the journey when it fails, since without the store's
+charge there is nothing to check; every other step is soft, so one run checks
+both orders.
+
+| Step | What it proves |
+| --- | --- |
+| DinkusKit.com shows the store's flat charge and free-shipping amount | Signed in as the owner, Your Stores shows this store's checkout settings on a flat amount above $0.00 with a free-shipping amount. The journey reads them and presses nothing; otherwise it stops here and says what to set |
+| One item under the amount pays the flat shipping on Stripe | A shopper buys one of the product, whose price is under the amount, with the test card. Before paying, Stripe's page asks for the price plus the flat charge (the amount under "Pay" and its Total due, never just a matching item line), with a Shipping line of the flat charge, and Commerce records the payment |
+| Its thank-you page shows the flat shipping | The thank-you page's Shipping row shows the flat charge, its shipping method names it ("Flat rate ($5.00)"), and its Total is the price plus the charge |
+| Commerce Orders records the flat shipping | Commerce's checkout status gives the goods, shipping "flat" at the flat charge, and the total, and the order's page in Commerce Orders records the same Shipping and Order total |
+| Enough items to reach the amount pay no shipping on Stripe | The shopper buys the fewest of the same product that reach the amount, typed into the cart's quantity box. Stripe asks for the goods alone, under "Pay" and as its Total due, with no Shipping line. Skipped when the first order showed no price |
+| Its thank-you page says Free shipping | The Shipping row reads "Free", the shipping method "Free shipping", and the Total is the goods alone |
+| Commerce Orders records free shipping | Commerce's checkout status gives shipping "free" at $0.00, and the order's page records Shipping USD 0.00 and the goods as its Order total. A Commerce before 0.7.0 charges the flat amount here and fails this step |
+| The owner marks both orders completed, so the run leaves no order open | As in Mark as completed, with no carrier or tracking number. Only Processing TEST orders are completed, including a checkout an earlier run left open that the test had to pay first |
 
 ## Proof
 

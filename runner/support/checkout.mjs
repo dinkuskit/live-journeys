@@ -16,12 +16,13 @@ let productId = null;
  * Buys one physical product as a guest, the way a shopper does: product page, Add to cart,
  * /cart with a US delivery address, Stripe's hosted Checkout with the 4242 test card, and back.
  *
- * Returns { number, orderId, checkoutToken, state }. The storefront never learns the short
- * order number: Commerce's guest checkout status carries only `order:<attempt id>`, and Orders
- * numbers the order (1001, 1002...) when it keeps its copy. So `number` is normally null and the
- * caller finds the newest TEST order in Commerce Orders; Ship's order links end in `orderId`, so
- * that also picks the order there. `checkoutToken` is the Stripe Checkout Session id from the
- * return URL, and `state` is Commerce's checkout state ("paid" once it has recorded the order).
+ * Returns { number, orderId, checkoutToken, state, pricing, thankYou }. The storefront never
+ * learns the short order number: Commerce's guest checkout status carries only `order:<attempt id>`,
+ * and Orders numbers the order (1001, 1002...) when it keeps its copy. So `number` is normally null
+ * and the caller finds the newest TEST order in Commerce Orders; Ship's order links end in `orderId`,
+ * so that also picks the order there. `checkoutToken` is the Stripe Checkout Session id from the
+ * return URL, `state` is Commerce's checkout state ("paid" once it has recorded the order), and
+ * `pricing` is Commerce's amounts for it. `thankYou` is what the thank-you page showed.
  */
 export async function placeTestOrder(page) {
   const { email } = await openCheckout(page);
@@ -32,15 +33,18 @@ export async function placeTestOrder(page) {
 /**
  * Takes a guest shopper to Stripe's hosted Checkout for one physical product: product page, Add to
  * cart, /cart with a US delivery address, then Continue to secure checkout. A cart without the
- * checkout contact (Template Store #127) sends the shopper to /checkout for it. Returns the checkout
- * contact's email, and `resumed` when the browser already had a checkout pending in Commerce and
- * went back to its Stripe session instead.
+ * checkout contact (Template Store #127) sends the shopper to /checkout for it. `quantity` is typed
+ * into the cart's quantity box, as a shopper buying several would. Returns the checkout contact's
+ * email, the product's unit price in cents from the store's cart snapshot (`unitCents`, null when
+ * unreadable), and `resumed` when the browser already had a checkout pending in Commerce and went
+ * back to its Stripe session instead.
  */
-export async function openCheckout(page) {
+export async function openCheckout(page, { quantity = 1 } = {}) {
   const email = config.shopper.email || config.ownerEmail;
   if (!email) throw new Error("Set DINKUS_E2E_SHOPPER_EMAIL (or DINKUS_E2E_OWNER_EMAIL) for the checkout contact.");
 
   let path = config.productPath || null;
+  let unitCents = null;
   // Never two checkouts at once: a checkout an earlier run left pending in Commerce is paid on its
   // own Stripe session instead of starting another.
   const resumed = await resumeCheckout(page);
@@ -52,12 +56,23 @@ export async function openCheckout(page) {
     await page.goto(new URL(path, config.store).href);
     await orFail(page.locator('[data-add-to-cart][data-guest-cart-ready="1"]').first().waitFor({ timeout: 15_000 }), async () =>
       `${path} offers no Add to cart: ${await texts(page, ".product-detail__notice, [data-product-status]")}`);
-    await page.locator(productId ? `[data-add-to-cart="${productId}"]` : "[data-add-to-cart]").first().click();
+    const add = page.locator(productId ? `[data-add-to-cart="${productId}"]` : "[data-add-to-cart]").first();
+    unitCents = await unitPrice(page, await add.getAttribute("data-add-to-cart"));
+    await add.click();
     await orFail(expect(page.locator("[data-add-to-cart-status]")).toHaveText(/added to cart/i, { timeout: 10_000 }), async () =>
       `Add to cart failed: ${await texts(page, "[data-add-to-cart-status]")}`);
 
     // The checkout button turns on once the cart's catalog snapshot and Commerce's prepare both answer.
     await page.goto(config.store + "/cart");
+    if (quantity !== 1) {
+      const field = page.locator("[data-guest-cart-qty]").first();
+      await orFail(field.waitFor({ timeout: 15_000 }), async () => `The cart shows no quantity box to change: ${await cartMessage(page)}`);
+      await field.fill(String(quantity));
+      // The cart applies a typed quantity when the field loses focus, as when a shopper tabs on.
+      await field.press("Tab");
+      await orFail(expect(field).toHaveValue(String(quantity), { timeout: 10_000 }), async () =>
+        `The cart wouldn't keep quantity ${quantity}: ${await cartMessage(page)}`);
+    }
     const checkout = page.locator("[data-guest-cart-checkout]");
     await orFail(expect(checkout).toBeEnabled({ timeout: 45_000 }), async () => `The cart never offered checkout: ${await cartMessage(page)}`);
     if (!await page.locator("[data-guest-cart-email]").count()) {
@@ -80,7 +95,16 @@ export async function openCheckout(page) {
     await orFail(page.waitForURL(url => url.hostname === "checkout.stripe.com", { timeout: 60_000 }), async () =>
       `The store did not open Stripe Checkout: ${await cartMessage(page)}`);
   }
-  return { email, resumed };
+  return { email, resumed, unitCents };
+}
+
+/** What one of a product costs a shopper, in cents, from the store's cart snapshot; null when unreadable. */
+async function unitPrice(page, id) {
+  if (!id) return null;
+  const response = await get(page, `${config.store}/api/guest-cart/snapshot?ids=${encodeURIComponent(id)}`).catch(() => null);
+  const product = response?.ok() ? (await response.json().catch(() => null))?.products?.[0] : null;
+  const minor = product?.price?.unitMinor;
+  return typeof minor === "string" && /^\d+$/.test(minor) ? Number(minor) : null;
 }
 
 /**
@@ -116,6 +140,8 @@ export async function confirmCheckout(page) {
     orderId: status.checkout?.order?.orderId ?? (status.attemptId ? `order:${status.attemptId}` : null),
     checkoutToken: sessionId ?? status.attemptId ?? null,
     state: status.checkout?.state ?? "unknown",
+    // Commerce's own amounts for the checkout: goods, shipping ({ mode, charge }) and final total.
+    pricing: status.checkout?.pricing ?? null,
     thankYou,
   };
 }
@@ -146,6 +172,10 @@ async function readThankYou(page) {
     message: (await status.innerText(quick).catch(() => "")).trim(),
     confirmed: await root.locator("[data-guest-checkout-order]").isVisible(),
     items: await root.locator("[data-guest-checkout-order-items] li").count(),
+    // The order's totals ("Shipping" → "$5.00" or "Free", "Total" → "$17.00") and its shipping method.
+    totals: Object.fromEntries(await root.locator("[data-guest-checkout-order-totals] > *").evaluateAll(rows => rows.map(row =>
+      [row.querySelector("dt")?.textContent?.trim() ?? "", row.querySelector("dd")?.textContent?.trim() ?? ""]))),
+    shippingMethod: (await root.locator("[data-guest-checkout-shipping-method]").filter({ visible: true }).first().innerText(quick).catch(() => "")).trim(),
     cart: cartCount(await page.locator("[data-guest-cart-nav]").first().getAttribute("aria-label", quick).catch(() => null)),
   };
 }
