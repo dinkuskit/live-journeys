@@ -228,6 +228,9 @@ product on sale fail. See the runner README's "Run on GitHub".
   once with the test card, or the Processing TEST orders
   `DINKUS_E2E_ORDERS_TO_COMPLETE` names. It leaves every other order alone.
   Problems completes only the one TEST order it places.
+- An agent manages a product changes only the product and page it adds, each
+  named "Live agent product" with the run's date and time, and takes both off
+  the store at the end.
 - The agent's key is the only credential the test makes: an admin key for the
   owner that stops working after an hour. It never leaves the test's own calls,
   and the test deletes it at the end of every run. If that last step fails,

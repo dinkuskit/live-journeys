@@ -20,6 +20,7 @@ journeys plan:
 | [Problems](tests/problems.spec.mjs) | `@running` | A shopper's checkout going wrong: Stripe turns down a declined card, a card without enough funds and a card that fails the bank's security check, each with a clear message and no order; the shopper leaves Stripe for the cart, finds the way back to the same checkout, pays once with the test card and closes the tab, Commerce makes the order on its own, and the owner completes that one order |
 | [Buy a label in the store admin](tests/store-admin-label.spec.mjs) | `@running` | The owner ships a paid Stripe TEST order from the store admin's Shipping page, which the Ship plugin draws from hosted Ship: See prices, Buy label at the quoted price and Print label, then, once Commerce has completed the order, Print label again and Cancel label, with the order staying Completed |
 | [One product with a category](tests/onboarding-product.spec.mjs) | `@running` | The owner adds one product page in a new category, gives it price and stock, a weight and a photo in its Dinkus Commerce panel, and publishes it, which puts it on sale. Archive is only the tidy afterward, not the story |
+| [An agent manages a product](tests/agent-products.spec.mjs) | `@next` | An agent with only an EmDash key makes a Draft product and its page through Commerce's catalog API and EmDash's content API, publishes the page to put it on sale, changes its price from a preview, sees Commerce refuse a change made from an old preview, and archives it, with the store following each change |
 
 `npm test` runs every `@running` journey, one at a time in file-name order, so
 the five numbered setup journeys run first and the store is connected before
@@ -191,6 +192,15 @@ its admin, the agent's calls also carry the saved Access sign-in, as an agent's
 Access service token would. To complete existing Processing TEST orders instead
 of placing new ones, set `DINKUS_E2E_ORDERS_TO_COMPLETE` (the owner's order,
 then the agent's).
+
+An agent manages a product works as any agent can, with an admin key made and
+deleted the way Mark as completed does it and no browser: Commerce's catalog API
+(`POST catalog`, beside the orders API) for the product, EmDash's content API for
+its page, and EmDash's schema API to learn what a product page needs. It adds one
+product and page named "Live agent product" with the run's date and time, and
+takes both off the store at the end: the product archived, the page in EmDash's
+Trash. A store whose product pages still require placeholder art gets `TEE`.
+It needs a Commerce with the catalog API (0.7.0 and later).
 
 Problems works in one Stripe TEST checkout and places one order. On Stripe's
 hosted Checkout it tries three of Stripe's test cards that never take a payment:
@@ -428,6 +438,25 @@ the key was made, the last step deletes it.
 | An agent marks the order completed through Commerce's orders API, sending no carrier or tracking number | With only the key, the agent reads the order and completes it at the version it read; Commerce answers "saved" with the order completed, its version raised and no carrier or tracking number. Only a processing TEST order is completed |
 | Commerce Orders shows the agent's order Completed | In the store admin the agent's order is listed Completed, and its page shows "Not recorded" for the carrier and the tracking number |
 | The test deletes the agent's key | EmDash deletes the key, and a call with it then gets HTTP 401. Runs whenever the key was made |
+
+### An agent manages a product
+
+The steps that make the agent's key and its product stop the journey when they
+fail; every other step is soft. Whenever the key was made, the last step
+deletes it.
+
+| Step | What it proves |
+| --- | --- |
+| The owner opens Content > Products | The saved profile is signed in to the store admin, which the key needs |
+| The test makes a one-hour key for the agent | As in Mark as completed |
+| An agent makes a Draft product and its page through the store's APIs | With only the key, the agent reads which fields a product page requires, has Commerce make a Draft product (`create`), saves an unpublished page carrying the product in its Commerce product field, links the two (`link`), and saves $12.00 in stock (`prices`) and 8 oz (`weight`). Commerce then shows the product with the run's name and SKU, still a Draft |
+| A Draft product stays off the store | The Shop list doesn't offer it and its page doesn't sell it while the page is unpublished |
+| Publishing the page through EmDash's API puts the product on sale | The agent publishes the page; within 30 seconds Commerce has the product on sale, and the Shop list and its page show it at $12.00 with Add to cart |
+| A price the agent changes from a preview shows on the store | The agent reads the product, sends $13.50 with that read's preview code (`expected`, the first 12 hex digits of SHA-256 over Commerce's `get` answer), Commerce saves it, and the store shows $13.50 |
+| Commerce refuses a change made from an old preview | Sent with the code from before the price change, a change to $9.99 is refused with "The product changed since that preview", and the product reads exactly as before |
+| Archiving the product through the API takes it off the store | The agent archives it at a fresh preview; the Shop list drops it and its page says it's no longer available, with HTTP 404 |
+| The test takes its product and page off the store | The product is archived and the page is in EmDash's Trash, and the store shows neither. Runs whenever the agent made either |
+| The test deletes the agent's key | As in Mark as completed |
 
 ### Problems
 
