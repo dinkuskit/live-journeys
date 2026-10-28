@@ -227,7 +227,13 @@ product on sale fail. See the runner README's "Run on GitHub".
 - Mark as completed completes only TEST orders: the two it places, paying each
   once with the test card, or the Processing TEST orders
   `DINKUS_E2E_ORDERS_TO_COMPLETE` names. It leaves every other order alone.
-  Problems completes only the one TEST order it places.
+  Problems completes only the one TEST order it places, and Free shipping over
+  an amount only the two it places, plus a checkout an earlier run left open,
+  which it pays first.
+- Free shipping over an amount only reads the store's checkout settings on
+  DinkusKit.com's Your Stores page and never presses Save checkout settings,
+  which also holds the Payments Test/Live choice. When it stops at its first
+  step, report what it says to set; the owner sets it once.
 - An agent manages a product changes only the product and page it adds, each
   named "Live agent product" with the run's date and time, and takes both off
   the store at the end.

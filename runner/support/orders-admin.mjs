@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import { config } from "./env.mjs";
-import { openAdmin } from "./store-admin.mjs";
+import { confirmed, openAdmin } from "./store-admin.mjs";
 
 // Commerce Orders in the store admin, as the journeys that check or complete an order read it.
 
@@ -72,6 +72,24 @@ export async function openOrder(page, number) {
     }
   } while (await nextPage(page));
   throw new Error(`Commerce Orders doesn't list order #${number}.`);
+}
+
+/**
+ * Marks order #number completed in Commerce Orders, as the owner would, with no carrier or tracking
+ * number since nothing was sent. Only a Processing TEST order is completed; any other is left alone.
+ */
+export async function completeTestOrder(page, number) {
+  const before = await openOrder(page, number);
+  // The test only ever completes TEST orders.
+  if (!before.test) throw new Error(`Order #${number} isn't a TEST order, so the test leaves it alone.`);
+  if (before.status !== "Processing") throw new Error(`Order #${number} shows ${before.status ?? "no status"}, not Processing, so it can't be marked completed.`);
+  await page.getByRole("button", { name: "Complete order", exact: true }).click();
+  // Nothing was sent, so the optional carrier and tracking number stay empty.
+  await page.getByRole("textbox", { name: "Carrier (optional)", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Complete order", exact: true }).click();
+  await confirmed(page, "Order completed");
+  const after = await orderShown(page);
+  if (after.status !== "Completed") throw new Error(`Commerce said "Order completed", but #${number} shows ${after.status ?? "no status"}.`);
 }
 
 /**

@@ -21,6 +21,7 @@ journeys plan:
 | [Buy a label in the store admin](tests/store-admin-label.spec.mjs) | `@running` | The owner ships a paid Stripe TEST order from the store admin's Shipping page, which the Ship plugin draws from hosted Ship: See prices, Buy label at the quoted price and Print label, then, once Commerce has completed the order, Print label again and Cancel label, with the order staying Completed |
 | [One product with a category](tests/onboarding-product.spec.mjs) | `@running` | The owner adds one product page in a new category, gives it price and stock, a weight and a photo in its Dinkus Commerce panel, and publishes it, which puts it on sale. Archive is only the tidy afterward, not the story |
 | [An agent manages a product](tests/agent-products.spec.mjs) | `@next` | An agent with only an EmDash key makes a Draft product and its page through Commerce's catalog API and EmDash's content API, publishes the page to put it on sale, changes its price from a preview, sees Commerce refuse a change made from an old preview, and archives it, with the store following each change |
+| [Free shipping over an amount](tests/free-shipping.spec.mjs) | `@next` | With the store on a flat shipping charge and a free-shipping amount, set once on DinkusKit.com's Your Stores page and only read by the journey, one Stripe TEST order under the amount pays the flat charge and one whose goods reach the amount pays no shipping: on Stripe, on the thank-you page and in Commerce Orders. Both orders end Completed |
 
 `npm test` runs every `@running` journey, one at a time in file-name order, so
 the five numbered setup journeys run first and the store is connected before
@@ -234,6 +235,19 @@ plugin installed and connected (the store's Store ID and store key in its
 settings), and hosted Ship running on Pitney Bowes's sandbox, which is when Ship
 gives TEST orders sandbox labels. It finds the Shipping page in the admin's menu;
 when the menu has more than one, set `DINKUS_E2E_SHIPPING_ADMIN`.
+
+Free shipping over an amount needs the store set once on DinkusKit.com's Your
+Stores page: Shipping charge "Flat amount in dollars" above $0.00 and a
+free-shipping amount (75.00, say), then Save checkout settings. The same form
+holds the Payments Test/Live choice, so the journey only reads it, signed in as
+the owner, and stops at its first step when the store isn't set that way. Keep
+the amount above any one product's price, so the other journeys' one-item
+orders pay the flat charge. Commerce reads a saved change within 5 minutes, and
+from Commerce 0.7.0 charges no shipping once an order's goods reach the amount.
+The journey places two Stripe TEST orders the way Buy and ship places one: one
+item under the amount, then the fewest of the same product whose goods reach it,
+typed into the cart's quantity box (up to 99). The owner completes both in
+Commerce Orders, so the run leaves no order open.
 
 From Payments' and Ship's sidebar folder changes, their menu pages sit in
 EmDash sidebar folders: Payments status is "Payment settings" in "Dinkus
@@ -508,6 +522,23 @@ up to `DINKUS_E2E_COMPLETE_WAIT_SECONDS` twice, it gets twice that on top of the
 | Print label still opens the same PDF once the order is Completed | With the order Completed, the Shipping list still shows "Label bought", the order's page still shows the label, and Print label opens the same PDF as before (the same SHA-256). Before ship#45 the Shipping page lost the label once Commerce completed the order, so it couldn't be printed or cancelled |
 | Cancel label voids the sandbox label and the order stays Completed | Cancel label first asks, saying the sandbox label is voided with Pitney Bowes and the order stays as it is in Commerce. After the confirm the page says exactly "Label cancelled.", promising no refund for postage nobody paid, shows no live label and Status "Label cancelled", says the order is Completed in Commerce, and lists the label under Earlier labels as cancelled |
 | Shipping lists the order as Label cancelled and Commerce keeps it Completed | The Shipping list shows "Label cancelled", and Commerce Orders still shows the order Completed with the label's carrier and tracking number |
+
+### Free shipping over an amount
+
+The first step stops the journey when it fails, since without the store's
+charge there is nothing to check; every other step is soft, so one run checks
+both orders.
+
+| Step | What it proves |
+| --- | --- |
+| DinkusKit.com shows the store's flat charge and free-shipping amount | Signed in as the owner, Your Stores shows this store's checkout settings on a flat amount above $0.00 with a free-shipping amount. The journey reads them and presses nothing; otherwise it stops here and says what to set |
+| One item under the amount pays the flat shipping on Stripe | A shopper buys one of the product, whose price is under the amount, with the test card. Before paying, Stripe's page asks for the price plus the flat charge, with a Shipping line for it, and Commerce records the payment |
+| Its thank-you page shows the flat shipping | The thank-you page's Shipping row shows the flat charge, its shipping method names it ("Flat rate ($5.00)"), and its Total is the price plus the charge |
+| Commerce Orders records the flat shipping | Commerce's checkout status gives the goods, shipping "flat" at the flat charge, and the total, and the order's page in Commerce Orders records the same Shipping and Order total |
+| Enough items to reach the amount pay no shipping on Stripe | The shopper buys the fewest of the same product that reach the amount, typed into the cart's quantity box. Stripe asks for the goods alone, with no Shipping line. Skipped when the first order showed no price |
+| Its thank-you page says Free shipping | The Shipping row reads "Free", the shipping method "Free shipping", and the Total is the goods alone |
+| Commerce Orders records free shipping | Commerce's checkout status gives shipping "free" at $0.00, and the order's page records Shipping USD 0.00 and the goods as its Order total. A Commerce before 0.7.0 charges the flat amount here and fails this step |
+| The owner marks both orders completed, so the run leaves no order open | As in Mark as completed, with no carrier or tracking number. Only Processing TEST orders are completed, including a checkout an earlier run left open that the test had to pay first |
 
 ## Proof
 
