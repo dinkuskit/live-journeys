@@ -4,7 +4,7 @@ import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import { PAGE_ROOM, paceStore } from "../support/pace.mjs";
 import {
-  addCategory, addPriceAndStock, addProductPage, archive, choosePhoto, openPanel, openProductPanel, panelProduct, publishProductPage, publishedLink,
+  addCategory, addPriceAndStock, addProductPage, archive, choosePhoto, openPhotoPanel, openProductPanel, panelProduct, publishProductPage, publishedLink,
   setPrice, setWeight, trash, uploadPhoto,
 } from "../support/products-admin.mjs";
 import { openShopperPage } from "../support/shopper.mjs";
@@ -232,13 +232,14 @@ test("One product with a category", { tag: "@running" }, journey(async ({ page }
     await step(content, "The owner gives the product a photo", async () => {
       await uploadPhoto(content, run.photo, run.product);
       let hash = "";
+      const { panel, title } = await openPhotoPanel(page);
       // The picker shows each photo just above its Use button, so that picture is the file chosen.
-      await choosePhoto(await openPanel(page), run.photo, { beforeUse: async use => {
+      await choosePhoto(panel, run.photo, { beforeUse: async use => {
         hash = await imageHash(page, await use.locator("xpath=preceding::img[1]").getAttribute("src", quick).catch(() => null));
         if (!hash) throw new Error(`Commerce's image picker shows no picture the test could fetch above "Use ${run.photo}".`);
       } });
       Object.assign(state, { hasPhoto: true, photoHash: hash });
-      return `uploaded ${run.photo} to the Media library and chose it in the product page's Dinkus Commerce panel, which said "Image saved"`;
+      return `uploaded ${run.photo} to the Media library and chose it in the product page's ${title} panel, which said "Image saved"`;
     }, soft);
 
     await step(shopper, "Publishing the page puts the product on sale", async () => {

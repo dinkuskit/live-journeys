@@ -3,7 +3,7 @@ import { catalogPlan } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
 import { firstLine, withoutQueries } from "../support/errors.mjs";
 import {
-  addCategory, addPriceAndStock, addProductPage, choosePhoto, finishProductPage, openPanel, openProductPanel, panelProduct, publish, publishProductPage,
+  addCategory, addPriceAndStock, addProductPage, choosePhoto, finishProductPage, openPanel, openPhotoPanel, openProductPanel, panelProduct, publish, publishProductPage,
   publishedLink, republishProductPage, restore, setPrice, setWeight, uploadPhotos,
 } from "../support/products-admin.mjs";
 import { PHOTO_ROOM, STORE_BUDGET, paceStore } from "../support/pace.mjs";
@@ -205,9 +205,10 @@ async function completeProduct(page, content, product, { entry, uploaded }, did)
   }
   // Commerce says so in the image's place when the product has none, or when the Media library has
   // lost it. A photo the panel already shows stays, since choosing it again can't change what the store shows.
-  if (await panel.getByText(/^(No image|Image .+ is unavailable\.)$/).count()) {
+  const { panel: photos } = await openPhotoPanel(page);
+  if (await photos.getByText(/^(No image|Image .+ is unavailable\.)$/).count()) {
     if (!uploaded) await uploadPhotos(content, [{ fileName: product.photo, label: product.name }]);
-    await choosePhoto(panel, product.photo);
+    await choosePhoto(photos, product.photo);
     did.push("photo");
   }
   // Publishing the page is what puts its product on sale; a Draft behind a published page needs it again.

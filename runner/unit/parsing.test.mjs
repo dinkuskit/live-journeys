@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { catalogPlan } from "../support/catalog.mjs";
+import { fieldName } from "../support/field-label.mjs";
 import { accessQuery, clean, extract } from "../support/mail-patterns.mjs";
 import { parseSettings } from "../support/settings-file.mjs";
 import { describePlugins, pluginVersion, versionAtLeast } from "../support/store-plugins.mjs";
@@ -191,6 +192,15 @@ test("the catalog's products each have their own name, SKU, price and photo, in 
   // No name is the start of another, so a search for one finds only it.
   const big = catalogPlan("1x50").flatMap(category => category.products).map(product => product.name);
   assert.equal(big.filter(name => big.some(other => other !== name && other.startsWith(name))).length, 0);
+});
+
+test("an editor's field is found by its label, with or without the \"(optional)\" EmDash adds", () => {
+  const art = "Placeholder art (optional, used only when Commerce has no image)";
+  const style = fieldName([art, "Illustration style (TEE, HOODIE, CAP, or BEANIE)"]);
+  for (const name of [`${art} (optional)`, `${art}(optional)`, art, "Illustration style (TEE, HOODIE, CAP, or BEANIE)"]) assert.match(name, style, name);
+  for (const name of ["Placeholder art", `${art} (optional) extra`, `Other ${art}`, "Illustration style"]) assert.doesNotMatch(name, style, name);
+  assert.match("Product title", fieldName("Product title"));
+  assert.doesNotMatch("Product titles", fieldName("Product title"));
 });
 
 test("a catalog size the catalog can't take is refused, naming the sizes it can", () => {

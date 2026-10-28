@@ -1,6 +1,7 @@
 import { newPage, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
+import { fieldName } from "./field-label.mjs";
 import { MEDIA_ROOM, PICKER_PAGE_ROOM, paceStore } from "./pace.mjs";
 import { panelSaid, savedRegular } from "./panel-answer.mjs";
 import { openAdmin } from "./store-admin.mjs";
@@ -19,31 +20,65 @@ export async function answer(page, question, choice) {
 }
 
 // The Dinkus Commerce panel on a Content > Products page is the one product screen: it makes the page's
-// Commerce product and holds its price, weight, photos, name and archive. Its state line reads "Draft:
+// Commerce product and holds its price, weight, name and archive. Its state line reads "Draft:
 // publish to sell it", "On sale", "Published: off the shop" (a published page's product with no Regular
 // price) or "Archived: off the shop", then the SKU; a page with no product yet says "Not a product yet".
 const PANEL_READY = /^Not a product yet|\u00b7 SKU /;
 const PANEL_STATES = { "Draft": "draft", "On sale": "on sale", "Published": "published with no price", "Archived": "archived" };
+
+// From Commerce 0.7.0-beta.2 the product's pictures have a second panel of their own (commerce#193);
+// before it they sat at the bottom of the Dinkus Commerce panel.
+const PHOTO_PANEL = "Product image & gallery";
+
+/** The button that opens the editor's side panel titled `title`. */
+const panelButton = (page, title) => page.getByLabel("Settings", { exact: true }).getByRole("button", { name: title, exact: true });
+
+/**
+ * Opens the side panel titled `title` on the product page editor showing in `page` and returns it once
+ * `ready` finds what it draws. A page whose editor offers no such panel, or a panel that won't draw, fails.
+ */
+async function openSidePanel(page, title, ready) {
+  const trigger = panelButton(page, title);
+  // On a phone-sized window the editor's settings open from its Settings button.
+  const settings = page.getByRole("main").getByRole("button", { name: "Settings", exact: true });
+  if (!await trigger.or(settings).first().waitFor({ timeout: 60_000 }).then(() => true, () => false)) {
+    throw new Error(`The product page's editor shows no ${title} panel.`);
+  }
+  if (!await trigger.isVisible()) await settings.click();
+  if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
+  const panel = trigger.locator("xpath=..");
+  if (!await ready(panel).first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+    const said = await text(panel.locator('[role="alert"]'));
+    throw new Error(said ? `The ${title} panel says "${said}".` : `The ${title} panel didn't draw within 30 seconds.`);
+  }
+  return panel;
+}
 
 /**
  * Opens the Dinkus Commerce panel on the product page editor showing in `page` and returns it once
  * it has drawn. A page whose editor offers no panel, or a panel that won't draw, fails.
  */
 export async function openPanel(page) {
-  const trigger = page.getByLabel("Settings", { exact: true }).getByRole("button", { name: "Dinkus Commerce", exact: true });
-  // On a phone-sized window the editor's settings open from its Settings button.
-  const settings = page.getByRole("main").getByRole("button", { name: "Settings", exact: true });
-  if (!await trigger.or(settings).first().waitFor({ timeout: 60_000 }).then(() => true, () => false)) {
-    throw new Error("The product page's editor shows no Dinkus Commerce panel.");
+  return openSidePanel(page, "Dinkus Commerce", panel => panel.getByText(PANEL_READY));
+}
+
+/**
+ * Opens the panel that holds the product's picture on the product page editor showing in `page`, once
+ * the page has its product: Product image & gallery, or the Dinkus Commerce panel on a Commerce without
+ * it. Returns the panel and its title, so a finding can name it.
+ */
+export async function openPhotoPanel(page) {
+  const panel = await openPanel(page);
+  if (!await panelButton(page, PHOTO_PANEL).count()) return { panel, title: "Dinkus Commerce" };
+  const picker = photos => photos.getByRole("button", { name: /^(Choose|Change) image$/ });
+  // A panel drawn before the page had its product points to the Dinkus Commerce panel instead, so the
+  // editor is opened afresh once to draw it again.
+  let photos = await openSidePanel(page, PHOTO_PANEL, drawn => picker(drawn).or(drawn.getByText(/^Add price and stock in the Dinkus Commerce panel first/)));
+  if (!await picker(photos).count()) {
+    await openAdmin(page, page.url());
+    photos = await openSidePanel(page, PHOTO_PANEL, picker);
   }
-  if (!await trigger.isVisible()) await settings.click();
-  if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
-  const panel = trigger.locator("xpath=..");
-  if (!await panel.getByText(PANEL_READY).first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
-    const said = await text(panel.locator('[role="alert"]'));
-    throw new Error(said ? `The Dinkus Commerce panel says "${said}".` : "The Dinkus Commerce panel didn't draw within 30 seconds.");
-  }
-  return panel;
+  return { panel: photos, title: PHOTO_PANEL };
 }
 
 /** Opens the product page editor at `editor` with its Dinkus Commerce panel open. */
@@ -271,7 +306,7 @@ export async function uploadPhotos(page, photos, room = MEDIA_ROOM) {
 }
 
 /**
- * Chooses the Media library photo `fileName` as the product's image in the open panel. Commerce's
+ * Chooses the Media library photo `fileName` as the product's image in the open photo panel. Commerce's
  * picker lists the library twelve photos at a time, newest first, so it turns the picker's pages until
  * it finds the photo. Returns the photo's Use button just before it's pressed, so a caller can read the
  * picture above it.
@@ -296,10 +331,14 @@ export async function choosePhoto(panel, fileName, { beforeUse = async () => {} 
   await panelSays(panel, () => use.click(), "Image saved");
 }
 
-/** An EmDash editor's field by its label; an editor without it fails with that plain reason. */
+/**
+ * An EmDash editor's field by its label, or by any of several, marked "(optional)" or not; an editor
+ * without it fails with that plain reason.
+ */
 export async function field(page, label, editor) {
-  const box = page.getByRole("textbox", { name: label, exact: true });
-  if (!await box.waitFor({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`${editor} has no "${label}" field.`);
+  const labels = [label].flat();
+  const box = page.getByRole("textbox", { name: fieldName(labels) }).first();
+  if (!await box.waitFor({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`${editor} has no "${labels.join('" or "')}" field.`);
   return box;
 }
 
@@ -386,7 +425,9 @@ async function at(part, act) {
   }
 }
 
-const STYLE = "Illustration style (TEE, HOODIE, CAP, or BEANIE)";
+// Template Store's storefront upgrade (template-store#166) renames the products' visual_label box and
+// makes it optional, so EmDash marks it "(optional)"; a store it hasn't reached yet still shows the old name.
+const STYLE = ["Placeholder art (optional, used only when Commerce has no image)", "Illustration style (TEE, HOODIE, CAP, or BEANIE)"];
 
 /**
  * Finishes the product page open in `content`: it gets the style `style` when it has none and goes in

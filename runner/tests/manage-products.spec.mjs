@@ -2,7 +2,7 @@ import { newPage, test, expect, shopperPage, closeShopper } from "../support/bro
 import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import {
-  addCategory, addPriceAndStock, addProductPage, archive, choosePhoto, openPanel, openProductPanel, panelProduct, publishProductPage, publishedLink,
+  addCategory, addPriceAndStock, addProductPage, archive, choosePhoto, openPhotoPanel, openProductPanel, panelProduct, publishProductPage, publishedLink,
   rename, republishProductPage, restore, setPrice, setWeight, trash, uploadPhoto,
 } from "../support/products-admin.mjs";
 import { record } from "../support/proof.mjs";
@@ -43,21 +43,23 @@ async function panelShows(page, editor, want) {
 }
 
 /**
- * Why the open panel doesn't show the photo with fingerprint `hash` as the product's image, or "" when
- * it does. Once a product has an image, the panel shows it under Images with Change image beside it.
+ * Why the open photo panel (`title`) doesn't show the photo with fingerprint `hash` as the product's
+ * image, or "" when it does. Once a product has an image, the panel shows it under its heading, Product
+ * image (Images on a Commerce before 0.7.0-beta.2), with Change image beside it.
  */
-async function panelPhotoProblem(panel, hash) {
-  const images = panel.getByRole("heading", { name: "Images", level: 2 });
-  if (!await images.waitFor({ timeout: 30_000 }).then(() => true, () => false)) return "the Dinkus Commerce panel has no Images section";
+async function panelPhotoProblem({ panel, title }, hash) {
+  const where = `the ${title} panel`;
+  const images = panel.getByRole("heading", { name: /^(Product image|Images)$/, level: 2 });
+  if (!await images.waitFor({ timeout: 30_000 }).then(() => true, () => false)) return `${where} has no Product image section`;
   // Commerce says so in the image's place when the product has none, or when the Media library has lost it.
   const said = await text(panel.getByText(/^(No image|Image .+ is unavailable\.)$/));
-  if (said) return `the Dinkus Commerce panel says "${said}" under Images`;
-  if (!await panel.getByRole("button", { name: "Change image", exact: true }).count()) return "the Dinkus Commerce panel has no Change image, which it shows only for a product with an image";
+  if (said) return `${where} says "${said}" for the product's image`;
+  if (!await panel.getByRole("button", { name: "Change image", exact: true }).count()) return `${where} has no Change image, which it shows only for a product with an image`;
   const img = images.locator("xpath=following::img[1]");
-  if (!await img.count()) return "the Dinkus Commerce panel shows no image under Images";
+  if (!await img.count()) return `${where} shows no image for the product`;
   const loaded = await expect.poll(() => img.evaluate(el => el.complete && el.naturalWidth > 0), { timeout: 15_000 }).toBe(true).then(() => true, () => false);
-  if (!loaded) return "the image in the Dinkus Commerce panel didn't load";
-  return await imageHash(panel.page(), await img.getAttribute("src")) === hash ? "" : "the Dinkus Commerce panel shows another image than the photo the owner chose";
+  if (!loaded) return `the image in ${where} didn't load`;
+  return await imageHash(panel.page(), await img.getAttribute("src")) === hash ? "" : `${where} shows another image than the photo the owner chose`;
 }
 
 
@@ -124,7 +126,7 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
 
     await step(content, "The owner uploads a photo and makes it the product's image", async () => {
       await uploadPhoto(content, run.photo, run.product);
-      const panel = await openPanel(page);
+      const { panel, title } = await openPhotoPanel(page);
       let hash = "";
       // The picker shows each photo just above its Use button, so that picture is the file chosen.
       await choosePhoto(panel, run.photo, { beforeUse: async use => {
@@ -132,16 +134,18 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
         if (!hash) throw new Error(`Commerce's image picker shows no picture the test could fetch above "Use ${run.photo}".`);
       } });
       Object.assign(state, { hasPhoto: true, photoHash: hash });
-      return `uploaded ${run.photo} to the Media library and chose it in the product page's Dinkus Commerce panel, which said "Image saved"`;
+      return `uploaded ${run.photo} to the Media library and chose it in the product page's ${title} panel, which said "Image saved"`;
     }, soft);
 
     const keptStep = "The photo is still the product's image after a reload";
     if (!state.hasPhoto) record(keptStep, "SKIP", "the photo wasn't chosen, so there's no choice to check");
     else await step(page, keptStep, async () => {
       // Opening the editor afresh draws the panel from what Commerce stored.
-      const problem = await panelPhotoProblem(await openProductPanel(page, made.page), state.photoHash);
+      await openAdmin(page, made.page);
+      const photos = await openPhotoPanel(page);
+      const problem = await panelPhotoProblem(photos, state.photoHash);
       if (problem) throw new Error(`After a reload, ${problem}.`);
-      return "after a reload, the product page's Dinkus Commerce panel shows the chosen photo under Images, loaded, with Change image beside it";
+      return `after a reload, the product page's ${photos.title} panel shows the chosen photo, loaded, with Change image beside it`;
     }, soft);
 
     // Publishing is what puts a Draft on sale: the store's publish check tells Commerce.
