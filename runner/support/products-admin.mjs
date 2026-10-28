@@ -296,10 +296,11 @@ export async function choosePhoto(panel, fileName, { beforeUse = async () => {} 
   await panelSays(panel, () => use.click(), "Image saved");
 }
 
-/** An EmDash editor's field by its label; an editor without it fails with that plain reason. */
+/** An EmDash editor's field by its label, or by any of several; an editor without it fails with that plain reason. */
 export async function field(page, label, editor) {
-  const box = page.getByRole("textbox", { name: label, exact: true });
-  if (!await box.waitFor({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`${editor} has no "${label}" field.`);
+  const labels = [label].flat();
+  const box = labels.map(name => page.getByRole("textbox", { name, exact: true })).reduce((one, other) => one.or(other)).first();
+  if (!await box.waitFor({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`${editor} has no "${labels.join('" or "')}" field.`);
   return box;
 }
 
@@ -386,7 +387,9 @@ async function at(part, act) {
   }
 }
 
-const STYLE = "Illustration style (TEE, HOODIE, CAP, or BEANIE)";
+// Template Store's storefront upgrade (template-store#166) renames the products' visual_label box and
+// makes it optional; a store it hasn't reached yet still shows the old name.
+const STYLE = ["Placeholder art (optional, used only when Commerce has no image)", "Illustration style (TEE, HOODIE, CAP, or BEANIE)"];
 
 /**
  * Finishes the product page open in `content`: it gets the style `style` when it has none and goes in
