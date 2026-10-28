@@ -1,4 +1,4 @@
-import { AUTHORIZE_LINK, PAYMENTS_BETA_STATUS_PATH, betaPaymentsStatusLinks } from "./connect-dinkuskit.mjs";
+import { AUTHORIZE_LINK, PAYMENTS_BETA_STATUS_PATH, PAYMENTS_FOLDER, PAYMENTS_STATUS_LABELS, betaPaymentsStatusLinks } from "./connect-dinkuskit.mjs";
 import { approveAtDinkusKit, authorizeHref, failClosed, redact, showsSecret } from "./dinkuskit-approve.mjs";
 import { config } from "./env.mjs";
 import { pressAndAwait } from "./plugin-connect.mjs";
@@ -134,14 +134,14 @@ export function nextPress(reading, controls, { approved = false, storeKeyRead = 
 }
 
 /**
- * The beta Payments plugin's status page among the admin menu's Payments status links. The beta
- * store also runs the release listing, which has its own Payments status page; that one is left alone.
+ * The beta Payments plugin's status page among the admin menu's Payments links ("Payment settings" in
+ * the Dinkus Payments folder, or "Payments status" before it). The beta store also runs the release
+ * listing, which has its own page; that one is left alone.
  */
 export async function paymentsStatusAdmin(page) {
-  const { openAdmin } = await import("./store-admin.mjs");
+  const { menuLinks, openAdmin } = await import("./store-admin.mjs");
   await openAdmin(page, `${config.store}/_emdash/admin`);
-  const links = page.getByRole("link", { name: "Payments status", exact: true });
-  await links.first().waitFor({ timeout: 30_000 }).catch(() => {});
+  const links = await menuLinks(page, PAYMENTS_STATUS_LABELS, [PAYMENTS_FOLDER]);
   const [beta] = betaPaymentsStatusLinks(await links.evaluateAll(anchors => anchors.map(anchor => anchor.href)), config.store);
   if (beta) return beta;
   throw new Error("The store admin's menu showed no Payments status page for dinkus-payments-beta within 30 seconds: the plugin isn't installed, is switched off, or the admin didn't finish loading. The release listing's page is not used.");

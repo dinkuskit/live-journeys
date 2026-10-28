@@ -22,6 +22,26 @@ export async function openAdmin(page, url) {
 }
 
 /**
+ * The open admin menu's links named any of `names`, once the menu lists plugins' pages. A plugin page
+ * that names a `group` sits in a sidebar folder of that name (EmDash's sidebar-groups), drawn closed
+ * unless one of its pages is open or the owner left it open, and a closed folder hides its links. So
+ * each of `folders` the menu shows closed is opened first. Opening one is remembered by the browser,
+ * as it is for an owner, and changes nothing on the store.
+ */
+export async function menuLinks(page, names, folders = []) {
+  const links = names.map(name => page.getByRole("link", { name, exact: true })).reduce((all, one) => all.or(one));
+  const closed = folders.map(name => page.getByRole("button", { name, exact: true, expanded: false }));
+  // The menu lists plugins' pages once the admin has read its plugins.
+  await [links, ...closed].reduce((all, one) => all.or(one)).first().waitFor({ timeout: 30_000 }).catch(() => {});
+  for (const [index, folder] of closed.entries()) {
+    if (await folder.count() !== 1) continue;
+    await folder.click();
+    await page.getByRole("button", { name: folders[index], exact: true, expanded: true }).waitFor({ timeout: 5_000 }).catch(() => {});
+  }
+  return links;
+}
+
+/**
  * Notes which plugin versions the store runs, so the proof says what it covers, and returns EmDash's
  * plugin list, or null when it couldn't be read.
  */

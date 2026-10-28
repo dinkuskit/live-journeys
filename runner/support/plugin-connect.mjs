@@ -28,11 +28,12 @@ export const COMMERCE_CONNECT = {
 };
 
 // Ship's Shipping page. Connected, it shows Ship's orders (or why it couldn't read them) with an Open Ship
-// link to this store's orders at Ship, which names the store it is connected to.
+// link to this store's orders at Ship, which names the store it is connected to. Its heading is
+// "Shipments" from Ship's sidebar folder change and "Shipping" before it; the first one on the page counts.
 export const SHIP_CONNECT = {
   plugin: "Ship",
   service: "ship",
-  section: "Shipping",
+  section: ["Shipments", "Shipping"],
   asks: ["Connect Ship", "Connect Ship again"],
   invite: "Connect this plugin to DinkusKit.com so it can buy labels through Ship. Commerce connects first; the business owner approves at DinkusKit.com.",
   connected: null,
@@ -48,7 +49,8 @@ const linesOf = text => String(text ?? "").split("\n").map(line => line.trim()).
  */
 export function readConnect(text, plugin) {
   const lines = linesOf(text);
-  const from = lines.indexOf(plugin.section);
+  const sections = [plugin.section].flat();
+  const from = lines.findIndex(line => sections.includes(line));
   const shown = from === -1 ? [] : lines.slice(from + 1);
   const after = title => shown[shown.indexOf(title) + 1] ?? "";
   const asks = plugin.asks.find(title => shown.includes(title));
