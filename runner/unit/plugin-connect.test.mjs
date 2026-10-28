@@ -54,6 +54,19 @@ test("Ship's page says when Commerce has to connect first, or when its key stopp
   assert.match(nextConnect(editor, [], ship).because, /only an Administrator/);
 });
 
+test("Ship's page reads the same under its Shipments heading as under Shipping", () => {
+  const shipments = section => text(["Shipments", ...section]);
+  const asking = readConnect(shipments(["Connect Ship", SHIP_CONNECT.invite]), SHIP_CONNECT);
+  assert.equal(asking.section, true);
+  assert.equal(asking.asksToConnect, true);
+  assert.equal(asking.failure, "");
+  const stopped = readConnect(shipments(["Connect Ship again", "Connect did not finish. Press Connect to start again."]), SHIP_CONNECT);
+  assert.equal(stopped.failure, "Connect did not finish. Press Connect to start again.");
+  assert.equal(readConnect(shipments(["Approve at DinkusKit.com", PENDING, "Approve at DinkusKit.com"]), SHIP_CONNECT).pending, true);
+  // Another heading is not Ship's page.
+  assert.equal(readConnect(text(["Shipment settings", "Connect Ship", SHIP_CONNECT.invite]), SHIP_CONNECT).section, false);
+});
+
 test("Connect is pressed once, Approve follows only this run's Connect, and Check only follows the approval", () => {
   const asking = readConnect(commercePage(["Connect Commerce", COMMERCE_CONNECT.invite]), COMMERCE_CONNECT);
   assert.deepEqual(nextConnect(asking, ["Connect"], commerce), { action: "press", name: "Connect" });

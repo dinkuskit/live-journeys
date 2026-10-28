@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { config } from "./env.mjs";
-import { shippingPages } from "./shipping-text.mjs";
-import { openAdmin } from "./store-admin.mjs";
+import { SHIP_FOLDER, SHIPPING_LABELS, shippingPages } from "./shipping-text.mjs";
+import { menuLinks, openAdmin } from "./store-admin.mjs";
 
 // The Ship plugin's Shipping page in the store admin, as the journeys that buy labels there read it. The
 // plugin draws each page from hosted Ship's answer on every click (dinkuskit/ship docs/contracts/ship-plugin-v1.md).
@@ -34,16 +34,17 @@ const exactly = titles => new RegExp(`^(?:${titles.map(title => title.replace(/[
 const PROBLEM_TITLE = exactly(Object.keys(PROBLEMS));
 const REFUSAL_TITLE = exactly(REFUSALS);
 
-/** The store admin's Shipping page: DINKUS_E2E_SHIPPING_ADMIN, or the one Shipping page in the admin's menu. */
+/**
+ * The store admin's Shipping page: DINKUS_E2E_SHIPPING_ADMIN, or the one Shipping page in the admin's menu,
+ * labeled "Shipments" in the Dinkus Ship folder from Ship's sidebar folder change and "Shipping" before it.
+ */
 export async function shippingAdmin(page) {
   if (config.shippingAdmin) {
     if (new URL(config.shippingAdmin).origin !== config.store) throw new Error(`DINKUS_E2E_SHIPPING_ADMIN is on another site than DINKUS_E2E_STORE (in ${config.settingsFile}).`);
     return config.shippingAdmin;
   }
   await openAdmin(page, `${config.store}/_emdash/admin`);
-  const links = page.getByRole("link", { name: "Shipping", exact: true });
-  // The menu lists plugins' pages once the admin has read its plugins.
-  await links.first().waitFor({ timeout: 30_000 }).catch(() => {});
+  const links = await menuLinks(page, SHIPPING_LABELS, [SHIP_FOLDER]);
   const pages = shippingPages(await links.evaluateAll(anchors => anchors.map(anchor => anchor.href)), config.store);
   if (pages.length === 1) return pages[0];
   if (pages.length) throw new Error(`The store admin's menu has ${pages.length} Shipping pages; set DINKUS_E2E_SHIPPING_ADMIN to the Ship plugin's (in ${config.settingsFile}).`);

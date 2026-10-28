@@ -1,5 +1,13 @@
 // What the Ship plugin's Shipping page says, read as text (dinkuskit/ship src/pages.ts and src/admin.ts).
 
+/**
+ * The Shipping page's menu labels and folder: from Ship's sidebar folder change (dinkuskit/ship
+ * emdash-plugin.jsonc) "Shipments" in a "Dinkus Ship" folder, before it "Shipping" with no folder. The
+ * path stays /shipping, and the page's heading follows the menu label.
+ */
+export const SHIPPING_LABELS = ["Shipments", "Shipping"];
+export const SHIP_FOLDER = "Dinkus Ship";
+
 /** Where a plugin's Shipping page sits in the store admin. */
 const SHIPPING_PATH = /^\/_emdash\/admin\/plugins\/[^/]+\/shipping$/;
 
