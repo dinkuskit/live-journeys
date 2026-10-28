@@ -1,6 +1,7 @@
 import { newPage, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
+import { fieldName } from "./field-label.mjs";
 import { MEDIA_ROOM, PICKER_PAGE_ROOM, paceStore } from "./pace.mjs";
 import { panelSaid, savedRegular } from "./panel-answer.mjs";
 import { openAdmin } from "./store-admin.mjs";
@@ -296,10 +297,13 @@ export async function choosePhoto(panel, fileName, { beforeUse = async () => {} 
   await panelSays(panel, () => use.click(), "Image saved");
 }
 
-/** An EmDash editor's field by its label, or by any of several; an editor without it fails with that plain reason. */
+/**
+ * An EmDash editor's field by its label, or by any of several, marked "(optional)" or not; an editor
+ * without it fails with that plain reason.
+ */
 export async function field(page, label, editor) {
   const labels = [label].flat();
-  const box = labels.map(name => page.getByRole("textbox", { name, exact: true })).reduce((one, other) => one.or(other)).first();
+  const box = page.getByRole("textbox", { name: fieldName(labels) }).first();
   if (!await box.waitFor({ timeout: 30_000 }).then(() => true, () => false)) throw new Error(`${editor} has no "${labels.join('" or "')}" field.`);
   return box;
 }
@@ -388,7 +392,7 @@ async function at(part, act) {
 }
 
 // Template Store's storefront upgrade (template-store#166) renames the products' visual_label box and
-// makes it optional; a store it hasn't reached yet still shows the old name.
+// makes it optional, so EmDash marks it "(optional)"; a store it hasn't reached yet still shows the old name.
 const STYLE = ["Placeholder art (optional, used only when Commerce has no image)", "Illustration style (TEE, HOODIE, CAP, or BEANIE)"];
 
 /**
