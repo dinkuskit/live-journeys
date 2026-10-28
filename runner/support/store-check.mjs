@@ -175,11 +175,23 @@ export async function storeShows(shopper, state) {
 }
 
 /**
+ * What's wrong with a category page that should no longer list this run's product, from its HTTP status
+ * and whether it still lists it. Once the clean-up has moved a category the run made to the Trash, its
+ * page may stop answering; a category the store's other products are in (`shared`) stays, so its page
+ * must keep answering, as must any category page while the product is only archived.
+ */
+export function categoryHides({ path, status, listed, archived = false, shared = false }) {
+  if (status !== 200) return archived || shared ? [`the category page ${path} answered HTTP ${status}`] : [];
+  return listed ? [`the category page ${path} still lists it`] : [];
+}
+
+/**
  * Everything that still offers this run's product to shoppers once the owner archived it or took its
  * page down. An archived product's page must say it's no longer available, and its category, still
- * published then, must answer for the missing card to count.
+ * published then, must answer for the missing card to count; so must a category the store's other
+ * products are in (`shared`), which the clean-up leaves on the store.
  */
-export async function storeHides(shopper, { id, name, productPath, categoryPath }, { archived = false } = {}) {
+export async function storeHides(shopper, { id, name, productPath, categoryPath, shared = false }, { archived = false } = {}) {
   // A homepage that doesn't answer, or whose Shop list can't be read, shows no cards either, which proves nothing.
   const checks = [await catchUp(shopper, "/", async response => {
     if (response.status() !== 200) return [`the homepage answered HTTP ${response.status()}`];
@@ -198,10 +210,10 @@ export async function storeHides(shopper, { id, name, productPath, categoryPath 
       const says = /no longer available/i.test(await text(shopper.locator("main")));
       return response.status() === 404 && says ? [] : [`${productPath} answers HTTP ${response.status()}${says ? " instead of 404" : " without saying the product is no longer available"}`];
     }));
-    // Once the clean-up has moved the category to the Trash, its page may stop answering.
-    if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => response.status() !== 200
-      ? archived ? [`the category page ${categoryPath} answered HTTP ${response.status()}`] : []
-      : await findCard(categoryCards(shopper), { id, path: productPath }) ? [`the category page ${categoryPath} still lists it`] : []));
+    if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => categoryHides({
+      path: categoryPath, status: response.status(), archived, shared,
+      listed: response.status() === 200 && Boolean(await findCard(categoryCards(shopper), { id, path: productPath })),
+    })));
   }
   return { problems: checks.flatMap(check => check.problems), seconds: Math.max(...checks.map(check => check.seconds)) };
 }

@@ -415,7 +415,7 @@ the end, even after a failed step.
 | A new name shows on the store | After the owner renames the product in the panel, the Shop list, the product page's heading and the category card all show the new name |
 | Archiving the product takes it off the store | After the owner archives it in the panel, the Shop list and the category page stop listing it, and its page answers HTTP 404 saying the product is no longer available |
 | Restoring the product and publishing its page again puts it back on the store | The owner presses Restore and the panel shows the product as a Draft, as Commerce restores it; the owner unpublishes and publishes the page again, the panel says On sale, and the Shop list, its page and its category page show it again with its new name and price. Skipped when it wasn't archived |
-| The test takes what it added off the store | The test archives the product in its page's panel, whatever state the panel shows for it then, and moves its page (and a category of its own, when it made one) to EmDash's Trash; within a minute the store lists none of them and their addresses stop answering HTTP 200. "Catalog Caps" stays, no longer listing the product. Runs whenever the journey added anything, or pressed Add price and stock |
+| The test takes what it added off the store | The test archives the product in its page's panel, whatever state the panel shows for it then, and moves its page (and a category of its own, when it made one) to EmDash's Trash; within a minute the store lists none of them and their addresses stop answering HTTP 200. "Catalog Caps" stays: its page still answers, no longer listing the product. Runs whenever the journey added anything, or pressed Add price and stock |
 
 ### Full catalog
 
@@ -463,13 +463,13 @@ deletes it.
 | --- | --- |
 | The owner opens Content > Products | The saved profile is signed in to the store admin, which the key needs |
 | The test makes a one-hour key for the agent | As in Mark as completed |
-| An agent makes a Draft product and its page through the store's APIs | With only the key, the agent reads which fields a product page requires and finds Full catalog's published "Catalog Tees" among EmDash's categories, has Commerce make a Draft product (`create`), saves an unpublished page carrying the product in its Commerce product field and filed in "Catalog Tees" (EmDash's `references`), links the two (`link`), and saves $12.00 in stock (`prices`) and 8 oz (`weight`). Commerce then shows the product with the run's name and SKU, still a Draft. A store without "Catalog Tees" gets the page in no category, and the run notes it |
+| An agent makes a Draft product and its page through the store's APIs | With only the key, the agent reads which fields a product page requires and finds Full catalog's published "Catalog Tees" among EmDash's categories (reading every page of the list), has Commerce make a Draft product (`create`), saves an unpublished page carrying the product in its Commerce product field and filed in "Catalog Tees" (EmDash's `references`), links the two (`link`), and saves $12.00 in stock (`prices`) and 8 oz (`weight`). Commerce then shows the product with the run's name and SKU, still a Draft. A store without "Catalog Tees" gets the page in no category, and the run notes it |
 | A Draft product stays off the store | The Shop list and the category page don't offer it and its page doesn't sell it while the page is unpublished |
 | Publishing the page through EmDash's API puts the product on sale | The agent publishes the page; within 30 seconds Commerce has the product on sale, the Shop list and its page show it at $12.00 with Add to cart, and "Catalog Tees" lists it beside its other products (listing no other product fails) |
 | A price the agent changes from a preview shows on the store | The agent reads the product, sends $13.50 with that read's preview code (`expected`, the first 12 hex digits of SHA-256 over Commerce's `get` answer), Commerce saves it, and the store shows $13.50 |
 | Commerce refuses a change made from an old preview | Sent with the code from before the price change, a change to $9.99 is refused with "The product changed since that preview", and the product reads exactly as before |
 | Archiving the product through the API takes it off the store | The agent archives it at a fresh preview; the Shop list and the category page drop it and its page says it's no longer available, with HTTP 404 |
-| The test takes its product and page off the store | The product is archived and the page is in EmDash's Trash, and the store shows neither. Runs whenever the agent made either |
+| The test takes its product and page off the store | The product is archived and the page is in EmDash's Trash, and the store shows neither. "Catalog Tees" stays: its page still answers, no longer listing the product. Runs whenever the agent made either |
 | The test deletes the agent's key | As in Mark as completed |
 
 ### Problems

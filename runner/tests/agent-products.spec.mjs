@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { agentCall, deleteAgentKey, makeAgentKey, refusal } from "../support/agent-api.mjs";
+import { agentCall, deleteAgentKey, findListed, makeAgentKey, refusal } from "../support/agent-api.mjs";
 import { closeShopper, expect, shopperPage, test } from "../support/browser.mjs";
 import { catalogCategory } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
@@ -106,8 +106,12 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
       if (unknown.length) throw new Error(`The store's product pages require ${unknown.join(", ")}, which the agent doesn't know how to fill.`);
       // A shop files a new product beside the ones like it, so the agent looks for the catalog's tees.
       const shared = catalogCategory("TEE");
-      const { items: categories = [] } = await agentAsk(page, agent, undefined, { url: `${agent.apis.categories}?limit=100`, method: "GET", what: "EmDash's content API (categories)" });
-      const category = categories.find(item => item?.data?.title === shared && item.liveRevisionId);
+      const category = await findListed(cursor => {
+        const url = new URL(agent.apis.categories);
+        url.searchParams.set("limit", "100");
+        if (cursor) url.searchParams.set("cursor", cursor);
+        return agentAsk(page, agent, undefined, { url: url.href, method: "GET", what: "EmDash's content API (categories)" });
+      }, item => item?.data?.title === shared && item.liveRevisionId);
       if (!category) note("category", `the store has no published "${shared}" (Full catalog adds it), so the agent's page goes in no category`);
 
       const { catalogItemId } = await catalog(page, agent, { op: "create", commandId: `live-agent-${run.stamp}`, name: run.product, sku: run.sku });
