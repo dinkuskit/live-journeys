@@ -12,6 +12,9 @@ const KINDS = [
 
 export const MAX_PER_CATEGORY = 50;
 
+/** The catalog's category for products drawn in `style` ("Catalog Caps" for CAP), shared with the journeys that add one product. */
+export const catalogCategory = style => `Catalog ${KINDS.find(kind => kind.style === style).many}`;
+
 /**
  * The catalog of a size such as "3x8" (3 categories of 8 products): each category's title and
  * illustration style, and its products, each with a name, SKU, price, weight and photo of its own. A
@@ -23,7 +26,7 @@ export function catalogPlan(size) {
     throw new Error(`DINKUS_E2E_CATALOG is "${size}"; it takes categories x products per category, from 1x1 to ${KINDS.length}x${MAX_PER_CATEGORY}, such as 3x8.`);
   }
   return KINDS.slice(0, categories).map(kind => {
-    const title = `Catalog ${kind.many}`;
+    const title = catalogCategory(kind.style);
     return {
       title,
       style: kind.style,

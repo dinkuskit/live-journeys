@@ -141,7 +141,9 @@ export const places = state => ["the Shop list", ...state.productPath ? [state.p
 
 /**
  * Everything wrong with how the store shows this run's product now (the Shop list, and its page and
- * any category page once published), with the longest the store took to catch up.
+ * any category page once published), with the longest the store took to catch up. When `state.shared`
+ * says the category holds other products too, its page must list them beside this one; `state.beside`
+ * learns how many it does.
  */
 export async function storeShows(shopper, state) {
   const { id, name, cents, hasPhoto, photoHash, productPath, categoryPath } = state;
@@ -156,8 +158,18 @@ export async function storeShows(shopper, state) {
   })];
   if (productPath) {
     checks.push(await catchUp(shopper, productPath, response => productPageProblems(shopper, response, state)));
-    if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => response.status() !== 200 ? [`${categoryPath} answered HTTP ${response.status()}`]
-      : cardProblems(await findCard(categoryCards(shopper), { id, path: productPath }), `the category page ${categoryPath}`, { name, cents, hasPhoto, photoHash, path: productPath })));
+    if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => {
+      if (response.status() !== 200) return [`${categoryPath} answered HTTP ${response.status()}`];
+      const where = `the category page ${categoryPath}`;
+      const card = await findCard(categoryCards(shopper), { id, path: productPath });
+      const problems = await cardProblems(card, where, { name, cents, hasPhoto, photoHash, path: productPath });
+      // A category the store's other products are in lists them beside this one, as a shop's does.
+      if (state.shared) {
+        state.beside = await categoryCards(shopper).count() - (card ? 1 : 0);
+        if (!state.beside) problems.push(`${where} lists no other product beside it`);
+      }
+      return problems;
+    }));
   }
   return { problems: checks.flatMap(check => check.problems), seconds: Math.max(...checks.map(check => check.seconds)) };
 }

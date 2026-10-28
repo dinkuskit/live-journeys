@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { catalogPlan } from "../support/catalog.mjs";
+import { catalogCategory, catalogPlan } from "../support/catalog.mjs";
 import { fieldName } from "../support/field-label.mjs";
 import { accessQuery, clean, extract } from "../support/mail-patterns.mjs";
 import { parseSettings } from "../support/settings-file.mjs";
@@ -201,6 +201,12 @@ test("an editor's field is found by its label, with or without the \"(optional)\
   for (const name of ["Placeholder art", `${art} (optional) extra`, `Other ${art}`, "Illustration style"]) assert.doesNotMatch(name, style, name);
   assert.match("Product title", fieldName("Product title"));
   assert.doesNotMatch("Product titles", fieldName("Product title"));
+});
+
+test("the categories Manage products and the agent file their product in are in the catalog's default size", () => {
+  const titles = catalogPlan("3x8").map(category => category.title);
+  for (const style of ["CAP", "TEE"]) assert.ok(titles.includes(catalogCategory(style)), style);
+  assert.equal(catalogCategory("CAP"), "Catalog Caps");
 });
 
 test("a catalog size the catalog can't take is refused, naming the sizes it can", () => {
