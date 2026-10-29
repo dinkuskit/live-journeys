@@ -153,6 +153,18 @@ test("a failed step's kind is one of a few fixed phrases, never the error's own 
     "a locator matched more than one element");
   assert.equal(failureKind("the homepage answered HTTP 502"), "the homepage answered HTTP 502");
   assert.equal(failureKind("expect(locator).toBeVisible() failed"), "an expect check failed");
+  assert.equal(failureKind("While the page is unpublished, the Shop list still lists it after 60 s."), "the Shop list still listed the product");
+  assert.equal(failureKind("While the page is unpublished, the category page /categories/catalog-caps still lists it."), "the category page still listed the product");
+  assert.equal(failureKind("While the page is unpublished, /products/e2e-x still shows $12.00 and offers Add to cart."), "the product page still offered the product");
+  assert.equal(failureKind('While the page is unpublished, the Shop list says "synthetic".'), "the Shop list couldn't be read");
+  assert.equal(failureKind("/ sent the shopper to sm0kydev.cloudflareaccess.com instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox."), "the shopper was sent away from the store");
+  assert.equal(failureKind('The Media library didn\'t take the photo: "e2e.png: Upload failed".'), "the Media library didn't take the photo");
+  assert.equal(failureKind("Commerce's image picker shows no photos to use."), "the image picker showed no photos");
+  assert.equal(failureKind("Commerce's image picker doesn't offer e2e-x.png."), "the image picker didn't offer the run's photo");
+  assert.equal(failureKind('Commerce\'s image picker shows no picture the test could fetch above "Use e2e-x.png".'), "the image picker's picture couldn't be fetched");
+  assert.equal(failureKind('Commerce never answered, so it never said "Image saved".'), "Commerce never answered the panel press");
+  assert.equal(failureKind('Commerce refused it: "synthetic words"'), "Commerce refused the panel press");
+  assert.equal(failureKind('Commerce refused it: "HTTP 500"'), "Commerce refused the panel press (HTTP 500)");
   assert.equal(failureKind("Commerce didn't keep the synthetic weight"), "one of the step's own checks failed");
   assert.equal(failureKind(undefined), "one of the step's own checks failed");
 });

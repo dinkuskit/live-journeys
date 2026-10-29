@@ -55,6 +55,19 @@ const KINDS = [
   // The storefront checks: which page answered, from the journeys' own words, never the page's path.
   [/the (homepage|product page) answered HTTP (\d{3})/, match => `the ${match[1]} answered HTTP ${match[2]}`],
   [/(?:^|; )\/categories\/\S+ answered HTTP (\d{3})/, match => `the category page answered HTTP ${match[1]}`],
+  // store-check.mjs storeHides and shopper.mjs: what still offered a product the store should hide.
+  [/the Shop list still lists it/, () => "the Shop list still listed the product"],
+  [/the category page \S+ still lists it/, () => "the category page still listed the product"],
+  [/\/products\/\S+ still (?:shows|offers)/, () => "the product page still offered the product"],
+  [/the homepage has no Shop list|the Shop list (?:says|shows neither)/, () => "the Shop list couldn't be read"],
+  [/sent the shopper (?:to \S+ instead of|away from) the store/, () => "the shopper was sent away from the store"],
+  // products-admin.mjs uploadPhoto, choosePhoto and panelSays: where choosing a product's photo stopped.
+  [/The Media library didn't take/, () => "the Media library didn't take the photo"],
+  [/image picker shows no photos to use/, () => "the image picker showed no photos"],
+  [/image picker doesn't offer/, () => "the image picker didn't offer the run's photo"],
+  [/image picker shows no picture the test could fetch/, () => "the image picker's picture couldn't be fetched"],
+  [/Commerce never answered, so it never said/, () => "Commerce never answered the panel press"],
+  [/Commerce refused it: "(?:HTTP (\d{3})")?/, match => `Commerce refused the panel press${match[1] ? ` (HTTP ${match[1]})` : ""}`],
   // products-admin.mjs saveEditor: what covered the editor's Save, in its own fixed words.
   [/The editor's Save took no click: (no dialog is open(?:, and at Save the page shows (?:off the screen|under nothing|the button, disabled|the button itself|a frame|a toast|a sidebar|another element|unreadable))?|the dialog (?:Review proposed changes|Add references) is open|another dialog is open)\./, match => `the editor's Save took no click (${match[1]})`],
   // products-admin.mjs `at`: which part of a product page's editor stopped, from its fixed few.
