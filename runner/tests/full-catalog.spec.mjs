@@ -50,7 +50,9 @@ async function productPages(page) {
     const { items = [], nextCursor = "" } = (await response.json())?.data ?? {};
     for (const item of items) {
       const title = typeof item?.data?.title === "string" ? item.data.title : "";
+      // Only a store set up before Commerce held each page's product has the page's Commerce product field.
       const entry = { editor: `${config.store}/_emdash/admin/content/products/${item.id}`, published: Boolean(item.liveRevisionId),
+        boxed: Boolean(item?.data) && "commerce_item_id" in item.data,
         commerceId: typeof item?.data?.commerce_item_id === "string" ? item.data.commerce_item_id.trim() : "" };
       pages.set(title, [...pages.get(title) ?? [], entry]);
     }
@@ -413,9 +415,10 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
       const [entry] = now.get(first.name);
       let panel = await openProductPanel(page, entry.editor);
       // A page saved before Commerce kept its own note of pages opens on "Not a product yet"; Add price
-      // and stock then opens the product the page names, and makes none.
+      // and stock then opens the product the page names, and makes none. Without that field, Commerce's
+      // link is the only one, so the product is chosen again by its SKU.
       if ((await panelProduct(panel)).state === "none") {
-        if (!entry.commerceId) throw new Error(`"${first.name}"'s page names no Commerce product.`);
+        if (entry.boxed && !entry.commerceId) throw new Error(`"${first.name}"'s page names no Commerce product.`);
         ({ panel } = await addPriceAndStock(page, first.sku, {}, { link: true }));
       }
       const shown = await panelProduct(panel);

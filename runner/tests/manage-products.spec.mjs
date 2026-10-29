@@ -127,7 +127,7 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
       if (problems.length) throw new Error(`${problems.join("; ")}.`);
       await setPrice(panel, "12.00");
       await setWeight(panel, 8);
-      return `"${run.product}" (SKU ${run.sku}) is a Draft at $12.00, 8 oz; the page keeps Commerce product ${id}`;
+      return `"${run.product}" (SKU ${run.sku}) is a Draft at $12.00, 8 oz; Commerce links the page to product ${id}`;
     });
 
     await step(shopper, "A Draft product stays off the store", async () => {

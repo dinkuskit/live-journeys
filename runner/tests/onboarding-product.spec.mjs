@@ -226,7 +226,7 @@ test("One product with a category", { tag: "@running" }, journey(async ({ page }
       state.id = id;
       await setPrice(panel, "12.00");
       await setWeight(panel, 8);
-      return `Add price and stock made "${run.product}" (SKU ${run.sku}) at $12.00, 8 oz; the page keeps Commerce product ${id}`;
+      return `Add price and stock made "${run.product}" (SKU ${run.sku}) at $12.00, 8 oz; Commerce links the page to product ${id}`;
     });
 
     await step(content, "The owner gives the product a photo", async () => {

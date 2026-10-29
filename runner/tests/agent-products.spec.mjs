@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { agentCall, deleteAgentKey, findListed, makeAgentKey, refusal } from "../support/agent-api.mjs";
+import { agentCall, commerceCatalogApi, deleteAgentKey, findListed, makeAgentKey, refusal } from "../support/agent-api.mjs";
 import { closeShopper, expect, shopperPage, test } from "../support/browser.mjs";
 import { catalogCategory } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
@@ -22,12 +22,8 @@ function runNames() {
 
 /** Where an agent reaches the store: Commerce's catalog API beside its orders API, and EmDash's content and schema APIs. */
 function storeApis() {
-  const orders = config.ordersAdmin.replace("/_emdash/admin/plugins/", "/_emdash/api/plugins/");
-  if (orders === config.ordersAdmin || !orders.endsWith("/orders")) {
-    throw new Error("DINKUS_E2E_ORDERS_ADMIN isn't Commerce's Orders page in the store admin, so the test can't tell where Commerce's catalog API is.");
-  }
   return {
-    catalog: orders.replace(/\/orders$/, "/catalog"),
+    catalog: commerceCatalogApi(),
     products: `${config.store}/_emdash/api/content/products`,
     categories: `${config.store}/_emdash/api/content/categories`,
     fields: `${config.store}/_emdash/api/schema/collections/products/fields`,
@@ -102,6 +98,9 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
         data.visual_label = "TEE";
         note("placeholder art", "the store's Products still require visual_label, so the agent sent TEE");
       }
+      // A store set up before Commerce held each page's product keeps the old Commerce product field
+      // until its upgrade takes it off (template-no-commerce-box-20261029).
+      const boxed = items.some(field => field.slug === "commerce_item_id");
       const unknown = required.filter(slug => !(slug in data) && slug !== "commerce_item_id");
       if (unknown.length) throw new Error(`The store's product pages require ${unknown.join(", ")}, which the agent doesn't know how to fill.`);
       // A shop files a new product beside the ones like it, so the agent looks for the catalog's tees.
@@ -119,16 +118,17 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
       made.product = agent.productId = state.id = catalogItemId;
       note("agent's product", catalogItemId);
 
-      // The store's publish check reads the page's own Commerce product field, so the page carries it from the start.
+      // Commerce holds which product the page sells, through `link` below; a store that still has the old
+      // Commerce product field gets the product there too, as its older publish check reads it.
       // A product page names its categories through EmDash's references, not its data.
       const references = category ? { references: { categories: [category.id] } } : {};
-      const { item } = await agentAsk(page, agent, { data: { ...data, commerce_item_id: catalogItemId }, slug: run.slug, ...references }, { url: agent.apis.products, what: "EmDash's content API" });
+      const { item } = await agentAsk(page, agent, { data: { ...data, ...boxed ? { commerce_item_id: catalogItemId } : {} }, slug: run.slug, ...references }, { url: agent.apis.products, what: "EmDash's content API" });
       if (!item?.id) throw new Error("EmDash's content API saved the page but named no entry id.");
       made.entry = item.id;
       if (item.slug !== run.slug) throw new Error(`EmDash saved the page at slug "${item.slug}" instead of "${run.slug}".`);
       state.productPath = `/products/${run.slug}`;
       if (category) Object.assign(state, { categoryPath: `/categories/${category.slug}`, shared: true });
-      // The link is what the page's Dinkus Commerce panel shows.
+      // The link is what the page's Dinkus Commerce panel shows, and what the store's publish check sells.
       await catalog(page, agent, { op: "link", catalogItemId, entryId: item.id });
 
       const prices = await catalog(page, agent, { op: "prices", catalogItemId, regular: "12.00", sale: "", stockStatus: "in-stock" });
