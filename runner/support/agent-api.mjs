@@ -29,6 +29,29 @@ async function ownerCookies(page, url) {
   return (await page.context().cookies(url)).map(cookie => `${cookie.name}=${cookie.value}`).join("; ");
 }
 
+/** Commerce's private catalog API (catalog-api-20261027), beside its orders API on the store's Orders page. */
+export function commerceCatalogApi() {
+  const orders = config.ordersAdmin.replace("/_emdash/admin/plugins/", "/_emdash/api/plugins/");
+  if (orders === config.ordersAdmin || !orders.endsWith("/orders")) {
+    throw new Error("DINKUS_E2E_ORDERS_ADMIN isn't Commerce's Orders page in the store admin, so the test can't tell where Commerce's catalog API is.");
+  }
+  return orders.replace(/\/orders$/, "/catalog");
+}
+
+/**
+ * The Commerce product a product page sells, asked of Commerce's catalog API as the signed-in owner:
+ * Commerce holds the page's link (catalog-page-link-in-commerce-20261029). "" when it links none.
+ */
+export async function pageProductId(page, entryId) {
+  const url = commerceCatalogApi();
+  const response = await send(url, { method: "POST", body: JSON.stringify({ op: "get", entryId }),
+    headers: { cookie: await ownerCookies(page, url), "content-type": "application/json", "X-EmDash-Request": "1" } }, "Commerce's catalog API");
+  const answer = await response.json().catch(() => null);
+  if (!response.ok || answer?.success !== true) throw new Error(`Commerce's catalog API wouldn't say which product the page sells (${refusal(response, answer)}).`);
+  const id = answer.data?.product?.catalogItemId;
+  return typeof id === "string" ? id : "";
+}
+
 /** How a key the test couldn't delete ends, for the finding. */
 export const keyLeft = ({ name, expiresAt }) => `It stops working at ${expiresAt.slice(11, 16)} UTC on its own; to end it sooner, revoke "${name}" under Settings, API Tokens in the store admin.`;
 

@@ -1,3 +1,4 @@
+import { pageProductId } from "./agent-api.mjs";
 import { newPage, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
@@ -167,14 +168,20 @@ export async function saveEditor(page) {
   }
 }
 
+// Commerce's answers when the panel gives a page its product: from catalog-page-link-in-commerce-20261029
+// Commerce keeps the link itself, and before it the page kept the product in its Commerce product field.
+const MADE = /^(Draft made\. (Save, then Publish|Publish the page) to sell it\.|Linked\.( Save to keep it\.)?)$/;
+const LINKED = /^Linked\.( Save to keep it\.)?$/;
+
 /**
  * Gives the saved product page open in `page` its Commerce product, as an owner does, and saves the
- * page with it. With `link`, a product with this SKU that has no page yet is chosen ("Or its SKU", then
- * Sell it here); otherwise, or when Commerce has none by that SKU, Add price and stock makes a Draft
- * with that SKU. A page that already names a product gets that one. Commerce's change to the page's
- * Commerce product field is applied when EmDash asks. `made.product` is "asked" from the moment a
- * product may be made and true once the page is saved with it, so a caller can archive a product
- * Commerce made even when the page never kept it. Returns the panel and the product's ID.
+ * page. With `link`, a product with this SKU that has no page yet is chosen ("Or its SKU", then Sell it
+ * here); otherwise, or when Commerce has none by that SKU, Add price and stock makes a Draft with that
+ * SKU. A page that already has a product gets that one. Commerce keeps which product the page sells; an
+ * older Commerce instead changes the page's Commerce product field, applied when EmDash asks.
+ * `made.product` is "asked" from the moment a product may be made and true once the page has it, so a
+ * caller can archive a product Commerce made even when the page never kept it. Returns the panel and
+ * the product's ID.
  */
 export async function addPriceAndStock(page, sku, made = {}, { link = false } = {}) {
   let panel = await openPanel(page);
@@ -183,17 +190,16 @@ export async function addPriceAndStock(page, sku, made = {}, { link = false } = 
   const bySku = panel.getByRole("textbox", { name: "Or its SKU", exact: true });
   if (link && await bySku.count()) {
     await bySku.fill(sku);
-    said = await panelSays(panel, () => panel.getByRole("button", { name: "Sell it here", exact: true }).click(), "Linked. Save to keep it.").catch(() => null);
+    said = await panelSays(panel, () => panel.getByRole("button", { name: "Sell it here", exact: true }).click(), LINKED).catch(() => null);
     // A refused link draws the panel again with nothing linked, so Add price and stock follows.
     if (!said) panel = await openPanel(page);
   }
   if (!said) {
     await panel.getByRole("textbox", { name: "SKU (optional)", exact: true }).fill(sku);
     made.product = "asked";
-    said = await panelSays(panel, () => panel.getByRole("button", { name: "Add price and stock", exact: true }).click(),
-      /^(Draft made\. Save, then Publish to sell it\.|Linked\. Save to keep it\.)$/);
+    said = await panelSays(panel, () => panel.getByRole("button", { name: "Add price and stock", exact: true }).click(), MADE);
   }
-  // EmDash asks before Commerce's change reaches the editor; a page that already named the product needs none.
+  // An older Commerce's change reaches the editor once EmDash asks; a page that already named the product needs none.
   if (said.patch) {
     const review = page.getByRole("dialog", { name: "Review proposed changes" });
     if (!await review.waitFor({ timeout: 15_000 }).then(() => true, () => false)) throw new Error("EmDash never asked to apply Commerce's change to the page.");
@@ -201,8 +207,11 @@ export async function addPriceAndStock(page, sku, made = {}, { link = false } = 
     await review.waitFor({ state: "hidden", timeout: 15_000 });
   }
   await saveEditor(page);
-  const id = (await page.getByRole("textbox", { name: /^Commerce product/ }).inputValue().catch(() => "")).trim();
-  if (!id) throw new Error("The product page's Commerce product field is still empty after Save.");
+  // An older store keeps the Commerce product field until its upgrade takes it off; only an older Commerce fills it.
+  const box = page.getByRole("textbox", { name: /^Commerce product/ });
+  const typed = await box.count() ? (await box.inputValue().catch(() => "")).trim() : "";
+  const id = typed || await pageProductId(page, decodeURIComponent(new URL(page.url()).pathname.split("/").at(-1) ?? ""));
+  if (!id) throw new Error("Commerce links the product page to no product after Save.");
   if (made.product) made.product = true;
   return { panel: await openPanel(page), id };
 }
