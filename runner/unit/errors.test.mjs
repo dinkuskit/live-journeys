@@ -157,7 +157,10 @@ test("a failed step's kind is one of a few fixed phrases, never the error's own 
   assert.equal(failureKind("While the page is unpublished, the category page /categories/catalog-caps still lists it."), "the category page still listed the product");
   assert.equal(failureKind("While the page is unpublished, /products/e2e-x still shows $12.00 and offers Add to cart."), "the product page still offered the product");
   assert.equal(failureKind('While the page is unpublished, the Shop list says "synthetic".'), "the Shop list couldn't be read");
-  assert.equal(failureKind("/ sent the shopper to sm0kydev.cloudflareaccess.com instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox."), "the shopper was sent away from the store");
+  // As openShopperPage words it (elsewhere() names an Access sign-in, else the other site's host), and as catchUp does.
+  assert.equal(failureKind("/ sent the shopper to a Cloudflare Access sign-in instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox."), "the shopper was sent to a Cloudflare Access sign-in");
+  assert.equal(failureKind("/ sent the shopper to checkout.example.com instead of the store."), "the shopper was sent away from the store");
+  assert.equal(failureKind("While the page is unpublished, /products/e2e-x sent the shopper away from the store."), "the shopper was sent away from the store");
   assert.equal(failureKind('The Media library didn\'t take the photo: "e2e.png: Upload failed".'), "the Media library didn't take the photo");
   assert.equal(failureKind("Commerce's image picker shows no photos to use."), "the image picker showed no photos");
   assert.equal(failureKind("Commerce's image picker doesn't offer e2e-x.png."), "the image picker didn't offer the run's photo");

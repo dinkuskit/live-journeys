@@ -60,7 +60,8 @@ const KINDS = [
   [/the category page \S+ still lists it/, () => "the category page still listed the product"],
   [/\/products\/\S+ still (?:shows|offers)/, () => "the product page still offered the product"],
   [/the homepage has no Shop list|the Shop list (?:says|shows neither)/, () => "the Shop list couldn't be read"],
-  [/sent the shopper (?:to \S+ instead of|away from) the store/, () => "the shopper was sent away from the store"],
+  [/sent the shopper to a Cloudflare Access sign-in instead of the store/, () => "the shopper was sent to a Cloudflare Access sign-in"],
+  [/sent the shopper (?:to .+? instead of|away from) the store/, () => "the shopper was sent away from the store"],
   // products-admin.mjs uploadPhoto, choosePhoto and panelSays: where choosing a product's photo stopped.
   [/The Media library didn't take/, () => "the Media library didn't take the photo"],
   [/image picker shows no photos to use/, () => "the image picker showed no photos"],
