@@ -14,7 +14,7 @@ page show no developer notices and every product's name, price and photo. In
 Cart, a new shopper adds a product, changes its quantity and removes it, and the
 cart's count and total follow each change. In Manage products, the owner adds a
 product, gives it a photo that is still its image after a reload and a published
-page in a new category that the store links to, changes its price and name, and
+page in a category beside the catalog's caps that the store links to, changes its price and name, and
 archives and restores it, and the Shop list, product page and category page
 follow each change. In Full catalog, the store carries a catalog as big as a real
 shop's, several categories of products that each have their own price, weight,
@@ -143,8 +143,9 @@ still has deployed now. For other test stores, use the local steps below.
    - `npm run journey -- storefront` runs one journey, named by its file in
      `runner/tests`. Storefront only reads the pages a shopper sees and places
      no order. Cart fills and empties a new shopper's cart and never checks out.
-     Manage products works in the store admin and takes its product, page and
-     category off the store again, leaving one archived product and its photo.
+     Manage products works in the store admin, files its product in Full
+     catalog's "Catalog Caps" and takes its product and page off the store
+     again, leaving one archived product and its photo.
      Full catalog adds whatever the standing catalog lacks and leaves it on the
      store for later runs.
      Mark as completed places two Stripe TEST orders and leaves both Completed.
@@ -218,9 +219,11 @@ product on sale fail. See the runner README's "Run on GitHub".
   logs. The proof never needs them.
 - Don't change Cloudflare, Access, Stripe, Pitney Bowes, Ship or store settings to
   make a run pass. A failed step is a finding: report it with its reason.
-- Manage products changes only the product, page and category it adds, each named
-  "Live test" with the run's date and time. Never edit or archive the store's
-  other products to make it pass.
+- Manage products changes only the product and page it adds, each named "Live
+  test" with the run's date and time, and files the page in "Catalog Caps" (on a
+  store without it, in a category of its own, named the same way, which it takes
+  off again). Never edit or archive the store's other products, or the catalog's
+  categories, to make it pass.
 - Full catalog changes only the catalog's own categories and products, each named
   "Catalog" and the same on every run, and it never takes them off the store.
   Never edit or archive the store's other products to make it pass.
@@ -235,8 +238,8 @@ product on sale fail. See the runner README's "Run on GitHub".
   which also holds the Payments Test/Live choice. When it stops at its first
   step, report what it says to set; the owner sets it once.
 - An agent manages a product changes only the product and page it adds, each
-  named "Live agent product" with the run's date and time, and takes both off
-  the store at the end.
+  named "Live agent product" with the run's date and time, files the page in
+  "Catalog Tees" when the store has it, and takes both off the store at the end.
 - The agent's key is the only credential the test makes: an admin key for the
   owner that stops working after an hour. It never leaves the test's own calls,
   and the test deletes it at the end of every run. If that last step fails,

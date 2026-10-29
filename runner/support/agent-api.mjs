@@ -64,6 +64,24 @@ export async function makeAgentKey(page, name) {
 }
 
 /**
+ * The first entry `match` picks from an EmDash content list read a page at a time, following each
+ * page's cursor as EmDash's own admin does: `read(cursor)` answers one page's `{ items, nextCursor }`,
+ * the first with no cursor. Null when no page holds one; a list still offering pages after `most` reads
+ * fails instead.
+ */
+export async function findListed(read, match, most = 50) {
+  let cursor = "";
+  for (let reads = 0; reads < most; reads++) {
+    const { items = [], nextCursor = "" } = await read(cursor) ?? {};
+    const found = items.find(match);
+    if (found) return found;
+    if (!nextCursor || !items.length) return null;
+    cursor = nextCursor;
+  }
+  throw new Error(`EmDash's list kept offering more pages after ${most} reads.`);
+}
+
+/**
  * One call to the store as an agent makes it, with the key and nothing of the owner's sign-in: a POST of
  * `input` to `agent.api` unless `url` and `method` say otherwise. When Cloudflare Access fronts the
  * store's API too, the call also carries the test's Access sign-in, as an agent's Access service token

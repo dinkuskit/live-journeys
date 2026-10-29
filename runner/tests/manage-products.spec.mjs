@@ -1,11 +1,12 @@
 import { newPage, test, expect, shopperPage, closeShopper } from "../support/browser.mjs";
+import { catalogCategory } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import {
   addCategory, addPriceAndStock, addProductPage, archive, choosePhoto, openPhotoPanel, openProductPanel, panelProduct, publishProductPage, publishedLink,
   rename, republishProductPage, restore, setPrice, setWeight, trash, uploadPhoto,
 } from "../support/products-admin.mjs";
-import { record } from "../support/proof.mjs";
+import { note, record } from "../support/proof.mjs";
 import { openShopperPage } from "../support/shopper.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { journey, step } from "../support/steps.mjs";
@@ -63,7 +64,8 @@ async function panelPhotoProblem({ panel, title }, hash) {
 }
 
 
-// An owner's catalog work on the one product screen: add a product page in a new category, give it
+// An owner's catalog work on the one product screen: add a product page in a category the store's
+// other products are in (Full catalog's caps; a store without them gets a category of its own), give it
 // its Commerce product with a price and a weight in the page's Dinkus Commerce panel, see the Draft
 // stay off the store, give it a photo that stays after a reload, publish the page and see the store
 // sell it, change its price and name, archive and restore it, with the store following each change.
@@ -75,7 +77,8 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
   const content = await newPage(page.context());
   const shopper = await shopperPage();
   // What the store should show, and what this run made, so the last step can take it all off the store.
-  const state = { id: "", name: run.product, cents: 1200, productPath: "", categoryPath: "", published: false, archived: false, hasPhoto: false, photoHash: "" };
+  // `shared` says the product went in a category other products are in, which stays on the store.
+  const state = { id: "", name: run.product, cents: 1200, productPath: "", categoryPath: "", published: false, archived: false, hasPhoto: false, photoHash: "", shared: false, beside: 0 };
   // `product` is "asked" from the moment the panel may make it, and true once the page is saved with
   // it; the page and category keep their store addresses from just before each is saved and their
   // editor's once it opens. `lost` names an entry saved without the test learning where its editor is.
@@ -94,10 +97,21 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
     });
 
     // Nothing after this can run without the page, so this step stops the journey too.
-    await step(page, "The owner adds a product page in a new category", async () => {
-      await addCategory(content, run.category, made);
-      await addProductPage(page, { title: run.product, style: "CAP", category: run.category }, made);
-      return `saved "${run.product}" (unpublished) at ${made.pagePath} in the new category ${made.categoryPath}`;
+    await step(page, "The owner adds a product page in a category with other products", async () => {
+      // A shop files a new product beside the ones like it, so the page goes in the catalog's caps.
+      const shared = catalogCategory("CAP");
+      const view = await publishedLink(content, shared, "categories");
+      let category = shared;
+      if (view) {
+        made.categoryPath = new URL(view).pathname;
+        state.shared = true;
+      } else {
+        category = run.category;
+        note("category", `the store has no published "${shared}" (Full catalog adds it), so the journey made its own`);
+        await addCategory(content, category, made);
+      }
+      await addProductPage(page, { title: run.product, style: "CAP", category }, made);
+      return `saved "${run.product}" (unpublished) at ${made.pagePath} in ${state.shared ? "" : "the new category "}"${category}" at ${made.categoryPath}`;
     });
 
     // Nor without its product.
@@ -162,7 +176,8 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
       const { problems: storeProblems, seconds } = await storeShows(shopper, state);
       problems.push(...storeProblems);
       if (problems.length) throw new Error(`${problems.join("; ")}${after(seconds)}.`);
-      return `the panel says On sale; the Shop list, ${state.productPath} and ${state.categoryPath} show "${state.name}" at ${dollars(state.cents)}${withPhoto(state)} and Add to cart${after(seconds)}`;
+      const beside = state.shared ? `; ${state.categoryPath} lists it beside ${state.beside} other product${state.beside === 1 ? "" : "s"}` : "";
+      return `the panel says On sale; the Shop list, ${state.productPath} and ${state.categoryPath} show "${state.name}" at ${dollars(state.cents)}${withPhoto(state)} and Add to cart${beside}${after(seconds)}`;
     }, soft);
     // The changes below look for the photo too, until a step finds the store showing the product wrong,
     // so a photo the store lost fails the step that first misses it, not every change after that too.
@@ -223,7 +238,7 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
     }, soft);
   } finally {
     // Whatever this run added comes off the store again, even when a step above stopped the journey.
-    if (made.product || made.page || made.category || made.lost.length) await step(shopper, "The test takes its product, page and category off the store", async () => {
+    if (made.product || made.page || made.category || made.lost.length) await step(shopper, "The test takes what it added off the store", async () => {
       const problems = [];
       if (made.product && made.page) {
         // The panel says what the product is now, whatever this run's notes say.
@@ -245,13 +260,16 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
       // that keeps every page behind Cloudflare Access, so it opens the store first.
       if (await openShopperPage(shopper, "/").then(() => true, error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return false; })) {
         problems.push(...(await storeHides(shopper, where())).problems);
-        // Every address the run saved stops answering within a minute, published or not.
-        for (const path of [made.pagePath, made.categoryPath].filter(Boolean)) {
+        // Every address the run saved stops answering within a minute, published or not; the shared
+        // category stays, without the product.
+        for (const path of [made.pagePath, state.shared ? "" : made.categoryPath].filter(Boolean)) {
           problems.push(...(await catchUp(shopper, path, response => response.status() === 200 ? [`${path} still answers HTTP 200`] : [])).problems);
         }
       }
       if (problems.length) throw new Error(`${problems.join("; ")}.`);
-      return `${state.archived ? `archived "${state.name}" in its panel` : "Commerce never made the product"}${made.page || made.category ? " and moved its page and category to EmDash's Trash" : ""}; the store shows none of them`;
+      const trashed = [...made.page ? ["page"] : [], ...made.category ? ["category"] : []].join(" and ");
+      const kept = state.shared ? `; "${catalogCategory("CAP")}" stays, without it` : "";
+      return `${state.archived ? `archived "${state.name}" in its panel` : "Commerce never made the product"}${trashed ? ` and moved its ${trashed} to EmDash's Trash` : ""}; the store shows none of them${kept}`;
     }, soft);
     await closeShopper(shopper);
     await content.close();

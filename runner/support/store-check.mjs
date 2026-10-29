@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { get } from "./browser.mjs";
+import { categoryHides } from "./category-page.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
 import { PAGE_ROOM, paceStore } from "./pace.mjs";
@@ -141,7 +142,9 @@ export const places = state => ["the Shop list", ...state.productPath ? [state.p
 
 /**
  * Everything wrong with how the store shows this run's product now (the Shop list, and its page and
- * any category page once published), with the longest the store took to catch up.
+ * any category page once published), with the longest the store took to catch up. When `state.shared`
+ * says the category holds other products too, its page must list them beside this one; `state.beside`
+ * learns how many it does.
  */
 export async function storeShows(shopper, state) {
   const { id, name, cents, hasPhoto, photoHash, productPath, categoryPath } = state;
@@ -156,8 +159,18 @@ export async function storeShows(shopper, state) {
   })];
   if (productPath) {
     checks.push(await catchUp(shopper, productPath, response => productPageProblems(shopper, response, state)));
-    if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => response.status() !== 200 ? [`${categoryPath} answered HTTP ${response.status()}`]
-      : cardProblems(await findCard(categoryCards(shopper), { id, path: productPath }), `the category page ${categoryPath}`, { name, cents, hasPhoto, photoHash, path: productPath })));
+    if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => {
+      if (response.status() !== 200) return [`${categoryPath} answered HTTP ${response.status()}`];
+      const where = `the category page ${categoryPath}`;
+      const card = await findCard(categoryCards(shopper), { id, path: productPath });
+      const problems = await cardProblems(card, where, { name, cents, hasPhoto, photoHash, path: productPath });
+      // A category the store's other products are in lists them beside this one, as a shop's does.
+      if (state.shared) {
+        state.beside = await categoryCards(shopper).count() - (card ? 1 : 0);
+        if (!state.beside) problems.push(`${where} lists no other product beside it`);
+      }
+      return problems;
+    }));
   }
   return { problems: checks.flatMap(check => check.problems), seconds: Math.max(...checks.map(check => check.seconds)) };
 }
@@ -165,9 +178,10 @@ export async function storeShows(shopper, state) {
 /**
  * Everything that still offers this run's product to shoppers once the owner archived it or took its
  * page down. An archived product's page must say it's no longer available, and its category, still
- * published then, must answer for the missing card to count.
+ * published then, must answer for the missing card to count; so must a category the store's other
+ * products are in (`shared`), which the clean-up leaves on the store.
  */
-export async function storeHides(shopper, { id, name, productPath, categoryPath }, { archived = false } = {}) {
+export async function storeHides(shopper, { id, name, productPath, categoryPath, shared = false }, { archived = false } = {}) {
   // A homepage that doesn't answer, or whose Shop list can't be read, shows no cards either, which proves nothing.
   const checks = [await catchUp(shopper, "/", async response => {
     if (response.status() !== 200) return [`the homepage answered HTTP ${response.status()}`];
@@ -186,10 +200,10 @@ export async function storeHides(shopper, { id, name, productPath, categoryPath 
       const says = /no longer available/i.test(await text(shopper.locator("main")));
       return response.status() === 404 && says ? [] : [`${productPath} answers HTTP ${response.status()}${says ? " instead of 404" : " without saying the product is no longer available"}`];
     }));
-    // Once the clean-up has moved the category to the Trash, its page may stop answering.
-    if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => response.status() !== 200
-      ? archived ? [`the category page ${categoryPath} answered HTTP ${response.status()}`] : []
-      : await findCard(categoryCards(shopper), { id, path: productPath }) ? [`the category page ${categoryPath} still lists it`] : []));
+    if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => categoryHides({
+      path: categoryPath, status: response.status(), archived, shared,
+      listed: response.status() === 200 && Boolean(await findCard(categoryCards(shopper), { id, path: productPath })),
+    })));
   }
   return { problems: checks.flatMap(check => check.problems), seconds: Math.max(...checks.map(check => check.seconds)) };
 }
