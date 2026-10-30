@@ -26,6 +26,28 @@ export async function imageHash(page, src) {
   return response?.ok() ? createHash("sha256").update(await response.body()).digest("hex") : "";
 }
 
+// The requests each shopper page has started and not yet finished, so a page that never finishes
+// loading can name what it still waits on.
+const loading = new WeakMap();
+function watchLoads(page) {
+  if (!loading.has(page)) {
+    const open = new Set();
+    page.on("request", request => open.add(request));
+    for (const event of ["requestfinished", "requestfailed"]) page.on(event, request => open.delete(request));
+    loading.set(page, open);
+  }
+  return loading.get(page);
+}
+
+/** What a page that didn't finish loading still waits on: up to three addresses, without their queries. */
+function stillLoading(open) {
+  const paths = [...new Set([...open].map(request => {
+    const url = new URL(request.url());
+    return url.origin === config.store ? url.pathname : `${url.origin}${url.pathname}`;
+  }))];
+  return paths.length ? `; still loading ${paths.slice(0, 3).join(", ")}${paths.length > 3 ? ` and ${paths.length - 3} more` : ""}` : "";
+}
+
 /**
  * Reloads a store page until `check` finds nothing wrong, giving the store a minute to show a change
  * the owner just made. Returns the last problems found (none once the page caught up) and the wait.
@@ -35,8 +57,9 @@ export async function catchUp(shopper, path, check) {
   for (;;) {
     // Each reload brings the page's photos again, so on a store with many products it waits its turn.
     await paceStore(PAGE_ROOM);
+    const open = watchLoads(shopper);
     const response = await shopper.goto(new URL(path, config.store).href).catch(error => error);
-    const problems = response instanceof Error ? [`${path} didn't answer (${firstLine(response)})`]
+    const problems = response instanceof Error ? [`${path} didn't answer (${firstLine(response)}${stillLoading(open)})`]
       : new URL(shopper.url()).origin !== config.store ? [`${path} sent the shopper away from the store`]
         : await check(response);
     const seconds = Math.round((Date.now() - started) / 1000);
