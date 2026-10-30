@@ -487,9 +487,31 @@ export async function republishProductPage(content) {
   await publishProductPage(content);
 }
 
+/** The title links in EmDash's list of entries that open the editors of the entries titled `title`. */
+export function entryLinks(page, title) {
+  return page.getByRole("table").getByRole("link", { name: title, exact: true });
+}
+
+/**
+ * Where the "View published" item in `row`'s "Actions for <title>" menu goes, or null when the menu has
+ * none; the menu is closed again either way.
+ */
+async function viewPublishedHref(page, row, title) {
+  await row.getByRole("button", { name: `Actions for ${title}`, exact: true }).click();
+  const menu = page.getByRole("menu", { name: `Actions for ${title}`, exact: true });
+  if (!await menu.waitFor({ timeout: 10_000 }).then(() => true, () => false)) {
+    throw new Error(`EmDash's "Actions for ${title}" menu didn't open.`);
+  }
+  const view = menu.getByRole("menuitem", { name: "View published", exact: true });
+  const href = await view.count() ? await view.getAttribute("href") : null;
+  await page.keyboard.press("Escape");
+  await menu.waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
+  return href;
+}
+
 /**
  * EmDash's `collection` entry titled `title`, as its list shows it once searched for: its editor's
- * address, and where its "View published" link goes when the list shows it as Published (else null).
+ * address, and where its "View published" link goes when the list offers one (else null).
  * When the list shows more than one entry by that title, it's a published one if there is one. Null when
  * the list has no entry by that title; a list that doesn't answer fails instead, so a slow list never gets
  * the entry added twice.
@@ -503,8 +525,8 @@ async function listedEntry(page, title, collection) {
   }, { timeout: 30_000 });
   searched.catch(() => {});
   await page.getByRole("searchbox", { name: `Search ${collection}` }).fill(title);
-  const edit = page.getByRole("link", { name: `Edit ${title}`, exact: true });
-  const view = page.getByRole("link", { name: `View published ${title}`, exact: true });
+  // Since EmDash 1.4 an entry's row links its title to its editor.
+  const edit = entryLinks(page, title);
   // EmDash's answer to the search settles the list, and so does the list saying it has no results. An
   // entry's row alone doesn't: until the answer comes, the list shows its latest entries, which may hold
   // one of two entries by this title.
@@ -522,16 +544,20 @@ async function listedEntry(page, title, collection) {
   // A list that answered neither way may never have searched, so then only an entry it shows counts.
   if (answer === "silent" && !await edit.count()) throw new Error(`EmDash's list of ${collection} didn't answer the search for "${title}" within 30 seconds.`);
   if (!await edit.count()) return null;
-  // An entry's Edit and View published links are read from its own row (from the page, should the list stop
-  // drawing rows). The list draws View published with the rest of the row, and only for a published entry,
-  // including one with changes saved since it was published (its status then says so too).
-  const rows = page.getByRole("row").filter({ has: edit });
-  const published = rows.filter({ has: view }).first();
-  const scope = await published.count() ? published : await rows.count() ? rows.first() : page;
-  const link = scope.getByRole("link", { name: `View published ${title}`, exact: true }).first();
-  const href = await link.count() ? await link.getAttribute("href") : null;
-  const editor = await scope.getByRole("link", { name: `Edit ${title}`, exact: true }).first().getAttribute("href");
-  return { editor: new URL(editor, config.store).href, view: href === null ? null : new URL(href, config.store).href };
+  // Since EmDash 1.4 an entry's View published link sits in its row's "Actions for <title>" menu, which offers
+  // it only for a published entry, including one with changes saved since it was published (its status then
+  // says so too). Each row by this title is asked in turn, and the first published one answers.
+  const rows = page.getByRole("table").getByRole("row").filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  const full = href => href === null ? null : new URL(href, config.store).href;
+  let first = null;
+  for (let i = 0; i < await rows.count(); i++) {
+    const row = rows.nth(i);
+    const entry = { editor: full(await row.getByRole("link", { name: title, exact: true }).getAttribute("href")), view: full(await viewPublishedHref(page, row, title)) };
+    if (entry.view !== null) return entry;
+    first ??= entry;
+  }
+  // Should the list stop drawing rows, the entry's title link still opens its editor.
+  return first ?? { editor: full(await edit.first().getAttribute("href")), view: null };
 }
 
 /**
