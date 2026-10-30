@@ -195,7 +195,8 @@ journey is diagnosed from its proof, not from a guess or someone's screen:
 
 ```sh
 A=$(curl -sS "https://api.cloudflare.com/client/v4/accounts" | jq -r '.result[] | select(.name | startswith("Agent")) | .id')
-DIR=runs/github-<run id>-1
+# The folder the run page names: runs/github-<run id>-<attempt>, with that attempt's own number.
+DIR=runs/github-<run id>-<attempt>
 curl -sS "https://api.cloudflare.com/client/v4/accounts/$A/r2/buckets/dinkus-e2e-proof/objects?prefix=$DIR/" | jq -r '.result[].key'
 curl -sS "https://api.cloudflare.com/client/v4/accounts/$A/r2/buckets/dinkus-e2e-proof/objects/$DIR/PROOF.md"
 ```
