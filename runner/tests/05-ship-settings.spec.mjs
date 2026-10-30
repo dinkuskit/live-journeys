@@ -47,7 +47,7 @@ test("Ship settings", { tag: "@running" }, journey(async ({ page }) => {
       if (shipCount !== 1) {
         throw new Error(shipCount
           ? `Plugins lists ${shipCount} Ship plugins; the test will not pick one.`
-          : "Plugins has no Ship or Ship Beta plugin. The test does not install one.");
+          : "Plugins has no DinkusKit Ship or DinkusKit Ship (Beta) plugin. The test does not install one.");
       }
       const opened = await shipSettingsLink(page);
       if (!opened) {

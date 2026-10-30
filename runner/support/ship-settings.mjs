@@ -7,9 +7,10 @@ import { APPROVE_LINK, SHIP_CONNECT, mainButtons, mainText, readConnect } from "
 // From Ship's Connect release (dinkuskit/ship#65) both are gone: the form holds only the "DinkusKit
 // connection" secret, which Connect on the Shipping page fills.
 
-// The release listing is "Ship"; the beta listing, which the beta store runs, is "Ship Beta"
-// (dinkuskit/ship scripts/release-flow.mjs BETA_PLUGIN_NAME).
-export const SHIP_PLUGIN_NAME = /^Ship( Beta)?$/;
+// The release listing is "DinkusKit Ship"; the beta listing, which the beta store runs, is
+// "DinkusKit Ship (Beta)" (dinkuskit/ship scripts/release-flow.mjs STABLE_PLUGIN_NAME and
+// BETA_PLUGIN_NAME, since dinkuskit/ship#84).
+export const SHIP_PLUGIN_NAME = /^DinkusKit Ship( \(Beta\))?$/;
 export const STORE_ID_LABEL = "Store ID";
 export const STORE_KEY_LABEL = "Store key";
 export const CONNECTION = {
