@@ -184,6 +184,26 @@ still has deployed now. For other test stores, use the local steps below.
    proof folder, and show the label picture. When the run was recorded, say where
    each video is. On FAIL, lead with the failing steps and their reasons.
 
+## Read a GitHub run's proof
+
+A Live journeys run on GitHub keeps what each step found, the console output and
+the screenshots in the private R2 bucket `dinkus-e2e-proof`, folder
+`runs/github-<run id>-<attempt>/`. The run page names that folder. A Claude cloud
+thread reads it through the Cloudflare API with the project's cloud key
+(`Workers R2 Storage: Read` on Agent@smokyproduct.co's Account), so a failed
+journey is diagnosed from its proof, not from a guess or someone's screen:
+
+```sh
+A=$(curl -sS "https://api.cloudflare.com/client/v4/accounts" | jq -r '.result[] | select(.name | startswith("Agent")) | .id')
+DIR=runs/github-<run id>-1
+curl -sS "https://api.cloudflare.com/client/v4/accounts/$A/r2/buckets/dinkus-e2e-proof/objects?prefix=$DIR/" | jq -r '.result[].key'
+curl -sS "https://api.cloudflare.com/client/v4/accounts/$A/r2/buckets/dinkus-e2e-proof/objects/$DIR/PROOF.md"
+```
+
+Start with `PROOF.md` (each step's detail), then `console.log` and the step's
+`fail-*.png`. Read only. Never write to or delete from the bucket, and never put
+the proof's email addresses or page text in a public place.
+
 ## For a new plugin release
 
 For beta.sm0ky.dev, use the existing-run route in [Run the test](#run-the-test)
