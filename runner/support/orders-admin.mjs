@@ -33,15 +33,20 @@ export async function testOrders(page) {
   return orders;
 }
 
-// The labels on an order's page, in the order Commerce Orders shows them.
+// The labels on an order's page, in the order Commerce Orders shows them (Email, Phone and Bill to from
+// Commerce 0.7.0-beta.3, dinkuskit/commerce#213).
 const DETAIL_LABELS = ["Order", "Order ID", "Version", "Receipt", "Checkout attempt", "Payment", "Provider payment", "Paid at", "Status",
-  "Completed at", "Carrier", "Tracking number", "Ship to"];
+  "Completed at", "Carrier", "Tracking number", "Email", "Phone", "Ship to", "Bill to"];
 
 /** The open order's details as Commerce Orders shows them. */
 export async function orderShown(page) {
+  return orderDetails(await page.locator("main").innerText());
+}
+
+/** An order page's details from its text. */
+export function orderDetails(shown) {
   // The page runs its details together on one line ("Order: #1001 (TEST) Order ID: order:..."), so a
   // value ends where the next label starts.
-  const shown = await page.locator("main").innerText();
   const field = name => {
     const others = DETAIL_LABELS.filter(label => label !== name).join("|");
     return shown.match(new RegExp(`(?:^|\\s)${name}:\\s*(.*?)(?=\\s+(?:${others}):\\s|\\n|$)`))?.[1]?.trim() || null;
