@@ -3,7 +3,7 @@ import { catalogPlan } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
 import { firstLine, withoutQueries } from "../support/errors.mjs";
 import {
-  addCategory, addPriceAndStock, addProductPage, choosePhoto, finishProductPage, openPanel, openPhotoPanel, openProductPanel, panelProduct, publish, publishProductPage,
+  addCategory, addPriceAndStock, addProductPage, choosePhoto, entryLinks, finishProductPage, openPanel, openPhotoPanel, openProductPanel, panelProduct, publish, publishProductPage,
   publishedLink, republishProductPage, restore, setPrice, setWeight, uploadPhotos,
 } from "../support/products-admin.mjs";
 import { PHOTO_ROOM, STORE_BUDGET, paceStore } from "../support/pace.mjs";
@@ -272,7 +272,7 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
         if (!view) {
           if (!canAdd) throw tooOld(commerce, `the category "${title}"`);
           // A category an earlier run saved but never published is published, not added again.
-          const edit = content.getByRole("link", { name: `Edit ${title}`, exact: true });
+          const edit = entryLinks(content, title);
           const saved = await edit.count();
           if (saved > 1) throw new Error(`EmDash lists ${saved} categories titled "${title}" and none of them is published, so the test can't tell which to publish; remove the extra one.`);
           if (saved) {
