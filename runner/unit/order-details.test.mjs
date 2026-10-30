@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { completionProblems, orderDetails } from "../support/orders-admin.mjs";
+import { completionProblems, orderDetails } from "../support/order-details.mjs";
 
 // An order's page as Commerce Orders' text reads, its details run together on one line.
 const page = (...fields) => `Orders Back to orders ${fields.join(" ")} Complete order Items`;
