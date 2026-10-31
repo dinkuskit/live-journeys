@@ -216,8 +216,9 @@ On a store the Live journeys workflow is not running, `npm test` still runs ever
 `@running` journey with that store's settings file:
 `DINKUS_E2E_ENV_FILE=<that store's settings file> npm test`. That pass is not the
 release gate. On a store whose Commerce has no Dinkus Commerce panel on its
-product pages (before 0.6.0-beta.1), Manage products and One product with a
-category stop at their price and stock step and Full catalog adds nothing; on a
+product pages (before 0.6.0-beta.1), or whose panel is older than Commerce
+0.8.0's (no first Save that makes the product), Manage products and One product
+with a category stop at their price and stock step and Full catalog adds nothing; on a
 store without the template's publish check (template-store#152), a product the
 panel makes stays a Draft, so their steps that publish a page and expect its
 product on sale fail. See the runner README's "Run on GitHub".

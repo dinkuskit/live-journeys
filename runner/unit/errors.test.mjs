@@ -141,6 +141,10 @@ test("a failed step's kind is one of a few fixed phrases, never the error's own 
   assert.equal(failureKind("locator.waitFor: Timeout 30000ms exceeded."), "timed out after 30 s");
   assert.equal(failureKind("after publishing, the page's Dinkus Commerce panel shows the product as draft instead of on sale; /products/x answered HTTP 404."), "the panel showed draft, not on sale");
   assert.equal(failureKind("/categories/e2e-x answered HTTP 404 after 30 s."), "the category page answered HTTP 404");
+  assert.equal(failureKind("The Dinkus Commerce panel has no Shipping card."), "the panel had no Shipping card");
+  assert.equal(failureKind("The Shipping card didn't open"), "the panel's Shipping card didn't open");
+  assert.equal(failureKind("Commerce said it made the product, but links the product page to no product."), "Commerce made the product but linked the page to none");
+  assert.equal(failureKind(`"Catalog Tee 01"'s page has no Commerce product: its panel offers to make one, so the test saved nothing.`), "the page had no Commerce product");
   assert.equal(failureKind("the product page answered HTTP 404 after 30 s."), "the product page answered HTTP 404");
   assert.equal(failureKind("At Add reference of the product page: locator.click: Timeout 60000ms exceeded."), "timed out after 60 s at Add reference of the product page");
   assert.equal(failureKind("At the first Save of the product page: EmDash said no"), "failed at the first Save of the product page");

@@ -3,8 +3,8 @@ import { catalogCategory } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import {
-  addCategory, addPriceAndStock, addProductPage, archive, choosePhoto, openPhotoPanel, openProductPanel, panelProduct, publishProductPage, publishedLink,
-  rename, republishProductPage, restore, setPrice, setWeight, trash, uploadPhoto,
+  addCategory, addProductPage, archive, choosePhoto, openPhotoPanel, openProductPanel, makeProduct, panelProduct, publishProductPage, publishedLink,
+  rename, republishProductPage, restore, setPrice, trash, uploadPhoto,
 } from "../support/products-admin.mjs";
 import { note, record } from "../support/proof.mjs";
 import { openShopperPage } from "../support/shopper.mjs";
@@ -116,7 +116,8 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
 
     // Nor without its product.
     await step(page, "The owner adds price and stock with a price and a weight", async () => {
-      const { panel, id } = await addPriceAndStock(page, run.sku, made);
+      // The page's first Save in its panel makes the Draft with its price and weight (Commerce 0.8.0).
+      const { panel, id } = await makeProduct(page, { sku: run.sku, regular: "12.00", ounces: 8 }, made);
       state.id = id;
       const shown = await panelProduct(panel);
       const problems = [
@@ -125,8 +126,6 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
         ...shown.name === run.product ? [] : [`the panel names the product "${shown.name || "nothing"}" instead of the page's title`],
       ];
       if (problems.length) throw new Error(`${problems.join("; ")}.`);
-      await setPrice(panel, "12.00");
-      await setWeight(panel, 8);
       return `"${run.product}" (SKU ${run.sku}) is a Draft at $12.00, 8 oz; Commerce links the page to product ${id}`;
     });
 
@@ -247,8 +246,8 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
         if (shown?.state === "draft" || shown?.state === "on sale") {
           await archive(panel).then(() => { state.archived = true; }, error => problems.push(`archiving "${shown.name}" in its panel failed: ${firstLine(error)}`));
         } else if (shown?.state === "archived") state.archived = true;
-        else if (shown?.state === "none" && made.product === true) problems.push(`"${run.product}"'s panel shows no product, so the test couldn't archive it; look for SKU ${run.sku} under Commerce settings' Products without a page`);
-        else if (shown?.state === "none") problems.push(`Commerce may have made SKU ${run.sku} without the page keeping it; look for it under Commerce settings' Products without a page`);
+        else if (shown?.state === "none" && made.product === true) problems.push(`"${run.product}"'s panel shows no product, so the test couldn't archive it; look for SKU ${run.sku} in Commerce's catalog API`);
+        else if (shown?.state === "none") problems.push(`Commerce may have made SKU ${run.sku} without linking it to the page; look for it in Commerce's catalog API`);
         else if (shown) problems.push(`"${run.product}"'s panel shows its product as ${shown.state}`);
       }
       // Each finding names what's left, so the owner can take it off the store by hand.
