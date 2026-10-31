@@ -28,6 +28,10 @@ on:
         description: The beta a release just published, as "dinkus-<plugin>-beta <version>" (Cut beta fills this in; the update waits for the Registry to offer it)
         default: ""
         required: false
+      hold:
+        description: Beta listings to keep on what the store runs, as "dinkus-<plugin>-beta" (for a beta the Registry won't serve yet; the summary says it was held)
+        default: ""
+        required: false
       video:
         description: Record a video of every browser window
         type: boolean
@@ -110,6 +114,7 @@ jobs:
           JOURNEYS: ${{ inputs.journeys }}
           UPDATE_STORE: ${{ inputs.update_store }}
           DINKUS_E2E_BETA: ${{ inputs.beta }}
+          DINKUS_E2E_HOLD: ${{ inputs.hold }}
           DINKUS_E2E_OWNER_EMAIL: ${{ secrets.DINKUS_E2E_OWNER_EMAIL }}
           DINKUS_E2E_GMAIL_CLIENT_ID: ${{ secrets.DINKUS_E2E_GMAIL_CLIENT_ID }}
           DINKUS_E2E_GMAIL_CLIENT_SECRET: ${{ secrets.DINKUS_E2E_GMAIL_CLIENT_SECRET }}
