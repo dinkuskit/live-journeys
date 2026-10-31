@@ -57,8 +57,9 @@ async function onSale(page, agent, want) {
   }
 }
 
-// An agent manages a product the way any agent can, with an EmDash key and nothing else: it makes a
-// Draft product and its page through Commerce's catalog API and EmDash's content API, the page in a
+// An agent manages a product the way any agent can, with an EmDash key and nothing else: it makes an
+// unpublished product page through EmDash's content API and then its Draft product through Commerce's
+// catalog API (Commerce 0.8.0 makes every product for its page), the page in a
 // category the store's other products are in (Full catalog's tees, when the store has them), publishes the
 // page, changes the price from a preview, sees Commerce refuse a change made from an old preview, and
 // archives the product, with the store following each change. It tidies up after itself.
@@ -88,7 +89,7 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
     });
 
     // Nothing after this can run without the product and its page, so this step stops the journey too.
-    await step(page, "An agent makes a Draft product and its page through the store's APIs", async () => {
+    await step(page, "An agent makes a product page and its Draft product through the store's APIs", async () => {
       // The agent asks the store what a product page needs, as any agent would.
       const { items } = await agentAsk(page, agent, undefined, { url: agent.apis.fields, method: "GET", what: "EmDash's schema API" });
       const required = items.filter(field => field.required).map(field => field.slug);
@@ -98,10 +99,7 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
         data.visual_label = "TEE";
         note("placeholder art", "the store's Products still require visual_label, so the agent sent TEE");
       }
-      // A store set up before Commerce held each page's product keeps the old Commerce product field
-      // until its upgrade takes it off (template-no-commerce-box-20261029).
-      const boxed = items.some(field => field.slug === "commerce_item_id");
-      const unknown = required.filter(slug => !(slug in data) && slug !== "commerce_item_id");
+      const unknown = required.filter(slug => !(slug in data));
       if (unknown.length) throw new Error(`The store's product pages require ${unknown.join(", ")}, which the agent doesn't know how to fill.`);
       // A shop files a new product beside the ones like it, so the agent looks for the catalog's tees.
       const shared = catalogCategory("TEE");
@@ -113,37 +111,38 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
       }, item => item?.data?.title === shared && item.liveRevisionId);
       if (!category) note("category", `the store has no published "${shared}" (Full catalog adds it), so the agent's page goes in no category`);
 
-      const { catalogItemId } = await catalog(page, agent, { op: "create", commandId: `live-agent-${run.stamp}`, name: run.product, sku: run.sku });
-      if (!catalogItemId) throw new Error("Commerce's catalog API made a product but named no catalogItemId.");
-      made.product = agent.productId = state.id = catalogItemId;
-      note("agent's product", catalogItemId);
-
-      // Commerce holds which product the page sells, through `link` below; a store that still has the old
-      // Commerce product field gets the product there too, as its older publish check reads it.
+      // Commerce makes every product for its page (0.8.0), so the page comes first, unpublished.
       // A product page names its categories through EmDash's references, not its data.
       const references = category ? { references: { categories: [category.id] } } : {};
-      const { item } = await agentAsk(page, agent, { data: { ...data, ...boxed ? { commerce_item_id: catalogItemId } : {} }, slug: run.slug, ...references }, { url: agent.apis.products, what: "EmDash's content API" });
+      const { item } = await agentAsk(page, agent, { data, slug: run.slug, ...references }, { url: agent.apis.products, what: "EmDash's content API" });
       if (!item?.id) throw new Error("EmDash's content API saved the page but named no entry id.");
       made.entry = item.id;
       if (item.slug !== run.slug) throw new Error(`EmDash saved the page at slug "${item.slug}" instead of "${run.slug}".`);
       state.productPath = `/products/${run.slug}`;
       if (category) Object.assign(state, { categoryPath: `/categories/${category.slug}`, shared: true });
-      // The link is what the page's Dinkus Commerce panel shows, and what the store's publish check sells.
-      await catalog(page, agent, { op: "link", catalogItemId, entryId: item.id });
 
-      const prices = await catalog(page, agent, { op: "prices", catalogItemId, regular: "12.00", sale: "", stockStatus: "in-stock" });
-      if (prices?.saved !== true) throw new Error(`Commerce didn't save the price: "${prices?.message ?? "no reason given"}".`);
-      const weight = await catalog(page, agent, { op: "weight", catalogItemId, weightOz: "8" });
-      if (weight?.changed !== true) throw new Error("Commerce didn't save the weight.");
+      // One `create` makes the Draft for that page, which is how Commerce knows the product the page sells
+      // and what the store's publish check sells, and saves its price, stock status and weight.
+      const created = await catalog(page, agent, { op: "create", commandId: `live-agent-${run.stamp}`, entryId: item.id, name: run.product, sku: run.sku,
+        regular: "12.00", sale: "", stockStatus: "in-stock", weightOz: "8" });
+      const catalogItemId = created?.catalogItemId;
+      if (!catalogItemId) throw new Error("Commerce's catalog API made a product but named no catalogItemId.");
+      made.product = agent.productId = state.id = catalogItemId;
+      note("agent's product", catalogItemId);
+      if (created.price?.saved !== true) throw new Error(`Commerce made the product but didn't save its price: "${created.price?.message ?? "no reason given"}".`);
 
       const { shown } = await preview(page, agent);
+      const sold = await catalog(page, agent, { op: "get", entryId: item.id });
       const problems = [
         ...shown.product?.name === run.product ? [] : [`it's named "${shown.product?.name ?? "nothing"}" instead of "${run.product}"`],
         ...shown.product?.sku === run.sku ? [] : [`its SKU is ${shown.product?.sku ?? "none"} instead of ${run.sku}`],
+        ...shown.product?.regular === "12.00" ? [] : [`its price is ${shown.product?.regular ?? "none"} instead of 12.00`],
+        ...shown.product?.weightOz === 8 ? [] : [`its weight is ${shown.product?.weightOz ?? "none"} oz instead of 8`],
         ...shown.product?.offSale === true ? [] : ["it isn't a Draft"],
+        ...sold?.product?.catalogItemId === catalogItemId ? [] : [`page ${item.id} sells ${sold?.product?.catalogItemId ?? "no product"} instead`],
       ];
       if (problems.length) throw new Error(`Commerce's catalog API shows the new product, but ${problems.join("; ")}.`);
-      return `Commerce made Draft ${catalogItemId} (SKU ${run.sku}) at $12.00 and 8 oz; EmDash saved its unpublished page ${made.entry} for ${state.productPath}${category ? ` in "${shared}" at ${state.categoryPath}` : ""}`;
+      return `EmDash saved the unpublished page ${made.entry} for ${state.productPath}${category ? ` in "${shared}" at ${state.categoryPath}` : ""}; Commerce made Draft ${catalogItemId} (SKU ${run.sku}) for it at $12.00 and 8 oz`;
     });
 
     await step(shopper, "A Draft product stays off the store", async () => {
