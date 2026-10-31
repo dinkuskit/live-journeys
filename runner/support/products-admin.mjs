@@ -4,7 +4,7 @@ import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
 import { fieldName } from "./field-label.mjs";
 import { MEDIA_ROOM, PICKER_PAGE_ROOM, paceStore } from "./pace.mjs";
-import { panelSaid, savedRegular } from "./panel-answer.mjs";
+import { panelSaid, savedRegular, savedWeight } from "./panel-answer.mjs";
 import { openAdmin } from "./store-admin.mjs";
 import { quick, text } from "./storefront-page.mjs";
 
@@ -21,11 +21,15 @@ export async function answer(page, question, choice) {
 }
 
 // The Dinkus Commerce panel on a Content > Products page is the one product screen: it makes the page's
-// Commerce product and holds its price, weight, name and archive. Its state line reads "Draft:
-// publish to sell it", "On sale", "Published: off the shop" (a published page's product with no Regular
-// price) or "Archived: off the shop", then the SKU; a page with no product yet says "Not a product yet".
-const PANEL_READY = /^Not a product yet|\u00b7 SKU /;
-const PANEL_STATES = { "Draft": "draft", "On sale": "on sale", "Published": "published with no price", "Archived": "archived" };
+// Commerce product and holds its price, weight, name and archive. From Commerce 0.8.0 (commerce#244) a
+// page with no product opens on its price form ("Save makes the product as a Draft."), whose Save makes
+// the product; a page with one opens on a grid of Status, SKU and Name (page title), then "Pricing &
+// stock" for a simple product, then cards (Variants, Shipping, Identifiers) that stay shut until opened.
+// Status reads "Draft: publish to sell it", "On sale", "Published: off the shop" (a published page's
+// product with no Regular price) or "Archived: off the shop".
+const PANEL_READY = /^Save makes the product|^Pricing & stock$|^Variants|^Archived: off the shop$/;
+const UNMADE = "Save makes the product as a Draft.";
+const PANEL_STATES = { "Draft: publish to sell it": "draft", "On sale": "on sale", "Published: off the shop": "published with no price", "Archived: off the shop": "archived" };
 
 // From Commerce 0.7.0-beta.2 the product's pictures have a second panel of their own (commerce#193);
 // before it they sat at the bottom of the Dinkus Commerce panel.
@@ -64,6 +68,21 @@ export async function openPanel(page) {
 }
 
 /**
+ * Opens the card labelled `label` in the open panel (a string, or a pattern for a label that carries a
+ * count or a price) unless it's open, and returns its trigger. Cards are Kumo collapsibles that draw
+ * their fields only while open, and the panel shuts them again whenever it draws itself afresh.
+ */
+export async function openCard(panel, label) {
+  const trigger = panel.getByRole("button", { name: label, exact: typeof label === "string" }).first();
+  if (!await trigger.waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+    throw new Error(`The Dinkus Commerce panel has no ${label.source ?? label} card.`);
+  }
+  if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
+  await expect(trigger, `The ${label.source ?? label} card didn't open`).toHaveAttribute("aria-expanded", "true", { timeout: 15_000 });
+  return trigger;
+}
+
+/**
  * Opens the panel that holds the product's picture on the product page editor showing in `page`, once
  * the page has its product: Product image & gallery, or the Dinkus Commerce panel on a Commerce without
  * it. Returns the panel and its title, so a finding can name it.
@@ -74,7 +93,7 @@ export async function openPhotoPanel(page) {
   const picker = photos => photos.getByRole("button", { name: /^(Choose|Change) image$/ });
   // A panel drawn before the page had its product points to the Dinkus Commerce panel instead, so the
   // editor is opened afresh once to draw it again.
-  let photos = await openSidePanel(page, PHOTO_PANEL, drawn => picker(drawn).or(drawn.getByText(/^Add price and stock in the Dinkus Commerce panel first/)));
+  let photos = await openSidePanel(page, PHOTO_PANEL, drawn => picker(drawn).or(drawn.getByText(/Dinkus Commerce panel first/)));
   if (!await picker(photos).count()) {
     await openAdmin(page, page.url());
     photos = await openSidePanel(page, PHOTO_PANEL, picker);
@@ -88,15 +107,20 @@ export async function openProductPanel(page, editor) {
   return openPanel(page);
 }
 
+/** The value the open panel's grid shows beside `label` ("" when it shows none). */
+async function gridValue(panel, label) {
+  // Block Kit draws a fields block as label and value, each in its own box; the value carries its text as its title too.
+  return text(panel.locator(`xpath=.//div[@title][preceding-sibling::div[1][normalize-space(.)=${JSON.stringify(label)}]]`));
+}
+
 /**
- * What the open panel says of the page's product: "none" before it has one, else "draft", "on sale"
- * or "archived" with its SKU and name.
+ * What the open panel says of the page's product: "none" before it has one, else "draft", "on sale",
+ * "published with no price" or "archived" with its SKU and name.
  */
 export async function panelProduct(panel) {
-  const said = await text(panel.getByText(PANEL_READY));
-  if (/^Not a product yet/.test(said)) return { state: "none" };
-  const [, state = "", sku = ""] = said.match(/^(Draft|On sale|Published|Archived)\b.*?\u00b7 SKU (.+?)(?: \u00b7 |$)/) ?? [];
-  return { state: PANEL_STATES[state] ?? `unknown ("${said}")`, sku, name: await text(panel.getByRole("heading", { level: 2 })) };
+  if (await panel.getByText(UNMADE, { exact: true }).count()) return { state: "none" };
+  const said = await gridValue(panel, "Status");
+  return { state: PANEL_STATES[said] ?? `unknown ("${said}")`, sku: await gridValue(panel, "SKU"), name: await gridValue(panel, "Name (page title)") };
 }
 
 /**
@@ -168,52 +192,36 @@ export async function saveEditor(page) {
   }
 }
 
-// Commerce's answers when the panel gives a page its product: from catalog-page-link-in-commerce-20261029
-// Commerce keeps the link itself, and before it the page kept the product in its Commerce product field.
-const MADE = /^(Draft made\. (Save, then Publish|Publish the page) to sell it\.|Linked\.( Save to keep it\.)?)$/;
-const LINKED = /^Linked\.( Save to keep it\.)?$/;
+// Commerce's answer when the first Save makes the page's product (commerce#244).
+const MADE = /^Draft made\. Publish the page to sell it\.$/;
 
 /**
- * Gives the saved product page open in `page` its Commerce product, as an owner does, and saves the
- * page. With `link`, a product with this SKU that has no page yet is chosen ("Or its SKU", then Sell it
- * here); otherwise, or when Commerce has none by that SKU, Add price and stock makes a Draft with that
- * SKU. A page that already has a product gets that one. Commerce keeps which product the page sells; an
- * older Commerce instead changes the page's Commerce product field, applied when EmDash asks.
+ * Makes the Commerce product of the saved product page open in `page`, as an owner does: on the panel's
+ * price form, Regular `regular`, SKU `sku`, Physical with Weight (oz) `ounces`, and one Save, which
+ * makes the Draft named from the page title and links it to the page. A page that already has a product
+ * fails. When Commerce's answer shows the price or weight wasn't kept (the panel drawing itself again
+ * between typing and Save sends an empty box), each is saved again on the product's own form.
  * `made.product` is "asked" from the moment a product may be made and true once the page has it, so a
- * caller can archive a product Commerce made even when the page never kept it. Returns the panel and
+ * caller can archive a product Commerce made even when the test lost sight of it. Returns the panel and
  * the product's ID.
  */
-export async function addPriceAndStock(page, sku, made = {}, { link = false } = {}) {
+export async function makeProduct(page, { sku, regular, ounces }, made = {}) {
   let panel = await openPanel(page);
   if ((await panelProduct(panel)).state !== "none") throw new Error("The product page already has a Commerce product.");
-  let said = null;
-  const bySku = panel.getByRole("textbox", { name: "Or its SKU", exact: true });
-  if (link && await bySku.count()) {
-    await bySku.fill(sku);
-    said = await panelSays(panel, () => panel.getByRole("button", { name: "Sell it here", exact: true }).click(), LINKED).catch(() => null);
-    // A refused link draws the panel again with nothing linked, so Add price and stock follows.
-    if (!said) panel = await openPanel(page);
-  }
-  if (!said) {
-    await panel.getByRole("textbox", { name: "SKU (optional)", exact: true }).fill(sku);
-    made.product = "asked";
-    said = await panelSays(panel, () => panel.getByRole("button", { name: "Add price and stock", exact: true }).click(), MADE);
-  }
-  // An older Commerce's change reaches the editor once EmDash asks; a page that already named the product needs none.
-  if (said.patch) {
-    const review = page.getByRole("dialog", { name: "Review proposed changes" });
-    if (!await review.waitFor({ timeout: 15_000 }).then(() => true, () => false)) throw new Error("EmDash never asked to apply Commerce's change to the page.");
-    await review.getByRole("button", { name: "Apply changes", exact: true }).click();
-    await review.waitFor({ state: "hidden", timeout: 15_000 });
-  }
-  await saveEditor(page);
-  // An older store keeps the Commerce product field until its upgrade takes it off; only an older Commerce fills it.
-  const box = page.getByRole("textbox", { name: /^Commerce product/ });
-  const typed = await box.count() ? (await box.inputValue().catch(() => "")).trim() : "";
-  const id = typed || await pageProductId(page, decodeURIComponent(new URL(page.url()).pathname.split("/").at(-1) ?? ""));
-  if (!id) throw new Error("Commerce links the product page to no product after Save.");
-  if (made.product) made.product = true;
-  return { panel: await openPanel(page), id };
+  await panel.getByRole("textbox", { name: "Regular", exact: true }).fill(regular);
+  await panel.getByRole("textbox", { name: "SKU", exact: true }).fill(sku);
+  const physical = panel.getByRole("switch", { name: "Physical", exact: true });
+  if (await physical.count() && !await physical.isChecked()) await physical.check();
+  await panel.getByRole("textbox", { name: "Weight (oz)", exact: true }).fill(String(ounces));
+  made.product = "asked";
+  const data = await panelSays(panel, () => panel.getByRole("button", { name: "Save", exact: true }).click(), MADE);
+  const id = await pageProductId(page, decodeURIComponent(new URL(page.url()).pathname.split("/").at(-1) ?? ""));
+  if (!id) throw new Error("Commerce said it made the product, but links the product page to no product.");
+  made.product = true;
+  panel = await openPanel(page);
+  if (savedRegular(data) !== regular) await setPrice(panel, regular);
+  if (savedWeight(data) !== String(ounces)) await setWeight(panel, ounces);
+  return { panel, id };
 }
 
 /** Saves the regular price in the open panel. */
@@ -231,12 +239,19 @@ export async function setPrice(panel, regular) {
   }
 }
 
-/** Saves the weight in ounces in the open panel, and checks Commerce kept it. */
+/** The weight in ounces the open panel's Shipping card shows ("" for none), opening the card to read it. */
+export async function panelWeight(panel) {
+  await openCard(panel, "Shipping");
+  return (await panel.getByRole("textbox", { name: "Weight (oz)", exact: true }).inputValue()).trim();
+}
+
+/** Saves the weight in ounces in the open panel's Shipping card, and checks Commerce kept it. */
 export async function setWeight(panel, ounces) {
+  await openCard(panel, "Shipping");
   const weight = panel.getByRole("textbox", { name: "Weight (oz)", exact: true });
   await weight.fill(String(ounces));
   await panelSays(panel, () => panel.getByRole("button", { name: "Save weight", exact: true }).click(), "Weight saved");
-  // Commerce draws the product again from what it stored, so the field now shows the saved weight.
+  // Commerce draws the product again from what it stored, with the Shipping card open, so the field now shows the saved weight.
   await expect(weight, "Commerce didn't keep the weight").toHaveValue(String(ounces), { timeout: 15_000 });
 }
 
@@ -255,7 +270,7 @@ export async function rename(page, editor, name) {
 export async function archive(panel) {
   const button = panel.getByRole("button", { name: "Archive product", exact: true });
   if (!await button.count()) throw new Error("The Dinkus Commerce panel has no Archive product.");
-  const name = await text(panel.getByRole("heading", { level: 2 }));
+  const name = await gridValue(panel, "Name (page title)");
   await panelSays(panel, async () => {
     await button.click();
     await answer(panel.page(), `Archive ${name}?`, "Archive");
