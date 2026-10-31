@@ -79,3 +79,27 @@ export function notOffered(plan, beta) {
 export function aimAt(plan, beta) {
   return plan.map(({ problem, ...p }) => p.name === beta.name ? { ...p, latest: beta.version, update: p.installed !== beta.version } : { ...p, ...(problem ? { problem } : {}) });
 }
+
+/**
+ * The beta listings a run keeps on the version the store already runs, from "dinkus-commerce-beta" or
+ * several separated by spaces or commas, as the Live journeys workflow's `hold` input names them. It's
+ * for a beta the Registry won't serve yet when the one the store runs has the same plugin code.
+ */
+export function heldBetas(text) {
+  const names = String(text ?? "").split(/[\s,]+/).filter(Boolean);
+  const bad = names.filter(name => !BETA_LISTING.test(name));
+  if (bad.length) throw new Error(`"${bad.join(", ")}" doesn't name a DinkusKit beta listing as "dinkus-<plugin>-beta".`);
+  return [...new Set(names)];
+}
+
+/**
+ * The plan with each held plugin kept on what the store runs, marked `held` so the run's summary says
+ * so. Since its version is known, the update check leaving it out doesn't matter. Throws when the store
+ * doesn't run a held plugin, or a release's named beta is also held.
+ */
+export function hold(plan, names, beta = null) {
+  if (beta && names.includes(beta.name)) throw new Error(`The run names ${beta.name} ${beta.version} to test and also holds it.`);
+  const missing = names.filter(name => !plan.some(p => p.name === name));
+  if (missing.length) throw new Error(`The run holds ${missing.join(", ")}, which the store doesn't run.`);
+  return plan.map(({ problem, ...p }) => names.includes(p.name) ? { ...p, latest: p.installed, update: false, held: true } : { ...p, ...(problem ? { problem } : {}) });
+}

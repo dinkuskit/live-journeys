@@ -290,7 +290,10 @@ EmDash couldn't check the Registry for a plugin, since a pass has to name the be
 tested. When a plugin's **Cut beta** presses Run workflow, it names the beta it just published
 (the `beta` input, such as `dinkus-payments-beta 0.2.9-beta.3`, shown in the run's name), and the
 update first waits up to 15 minutes for the Registry to offer it, then installs exactly that beta,
-even if a later one is out (and stops if the store already runs a later one). Only `npm run update-store`
+even if a later one is out (and stops if the store already runs a later one). The `hold` input
+(`DINKUS_E2E_HOLD`, such as `dinkus-commerce-beta`) keeps the named beta plugins on what the store
+already runs, for a beta the Registry won't serve yet when the one the store runs has the same plugin
+code; the run's summary marks each one "held, not updated". Only `npm run update-store`
 runs it; every other run leaves it out. Untick "update_store" on **Run workflow** to test what the
 store already runs.
 

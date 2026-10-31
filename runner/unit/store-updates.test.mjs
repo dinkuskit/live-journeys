@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aimAt, cantTest, namedBeta, notOffered, planUpdates, refusal } from "../support/store-updates.mjs";
+import { aimAt, cantTest, heldBetas, hold, namedBeta, notOffered, planUpdates, refusal } from "../support/store-updates.mjs";
 
 const list = items => ({ data: { items } });
 const commerce = { id: "r_commerce", source: "registry", registrySlug: "dinkus-commerce-beta", version: "0.3.0-beta.9" };
@@ -65,6 +65,20 @@ test("a beta plugin the update check left out can't pass for up to date", () => 
   assert.equal(plan[0].update, undefined);
   assert.equal(plan[1].update, true);
   assert.ok(planUpdates(list([commerce]), null)[0].problem);
+});
+
+test("a held beta stays on what the store runs, even when the Registry offers a newer one or its check left it out", () => {
+  assert.deepEqual(heldBetas(" dinkus-commerce-beta, dinkus-commerce-beta "), ["dinkus-commerce-beta"]);
+  assert.deepEqual(heldBetas(""), []);
+  assert.throws(() => heldBetas("dinkus-commerce"), /doesn't name a DinkusKit beta listing/);
+  const plan = planUpdates(list([commerce, payments]), list([{ pluginId: "r_payments", latest: "0.2.9-beta.2" }]));
+  const held = hold(plan, ["dinkus-commerce-beta"]);
+  assert.deepEqual(held[0], { id: "r_commerce", name: "dinkus-commerce-beta", installed: "0.3.0-beta.9", latest: "0.3.0-beta.9", update: false, held: true });
+  assert.equal(held[1].update, true);
+  const offered = hold(planUpdates(list([commerce]), list([{ pluginId: "r_commerce", latest: "0.3.0-beta.10" }])), ["dinkus-commerce-beta"]);
+  assert.equal(offered[0].update, false);
+  assert.throws(() => hold(plan, ["dinkus-ship-beta"]), /holds dinkus-ship-beta, which the store doesn't run/);
+  assert.throws(() => hold(plan, ["dinkus-commerce-beta"], { name: "dinkus-commerce-beta", version: "0.3.0-beta.10" }), /also holds it/);
 });
 
 test("a refusal names what the update asks for, or EmDash's code and status", () => {

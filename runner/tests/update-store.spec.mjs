@@ -5,7 +5,7 @@ import { countStoreRequest, paceStore } from "../support/pace.mjs";
 import { note } from "../support/proof.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { pluginVersion } from "../support/store-plugins.mjs";
-import { aimAt, BETA_STORE, cantTest, namedBeta, notOffered, planUpdates, refusal } from "../support/store-updates.mjs";
+import { aimAt, BETA_STORE, cantTest, heldBetas, hold, namedBeta, notOffered, planUpdates, refusal } from "../support/store-updates.mjs";
 import { journey, step } from "../support/steps.mjs";
 
 const API = () => `${config.store}/_emdash/api/admin/plugins`;
@@ -38,7 +38,7 @@ function stop(reason) {
   throw new Error(reason);
 }
 
-const listed = plan => plan.map(p => `${p.name} ${p.installed}${p.update ? ` (to ${p.latest})` : ""}${p.problem ? ` (${p.problem})` : ""}`).join(", ");
+const listed = plan => plan.map(p => `${p.name} ${p.installed}${p.update ? ` (to ${p.latest})` : ""}${p.held ? " (held, not updated)" : ""}${p.problem ? ` (${p.problem})` : ""}`).join(", ");
 
 // Not one of the plan's journeys: it gets the beta store ready for them, and the Live journeys workflow
 // runs it first (`npm run update-store`; other runs leave it out, see playwright.config.mjs). It moves
@@ -47,14 +47,20 @@ const listed = plan => plan.map(p => `${p.name} ${p.installed}${p.update ? ` (to
 // button would ask the owner about: an update that asks for new permissions is refused, and the run
 // stops for the owner to update it by hand. A run a release started (DINKUS_E2E_BETA, the workflow's
 // `beta` input) first waits for the Registry to offer the beta that release published, and installs
-// exactly that one, even if a later beta is out.
+// exactly that one, even if a later beta is out. A plugin the run holds (DINKUS_E2E_HOLD, the `hold`
+// input) stays on what the store runs, and the summary says it was held.
 test("Update the store", { tag: "@update" }, journey(async ({ page }) => {
   test.setTimeout(UPDATE_LIMIT);
   if (config.store !== BETA_STORE.store || config.siteId !== BETA_STORE.siteId) {
     throw new Error(`Only the beta store, ${BETA_STORE.store} (site ${BETA_STORE.siteId}), is updated before a run; this run is set to ${config.store || "no store"} (site ${config.siteId || "not set"}).`);
   }
   let beta;
-  try { beta = namedBeta(process.env.DINKUS_E2E_BETA); } catch (error) { stop(error.message); }
+  let held;
+  try {
+    beta = namedBeta(process.env.DINKUS_E2E_BETA);
+    held = heldBetas(process.env.DINKUS_E2E_HOLD);
+    if (beta && held.includes(beta.name)) throw new Error(`The run names ${beta.name} ${beta.version} to test and also holds it.`);
+  } catch (error) { stop(error.message); }
 
   let list;
   await step(page, "The owner can open Plugins", async () => {
@@ -82,6 +88,11 @@ test("Update the store", { tag: "@update" }, journey(async ({ page }) => {
       await page.waitForTimeout(OFFER_POLL);
     }
     if (!plan.length) stop("The store runs no DinkusKit beta plugin from the Registry.");
+    if (held.length) {
+      try { plan = hold(plan, held, beta); } catch (error) { stop(error.message); }
+      // The public summary says which betas the journeys didn't test.
+      note("held", plan.filter(p => p.held).map(p => `${p.name} ${p.installed}`).join(", "));
+    }
     const unchecked = plan.filter(p => p.problem);
     // A pass has to name the betas it really tested.
     if (unchecked.length) stop(`EmDash's update check left out ${unchecked.map(p => p.name).join(", ")} (the Registry couldn't be reached, or its newest release was withdrawn), so the newest betas aren't known.`);
