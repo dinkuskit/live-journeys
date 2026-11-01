@@ -98,6 +98,7 @@ export function record(step, status, detail = "") {
  * order") rather than taking Buy and ship's "order".
  */
 export function note(key, value) {
+  load();
   facts[key] = value;
   write();
 }

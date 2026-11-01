@@ -64,15 +64,22 @@ export function commerceSettings(list) {
  * Opens Commerce Settings and waits for it to draw, and says whether it has the DinkusKit section, which
  * only Commerce's Connect release shows. Its Catalog heading is on every release.
  */
-export async function openCommercePage(page, url) {
-  const { openAdmin } = await import("./store-admin.mjs");
-  await openAdmin(page, url);
+export async function openCommercePage(page, url, { open } = {}) {
+  const openPage = open ?? (await import("./store-admin.mjs")).openAdmin;
   const dinkus = page.getByRole("heading", { name: COMMERCE_CONNECT.section, exact: true });
   const catalog = page.getByRole("heading", { name: "Catalog", exact: true });
   const failed = page.getByRole("heading", { name: "Plugin Error", exact: true });
-  await dinkus.or(catalog).or(failed).first().waitFor({ timeout: 60_000 });
-  if (await failed.isVisible()) throw new Error("Commerce Settings didn't open: it shows Plugin Error.");
-  return await dinkus.count() > 0;
+  const drawn = dinkus.or(catalog).or(failed).first();
+  // A stalled page_load call leaves the admin blank without showing Plugin Error; one fresh load gives
+  // it a second chance within the same one-minute budget.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await openPage(page, url);
+    if (await drawn.waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+      if (await failed.isVisible()) throw new Error("Commerce Settings didn't open: it shows Plugin Error.");
+      return await dinkus.count() > 0;
+    }
+  }
+  throw new Error("Commerce Settings didn't draw within a minute.");
 }
 
 /** Commerce Settings' DinkusKit section as { reading, buttons }. */

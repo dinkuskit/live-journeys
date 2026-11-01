@@ -201,9 +201,14 @@ curl -sS "https://api.cloudflare.com/client/v4/accounts/$A/r2/buckets/dinkus-e2e
 curl -sS "https://api.cloudflare.com/client/v4/accounts/$A/r2/buckets/dinkus-e2e-proof/objects/$DIR/PROOF.md"
 ```
 
-Start with `PROOF.md` (each step's detail), then `console.log` and the step's
-`fail-*.png`. Read only. Never write to or delete from the bucket, and never put
-the proof's email addresses or page text in a public place.
+Start with `PROOF.md` (each step's detail and any `store refusals` count of
+`HTTP 429` or `5xx` answers), then `console.log` and the step's `fail-*.png`.
+The public run summary also names `Store HTTP 429 / 5xx answers during the run`
+and prints a `Failure note` when every failed step was a store or network wait
+(for instance when an early step timed out and later steps in the same journey
+passed), so you can tell a transient store stall or rate limit from a plugin or
+journey fault before rerunning. Read only. Never write to or delete from the
+bucket, and never put the proof's email addresses or page text in a public place.
 
 ## For a new plugin release
 

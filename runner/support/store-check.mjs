@@ -11,8 +11,10 @@ import { dollars, money } from "./storefront-text.mjs";
 // product page and its category page, reloaded until they catch up with a change. Manage products and
 // An agent manages a product check the store with these.
 
-// How long the store gets to show a change the owner just made.
+// How long the store gets to show a change the owner just made, and how long one page load inside that
+// minute waits for the document before trying again.
 const CATCH_UP_MS = 60_000;
+const PAGE_LOAD_MS = 20_000;
 
 
 /**
@@ -58,7 +60,9 @@ export async function catchUp(shopper, path, check) {
     // Each reload brings the page's photos again, so on a store with many products it waits its turn.
     await paceStore(PAGE_ROOM);
     const open = watchLoads(shopper);
-    const response = await shopper.goto(new URL(path, config.store).href).catch(error => error);
+    // Only the document has to arrive before `check` reads it (`photo` and Add to cart each wait on
+    // what they inspect), so another card's slow /_image can't hold one try past CATCH_UP_MS.
+    const response = await shopper.goto(new URL(path, config.store).href, { waitUntil: "domcontentloaded", timeout: PAGE_LOAD_MS }).catch(error => error);
     const problems = response instanceof Error ? [`${path} didn't answer (${firstLine(response)}${stillLoading(open)})`]
       : new URL(shopper.url()).origin !== config.store ? [`${path} sent the shopper away from the store`]
         : await check(response);
@@ -142,20 +146,23 @@ export async function productPageProblems(shopper, response, { name, cents, hasP
  * details on a category page) to open its page.
  */
 export async function linkProblems(shopper, where, path, cards, { id, name, productPath }) {
-  const response = await shopper.goto(new URL(path, config.store).href).catch(error => error);
-  if (response instanceof Error) return [`${where} didn't answer (${firstLine(response)})`];
+  await paceStore(PAGE_ROOM);
+  const open = watchLoads(shopper);
+  const response = await shopper.goto(new URL(path, config.store).href, { waitUntil: "domcontentloaded", timeout: PAGE_LOAD_MS }).catch(error => error);
+  if (response instanceof Error) return [`${where} didn't answer (${firstLine(response)}${stillLoading(open)})`];
   const card = await findCard(cards(shopper), { id, path: productPath });
   if (!card) return [`${where} doesn't list it`];
   // A Shop card is the link itself; a category card links from View details.
   const link = await card.getAttribute("href") === productPath ? card : card.locator(`a[href="${productPath}"]`).first();
   if (!await link.count()) return [`${where} lists it without a link to ${productPath}`];
+  await paceStore(PAGE_ROOM);
   const opened = await Promise.all([
     shopper.waitForResponse(r => r.request().isNavigationRequest() && new URL(r.url()).pathname === productPath, { timeout: 30_000 }),
     link.click(),
   ]).then(([navigation]) => navigation, () => null);
   if (!opened) return [`pressing it on ${where} didn't open ${productPath}`];
   if (opened.status() !== 200) return [`pressing it on ${where} opened ${productPath}, which answered HTTP ${opened.status()}`];
-  await shopper.waitForLoadState("load");
+  await shopper.waitForLoadState("domcontentloaded", { timeout: PAGE_LOAD_MS });
   const heading = await text(shopper.locator("[data-product-page] h1"));
   return heading === name ? [] : [`pressing it on ${where} opened a page headed "${heading || "nothing"}" instead of "${name}"`];
 }

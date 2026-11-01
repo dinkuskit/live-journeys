@@ -107,8 +107,9 @@ export async function panelProduct(panel) {
 async function panelSays(panel, act, message) {
   const page = panel.page();
   // The panel draws itself again whenever the page is saved; those loads aren't the press's answer.
+  // EmDash gives a plugin handler 30 s, so wait past that for its refusal rather than timing out first.
   const answered = page.waitForResponse(r => r.request().method() === "POST" && /\/plugin-extensions\/[^/]+\/panel\//.test(new URL(r.url()).pathname)
-    && r.request().postDataJSON()?.type !== "panel_load", { timeout: 30_000 });
+    && r.request().postDataJSON()?.type !== "panel_load", { timeout: 45_000 });
   answered.catch(() => {});
   await act();
   const response = await answered.catch(() => null);

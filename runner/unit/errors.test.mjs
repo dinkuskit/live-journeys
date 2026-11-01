@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
-import { failureKind, firstLine, forProof, withoutQueries } from "../support/errors.mjs";
+import { STORE_REFUSALS_PATTERN, failureKind, firstLine, forProof, isWaitFailureKind, withoutQueries } from "../support/errors.mjs";
 
 const FIRST = "apiRequestContext.get: Timeout 30000ms exceeded.";
 const FRAME = "    at readApi (file:///runner/tests/update-store.spec.mjs:25:26)";
@@ -213,4 +213,32 @@ test("a stopped Payments status gets a fixed kind, never the page's own words", 
   assert.equal(failureKind("The store is connected, but Payments status doesn't show Connected: Stripe test mode. It offers Continue, which this journey leaves to the owner."),
     "Payments: connected, but not Stripe test mode");
   assert.equal(failureKind("Payments's Connect again press got HTTP 502."), "an answer of HTTP 502");
+});
+
+test("store image, admin panel, Commerce Settings and checkout stalls get specific fixed kinds", () => {
+  assert.equal(failureKind("While the page is unpublished, / didn't answer (page.goto: Timeout 20000ms exceeded.; still loading /_image) after 61 s."),
+    "timed out after 20 s (still loading a store image)");
+  assert.equal(failureKind("/categories/private-slug didn't answer (page.goto: Timeout 20000ms exceeded.; still loading /_emdash/api/media/file/private.png)."),
+    "timed out after 20 s (still loading a store image)");
+  assert.equal(failureKind("/ didn't answer (page.goto: Timeout 20000ms exceeded.; still loading /_emdash/api/plugins/r_hidden/catalog)."),
+    "timed out after 20 s (still loading a plugin route)");
+  assert.equal(failureKind("/cart didn't answer (page.goto: Timeout 20000ms exceeded.; still loading /api/guest-cart/snapshot)."),
+    "timed out after 20 s (still loading the cart API)");
+  assert.equal(failureKind("/products/private-slug didn't answer (page.goto: Timeout 20000ms exceeded.) after 62 s."),
+    "the store page didn't answer within 20 s");
+  assert.equal(failureKind("Commerce Settings didn't draw within a minute."), "Commerce Settings didn't draw");
+  assert.equal(failureKind("Commerce Settings didn't open: it shows Plugin Error."), "Commerce Settings showed Plugin Error");
+  assert.equal(failureKind("The Dinkus Commerce panel didn't draw within 30 seconds."), "the Dinkus Commerce panel didn't draw");
+  assert.equal(failureKind('The Product image & gallery panel says "synthetic private alert".'), "the Product image & gallery panel showed an error");
+  assert.equal(failureKind("The product page's editor shows no Dinkus Commerce panel."), "the editor had no Dinkus Commerce panel");
+  assert.equal(failureKind("The store did not open Stripe Checkout: synthetic banner"), "the store didn't open Stripe Checkout");
+  assert.equal(failureKind("The cart never offered checkout: synthetic banner"), "the cart never offered checkout");
+  assert.equal(failureKind('"Catalog Tee 01" on the Shop list has a photo that didn\'t load.'), "a product photo didn't load");
+  assert.equal(failureKind("the product page has no working Add to cart button after 60 s."), "Add to cart never became ready");
+  assert.equal(isWaitFailureKind("timed out after 20 s (still loading a store image)"), true);
+  assert.equal(isWaitFailureKind("the store page didn't answer within 20 s"), true);
+  assert.equal(isWaitFailureKind("Commerce Settings didn't draw"), true);
+  assert.equal(isWaitFailureKind("the panel showed draft, not on sale"), false);
+  assert.equal(STORE_REFUSALS_PATTERN.test("3x HTTP 429 (plugin route), 1x HTTP 503 (store image)"), true);
+  assert.equal(STORE_REFUSALS_PATTERN.test("1x HTTP 429 (/private/path)"), false);
 });
