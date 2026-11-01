@@ -1,3 +1,5 @@
+import { versionAtLeast } from "./store-plugins.mjs";
+
 // The standing catalog Full catalog keeps on a test store, so the journeys run against a store with
 // as many products as a real shop. Every name starts with "Catalog", so the test's products are easy to
 // spot, and stays the same from run to run, so a run finds what earlier runs added.
@@ -11,6 +13,14 @@ const KINDS = [
 ];
 
 export const MAX_PER_CATEGORY = 50;
+
+// The first Commerce whose Dinkus Commerce panel the product helpers drive: from 0.8.0 (commerce#244) a
+// page's first Save in the panel makes its product, and the panel is laid out as cards. An older panel
+// draws nothing they wait for, so Full catalog writes nothing (no category, photo, page or product) on it.
+export const COMMERCE_FOR_CATALOG = "0.8.0-beta.1";
+
+/** Whether Full catalog may add to the store running Commerce `version` (null when it couldn't be read). */
+export const catalogCanAdd = version => versionAtLeast(version, COMMERCE_FOR_CATALOG);
 
 /** The catalog's category for products drawn in `style` ("Catalog Caps" for CAP), shared with the journeys that add one product. */
 export const catalogCategory = style => `Catalog ${KINDS.find(kind => kind.style === style).many}`;

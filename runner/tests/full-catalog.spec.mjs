@@ -1,26 +1,25 @@
 import { get, newPage, test, expect, shopperPage, closeShopper } from "../support/browser.mjs";
-import { catalogPlan } from "../support/catalog.mjs";
+import { COMMERCE_FOR_CATALOG, catalogCanAdd, catalogPlan } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
 import { firstLine, withoutQueries } from "../support/errors.mjs";
 import {
-  addCategory, addPriceAndStock, addProductPage, choosePhoto, entryLinks, finishProductPage, openPanel, openPhotoPanel, openProductPanel, panelProduct, publish, publishProductPage,
-  publishedLink, republishProductPage, restore, setPrice, setWeight, uploadPhotos,
+  addCategory, addProductPage, choosePhoto, entryLinks, finishProductPage, makeProduct, openPanel, openPhotoPanel, openProductPanel, panelProduct, panelWeight, publish,
+  publishProductPage, publishedLink, republishProductPage, restore, setPrice, setWeight, uploadPhotos,
 } from "../support/products-admin.mjs";
 import { PHOTO_ROOM, STORE_BUDGET, paceStore } from "../support/pace.mjs";
 import { note } from "../support/proof.mjs";
 import { openShopperPage } from "../support/shopper.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
-import { pluginVersion, versionAtLeast } from "../support/store-plugins.mjs";
+import { pluginVersion } from "../support/store-plugins.mjs";
 import { journey, step } from "../support/steps.mjs";
 import { photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
 import { dollars, money } from "../support/storefront-text.mjs";
 
 // An error's first line without its full stop, since findings are joined into one sentence.
 const reason = error => firstLine(error).replace(/\.$/, "");
-// The first Commerce whose products are kept in each product page's Dinkus Commerce panel; before it,
-// Commerce had a Products page of its own, which this journey no longer drives.
-const COMMERCE_WITH_PANEL = "0.6.0-beta.1";
-const tooOld = (commerce, lacks) => new Error(`The catalog lacks ${lacks}, but this store runs Commerce ${commerce ?? "of a version the test couldn't read"}, which has no Dinkus Commerce panel on its product pages. It needs Commerce ${COMMERCE_WITH_PANEL} or later; nothing was added.`);
+// The journey adds to the store only on a Commerce whose panel its helpers drive (COMMERCE_FOR_CATALOG); on an
+// older one it writes nothing at all, so no category, photo or page is left behind by a panel it can't use.
+const tooOld = (commerce, lacks) => new Error(`The catalog lacks ${lacks}, but this store runs Commerce ${commerce ?? "of a version the test couldn't read"}, whose product panel this test doesn't drive. It needs Commerce ${COMMERCE_FOR_CATALOG} or later; nothing was added.`);
 // Commerce's image picker lists twelve photos a page, so uploading that many at a time keeps each new photo on its first page.
 const UPLOAD_BATCH = 12;
 // The most store requests the owner's work sends, measured on a local store: the Media library shows
@@ -35,8 +34,7 @@ const short = (items, count = 5) => items.length > count ? [...items.slice(0, co
 
 /**
  * Every page in Content > Products, read as the owner's admin reads it from EmDash, a hundred at a
- * time: by title, each page's editor address, whether it's published and the Commerce product it
- * names. Trashed pages aren't listed.
+ * time: by title, each page's editor address and whether it's published. Trashed pages aren't listed.
  */
 async function productPages(page) {
   const pages = new Map();
@@ -50,10 +48,7 @@ async function productPages(page) {
     const { items = [], nextCursor = "" } = (await response.json())?.data ?? {};
     for (const item of items) {
       const title = typeof item?.data?.title === "string" ? item.data.title : "";
-      // Only a store set up before Commerce held each page's product has the page's Commerce product field.
-      const entry = { editor: `${config.store}/_emdash/admin/content/products/${item.id}`, published: Boolean(item.liveRevisionId),
-        boxed: Boolean(item?.data) && "commerce_item_id" in item.data,
-        commerceId: typeof item?.data?.commerce_item_id === "string" ? item.data.commerce_item_id.trim() : "" };
+      const entry = { editor: `${config.store}/_emdash/admin/content/products/${item.id}`, published: Boolean(item.liveRevisionId) };
       pages.set(title, [...pages.get(title) ?? [], entry]);
     }
     if (!nextCursor || !items.length) return pages;
@@ -162,8 +157,8 @@ async function productPageProblems(shopper, product) {
 
 /**
  * Gives one catalog product what the store lacks for it, as an owner would, all on its product page:
- * a page in its category when it has none, its Commerce product made in the page's Dinkus Commerce
- * panel (or the one with its SKU that has no page yet, or the one the page already names), restored
+ * a page in its category when it has none, its Commerce product made by the first Save in the page's
+ * Dinkus Commerce panel with its price and weight (or the one the page already has), restored
  * when archived, its price and weight saved where they differ, its photo chosen when the panel shows
  * none (uploaded first unless its batch did), and the page published, again when its product is a
  * Draft. Records in `did` what it did, which stays nothing when the store had it all, and keeps what
@@ -183,9 +178,9 @@ async function completeProduct(page, content, product, { entry, uploaded }, did)
   let panel = await openPanel(page);
   let shown = await panelProduct(panel);
   if (shown.state === "none") {
-    const made = {};
-    ({ panel } = await addPriceAndStock(page, product.sku, made, { link: true }));
-    did.push(made.product ? "added" : "linked");
+    // From Commerce 0.8.0 every product is made for its page: there's no linking one that has no page.
+    ({ panel } = await makeProduct(page, { sku: product.sku, regular: (product.cents / 100).toFixed(2), ounces: product.ounces }));
+    did.push("added");
     shown = await panelProduct(panel);
   }
   // A page naming some other product is never written to, so the SKU is checked before anything changes it.
@@ -201,7 +196,7 @@ async function completeProduct(page, content, product, { entry, uploaded }, did)
     await setPrice(panel, price);
     did.push("price");
   }
-  if (await panel.getByRole("textbox", { name: "Weight (oz)", exact: true }).inputValue() !== String(product.ounces)) {
+  if (await panelWeight(panel) !== String(product.ounces)) {
     await setWeight(panel, product.ounces);
     did.push("weight");
   }
@@ -258,7 +253,7 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
       pages = await productPages(page);
       // Commerce Orders' address carries Commerce's id: /_emdash/admin/plugins/<id>/orders.
       commerce = pluginVersion(await notePlugins(page), new URL(config.ordersAdmin).pathname.match(/\/plugins\/([^/]+)/)?.[1]);
-      canAdd = versionAtLeast(commerce, COMMERCE_WITH_PANEL);
+      canAdd = catalogCanAdd(commerce);
       note("product pages", total(pages));
       const have = products.filter(product => pages.has(product.name)).length;
       return `${plural(total(pages), "product page")}; ${have} of the catalog's ${products.length} among them`;
@@ -317,7 +312,7 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
       const completed = [];
       for (let start = 0; start < todo.length; start += UPLOAD_BATCH) {
         const batch = todo.slice(start, start + UPLOAD_BATCH);
-        // Products without a page get their photos uploaded together; one with a page gets one only if its panel shows none.
+        // Catalog products without a page get their photos uploaded together; one with a page gets one only if its panel shows none.
         const photos = batch.filter(product => !pages.has(product.name));
         // A photo that doesn't go up is recorded, and its product uploads it again on its own.
         const missed = new Set();
@@ -404,7 +399,7 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
       // A weight save once failed on a store with more than a handful of products, since each product
       // screen read the whole catalog; this is that save, in the product page's panel, with every page
       // of Content > Products read first.
-      if (!canAdd) throw new Error(`This store runs Commerce ${commerce ?? "of a version the test couldn't read"}, which has no Dinkus Commerce panel on its product pages; it needs ${COMMERCE_WITH_PANEL} or later.`);
+      if (!canAdd) throw new Error(`This store runs Commerce ${commerce ?? "of a version the test couldn't read"}, whose product panel this test doesn't drive; it needs ${COMMERCE_FOR_CATALOG} or later.`);
       await paceStore(PRODUCT_ROOM);
       const now = await productPages(page);
       const missing = products.filter(product => !now.has(product.name)).map(product => `"${product.name}"`);
@@ -413,15 +408,11 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
       const twins = now.get(first.name).length;
       if (twins > 1) throw new Error(`Content > Products has ${twins} pages titled "${first.name}", so the test can't tell which is the catalog's; remove the extra one.`);
       const [entry] = now.get(first.name);
-      let panel = await openProductPanel(page, entry.editor);
-      // A page saved before Commerce kept its own note of pages opens on "Not a product yet"; Add price
-      // and stock then opens the product the page names, and makes none. Without that field, Commerce's
-      // link is the only one, so the product is chosen again by its SKU.
-      if ((await panelProduct(panel)).state === "none") {
-        if (entry.boxed && !entry.commerceId) throw new Error(`"${first.name}"'s page names no Commerce product.`);
-        ({ panel } = await addPriceAndStock(page, first.sku, {}, { link: true }));
-      }
+      const panel = await openProductPanel(page, entry.editor);
+      // A page whose panel offers to make a product has none; from Commerce 0.8.0 a product can't be
+      // linked to a page afterwards, and saving would make a second one, so the test saves nothing.
       const shown = await panelProduct(panel);
+      if (shown.state === "none") throw new Error(`"${first.name}"'s page has no Commerce product: its panel offers to make one, so the test saved nothing.`);
       if (shown.sku !== first.sku) throw new Error(`"${first.name}"'s panel shows SKU ${shown.sku || "none"} instead of ${first.sku}, so the test saved nothing.`);
       await setWeight(panel, first.ounces);
       return `Content > Products lists ${plural(total(now), "product page")}; "${first.name}" saved at ${first.ounces} oz in its panel`;

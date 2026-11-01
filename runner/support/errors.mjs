@@ -52,6 +52,11 @@ const PAGE_PARTS = new Set(["the title", "the style", "the slug", "the first Sav
 const KINDS = [
   // The product journeys' panel checks: what the Dinkus Commerce panel showed instead.
   [/panel shows the product as (draft|archived|on sale|not a product yet) instead of (on sale|draft|archived)/, match => `the panel showed ${match[1]}, not ${match[2]}`],
+  // products-admin.mjs openCard and makeProduct: the panel's cards (Commerce 0.8.0) and its first Save.
+  [/The Dinkus Commerce panel has no (Shipping|Identifiers|Variants) card/, match => `the panel had no ${match[1]} card`],
+  [/The (Shipping|Identifiers|Variants) card didn't open/, match => `the panel's ${match[1]} card didn't open`],
+  [/Commerce said it made the product, but links the product page to no product/, () => "Commerce made the product but linked the page to none"],
+  [/page has no Commerce product: its panel offers to make one/, () => "the page had no Commerce product"],
   // The storefront checks: which page answered, from the journeys' own words, never the page's path.
   [/the (homepage|product page) answered HTTP (\d{3})/, match => `the ${match[1]} answered HTTP ${match[2]}`],
   [/(?:^|; )\/categories\/\S+ answered HTTP (\d{3})/, match => `the category page answered HTTP ${match[1]}`],
