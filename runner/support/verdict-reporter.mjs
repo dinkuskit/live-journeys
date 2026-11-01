@@ -43,9 +43,15 @@ export default class VerdictReporter {
     }
     for (const error of this.errors) failUnrecorded(TEST_RUN, "The test run finished without an error", firstLine(error.message));
     // A run Playwright reports interrupted or timed out fails, even when every journey it ran passed.
-    if (result.status !== "passed" && verdicts().verdict !== "FAIL") failUnrecorded(TEST_RUN, "The test run finished", `Playwright reported the run ${result.status}`);
+    const interrupted = result.status === "interrupted" || result.status === "timedout";
+    if (interrupted || (result.status !== "passed" && verdicts().verdict !== "FAIL")) {
+      failUnrecorded(TEST_RUN, "The test run finished", `Playwright reported the run ${result.status}`);
+    }
     const refusals = storeRefusals();
-    if (refusals) note("store refusals", refusals);
+    if (refusals) {
+      verdicts();
+      note("store refusals", refusals);
+    }
     const { verdict, journeys } = verdicts();
     if (!journeys.length) return;
     console.log(`\n${journeys.map(entry => `${entry.name}: ${entry.verdict}`).join("\n")}`);

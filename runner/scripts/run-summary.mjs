@@ -24,9 +24,15 @@ const facts = report?.facts ?? {};
 const storeRefusals = typeof facts["store refusals"] === "string" && STORE_REFUSALS_PATTERN.test(facts["store refusals"]) ? facts["store refusals"] : "";
 // "Update the store" readies the store; only the journeys after it test what it runs.
 const tested = journeys.some(({ name }) => name !== "Update the store");
+// Playwright exits 1 when journeys finish with a recorded failure; an empty or signal exit code, a
+// Test run error, or a journey still INCOMPLETE means the run was cut off or failed outside its steps.
+const completedFailure = (code === "0" || code === "1")
+  && report?.verdict === "FAIL"
+  && journeys.length > 0
+  && journeys.every(entry => entry.name !== "Test run" && entry.verdict !== "INCOMPLETE");
 
 function failureNote() {
-  if (verdict !== "FAIL" || !finished) return "";
+  if (!completedFailure) return "";
   const failedJourneys = journeys.filter(entry => entry.verdict === "FAIL");
   if (!failedJourneys.length) return "";
   const failedSteps = failedJourneys.flatMap(({ name }) => allSteps.filter(entry => entry.journey === name && !entry.retried && entry.status === "FAIL"));
