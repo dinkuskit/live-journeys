@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after } from "node:test";
@@ -146,4 +147,71 @@ test("a retry that fails again after a try that failed before its first step kee
   reporter.onEnd({ status: "failed" });
   assert.equal(proof.journeyVerdict("Storefront twice"), "FAIL");
   assert.match(saved()[1], /\| The try finished without an error \(first try\) \| FAIL \| browserType\.launchPersistentContext: first \|\n\| The journey finished without an error \| FAIL \| browserType\.launchPersistentContext: second \|/);
+});
+
+test("recording store refusals on an all-passing run preserves worker-written journeys, steps and facts", (t) => {
+  quiet(t);
+  const runFolder = join(dir, "reused");
+  try {
+    writeFileSync(join(runFolder, "report.json"), JSON.stringify({
+      run: "reused",
+      mode: "full",
+      store: "",
+      ship: "https://ship.dinkuskit.com",
+      verdict: "PASS",
+      journeys: [{ name: "Update the store", verdict: "PASS" }],
+      facts: { plugins: "dinkus-commerce-beta 0.8.0-beta.1" },
+      steps: [{ journey: "Update the store", step: "Read installed plugins", status: "PASS", detail: "", at: "2026-11-01T00:00:00.000Z" }],
+    }));
+    // Playwright constructs the reporter in the main process before worker processes execute any journeys.
+    const reporter = new VerdictReporter();
+    const proofModule = new URL("../support/proof.mjs", import.meta.url).href;
+    const paceModule = new URL("../support/pace.mjs", import.meta.url).href;
+    execFileSync(process.execPath, [
+      "--input-type=module",
+      "-e",
+      `const proof = await import(${JSON.stringify(proofModule)});
+       const pace = await import(${JSON.stringify(paceModule)});
+       proof.startJourney("Storefront");
+       proof.record("A new shopper can open the store", "PASS");
+       proof.note("products listed", 4);
+       pace.countStoreResponse("https://store.example/_image?href=cap.png", 503);`,
+    ], { env: { ...process.env, DINKUS_E2E_STORE: "https://store.example" } });
+
+    reporter.onBegin({}, { allTests: () => [{ title: "Storefront", results: [{ status: "passed" }] }] });
+    reporter.onEnd({ status: "passed" });
+
+    const [rawReport, markdown] = saved();
+    const report = JSON.parse(rawReport);
+    assert.equal(report.verdict, "PASS");
+    assert.deepEqual(report.journeys, [
+      { name: "Update the store", verdict: "PASS" },
+      { name: "Storefront", verdict: "PASS" },
+    ]);
+    assert.deepEqual(report.steps.map(step => step.step), [
+      "Read installed plugins",
+      "A new shopper can open the store",
+    ]);
+    assert.deepEqual(report.facts, {
+      plugins: "dinkus-commerce-beta 0.8.0-beta.1",
+      "products listed": 4,
+      "store refusals": "1x HTTP 503 (store image)",
+    });
+    assert.match(markdown, /## Update the store: PASS/);
+    assert.match(markdown, /## Storefront: PASS/);
+    assert.match(markdown, /- store refusals: 1x HTTP 503 \(store image\)/);
+  } finally {
+    rmSync(join(runFolder, ".store-refusals.log"), { force: true });
+  }
+});
+
+test("an interrupted run records Test run failure even after an earlier soft step failure", (t) => {
+  quiet(t);
+  const reporter = new VerdictReporter();
+  proof.startJourney("Manage products");
+  proof.record("A Draft product stays off the store", "FAIL", "page.goto: Timeout 20000ms exceeded.");
+  reporter.onBegin({}, { allTests: () => [{ title: "Manage products", results: [{ status: "interrupted" }] }] });
+  reporter.onEnd({ status: "interrupted" });
+  const report = JSON.parse(saved()[0]);
+  assert.ok(report.journeys.some(entry => entry.name === "Test run" && entry.verdict === "FAIL"));
 });

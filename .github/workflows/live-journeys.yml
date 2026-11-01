@@ -83,6 +83,7 @@ jobs:
           node-version: "24.22.0"
 
       - name: Install the runner and the label PDF renderer
+        timeout-minutes: 10
         run: |
           # A fresh Chrome profile and proof folder for every run, outside the checkout.
           echo "DINKUS_E2E_PROOF=$RUNNER_TEMP/proof" >> "$GITHUB_ENV"

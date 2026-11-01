@@ -14,7 +14,8 @@ Object.assign(process.env, {
   DINKUS_E2E_PROFILE: join(dir, "profile"),
   DINKUS_E2E_STORE: "https://store.example",
 });
-const { STORE_BUDGET, countStoreRequest, paceStore, waitFor, watchStoreRequests } = await import("../support/pace.mjs");
+const { STORE_BUDGET, countStoreRequest, countStoreResponse, paceStore, storeRefusals, waitFor, watchStoreRequests } = await import("../support/pace.mjs");
+const { filterPage } = await import("../support/request-policy.mjs");
 
 const now = 1_000_000;
 const sentAt = (count, from) => Array.from({ length: count }, (_, i) => from + i);
@@ -99,4 +100,130 @@ test("a file the browser answers from its own copy counts only until it's answer
   await paceStore(STORE_BUDGET);
   t.mock.timers.tick(60_250);
   await waiting;
+});
+
+test("store HTTP 429 and 5xx answers are grouped by fixed route kind and ignore replays and other sites", () => {
+  assert.equal(storeRefusals(), "");
+  const context = new EventEmitter();
+  const replays = new WeakSet();
+  watchStoreRequests(context, { replayed: request => replays.has(request) });
+  const respond = (url, status, { replayed = false } = {}) => {
+    const request = { url: () => url };
+    if (replayed) replays.add(request);
+    context.emit("response", { url: () => url, status: () => status, request: () => request });
+  };
+  respond("https://store.example/_image?href=hidden.png&w=640", 503);
+  respond("https://store.example/_image?href=other.png&w=640", 503);
+  respond("https://store.example/_emdash/api/plugins/r_hidden/admin", 429);
+  respond("https://store.example/_emdash/api/plugin-extensions/r_hidden/panel/p", 429);
+  respond("https://store.example/_emdash/api/media/file/hidden.png", 502);
+  respond("https://store.example/api/guest-cart/snapshot?ids=hidden", 429);
+  countStoreResponse("https://store.example/products/hidden-slug", 500);
+  // Non-store hosts, 2xx/404s, dev-server scripts and local replays never count as store refusals.
+  respond("https://dinkuskit.com/account", 429);
+  respond("https://store.example/products/missing", 404);
+  respond("https://store.example/_astro/chunk.js", 500, { replayed: true });
+  countStoreResponse("https://store.example/@vite/client", 500);
+  assert.equal(
+    storeRefusals(),
+    "2x HTTP 503 (store image), 2x HTTP 429 (plugin route), 1x HTTP 502 (media), 1x HTTP 429 (cart API), 1x HTTP 500 (store page)"
+  );
+});
+
+test("ETag conditional fallbacks consume pacing budget for both network attempts, while 304 and blocked redirects count once", { timeout: 10_000 }, async t => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 15_000_000 });
+  let routeHandler;
+  const context = new EventEmitter();
+  Object.assign(context, {
+    newCDPSession: async () => ({ on: () => {}, send: async () => {} }),
+    cookies: async () => [],
+    route: async (_, fn) => { routeHandler = fn; },
+    routeWebSocket: async () => {},
+  });
+  watchStoreRequests(context);
+  await filterPage({ context: () => context, on: () => {} }, {
+    store: "https://store.example",
+    accessOrigins: ["https://store-team.cloudflareaccess.com"],
+  });
+
+  const image = "https://store.example/_image?href=cap.png&w=640";
+  const cacheable = { "cache-control": "public, max-age=0, must-revalidate", etag: 'W/"cap"' };
+  const seedCopy = async () => {
+    const req = {
+      url: () => image,
+      method: () => "GET",
+      headerValue: async () => null,
+      timing: () => ({ startTime: Date.now(), responseStart: -1 }),
+    };
+    const listeners = context.listeners("response");
+    for (const fn of listeners) {
+      await fn({
+        url: () => image,
+        status: () => 200,
+        headers: () => cacheable,
+        body: async () => Buffer.from("webp"),
+        request: () => req,
+      });
+    }
+  };
+  const browserGet = async fetcher => {
+    const req = {
+      url: () => image,
+      method: () => "GET",
+      frame: () => null,
+      headers: () => ({}),
+      isNavigationRequest: () => false,
+      headerValue: async () => null,
+      timing: () => ({ startTime: Date.now(), responseStart: -1 }),
+    };
+    context.emit("request", req);
+    await routeHandler({
+      request: () => req,
+      fetch: fetcher,
+      fulfill: async () => {},
+      fallback: async () => {},
+      abort: async () => {},
+    });
+    context.emit("requestfinished", req);
+  };
+
+  await seedCopy();
+  // 1 browser request with 304 revalidation -> 1 store request.
+  await browserGet(async () => ({ status: () => 304, headers: () => cacheable, dispose: async () => {} }));
+  // 1 browser request whose ETag fetch times out and falls back -> 2 store requests (3 total).
+  await browserGet(async () => { throw new Error("Timeout 20000ms exceeded"); });
+  // 1 browser request whose ETag fetch gets an allowed 302 redirect and falls back -> 2 store requests (5 total).
+  await seedCopy();
+  await browserGet(async () => ({
+    status: () => 302,
+    headers: () => ({ location: "https://store-team.cloudflareaccess.com/cdn-cgi/access/login" }),
+    dispose: async () => {},
+  }));
+  // 1 browser request whose ETag fetch gets a blocked redirect and aborts -> 1 store request (6 total).
+  await seedCopy();
+  await browserGet(async () => ({
+    status: () => 302,
+    headers: () => ({ location: "https://evil.example/leak" }),
+    dispose: async () => {},
+  }));
+  // 1 browser request whose ETag fetch gets 503 with a reset body and falls back -> 2 store requests (8 total).
+  await seedCopy();
+  await browserGet(async () => ({
+    status: () => 503,
+    headers: () => ({}),
+    body: async () => { throw new Error("reset"); },
+    dispose: async () => {},
+  }));
+
+  // Exactly 8 store network attempts were sent across the 5 browser requests above.
+  await paceStore(STORE_BUDGET - 8);
+  let ready = false;
+  const waiting = paceStore(STORE_BUDGET - 7).then(() => { ready = true; });
+  t.mock.timers.tick(59_000);
+  await Promise.resolve();
+  assert.equal(ready, false);
+  t.mock.timers.tick(1_500);
+  await waiting;
+  assert.equal(ready, true);
+  assert.match(storeRefusals(), /^3x HTTP 503 \(store image\),/);
 });

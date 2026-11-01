@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { test as base, chromium } from "@playwright/test";
 import { config } from "./env.mjs";
-import { countStoreRequest, watchStoreRequests } from "./pace.mjs";
+import { countStoreRequest, countStoreResponse, watchStoreRequests } from "./pace.mjs";
 import { filterPage, filteredGet } from "./request-policy.mjs";
 
 const SIZE = { width: 1280, height: 900 };
@@ -97,9 +97,11 @@ export const get = (page, url, options) => {
   const client = page.context().request;
   // Each redirect hop is a request of its own, and every one that reaches the store counts.
   const counted = {
-    get(hop, hopOptions) {
+    async get(hop, hopOptions) {
       countStoreRequest(hop);
-      return client.get(hop, hopOptions);
+      const response = await client.get(hop, hopOptions);
+      countStoreResponse(hop, response.status());
+      return response;
     },
   };
   return filteredGet(counted, url, config, options);

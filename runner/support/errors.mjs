@@ -74,6 +74,20 @@ const KINDS = [
   [/image picker shows no picture the test could fetch/, () => "the image picker's picture couldn't be fetched"],
   [/Commerce never answered, so it never said/, () => "Commerce never answered the panel press"],
   [/Commerce refused it: "(?:HTTP (\d{3})")?/, match => `Commerce refused the panel press${match[1] ? ` (HTTP ${match[1]})` : ""}`],
+  // commerce-settings.mjs, products-admin.mjs, store-check.mjs and checkout.mjs: which layer didn't draw or load.
+  [/Commerce Settings didn't draw within a minute/, () => "Commerce Settings didn't draw"],
+  [/Commerce Settings didn't open: it shows Plugin Error/, () => "Commerce Settings showed Plugin Error"],
+  [/The (Dinkus Commerce|Product image & gallery) panel didn't draw/, match => `the ${match[1]} panel didn't draw`],
+  [/The (Dinkus Commerce|Product image & gallery) panel says "/, match => `the ${match[1]} panel showed an error`],
+  [/The product page's editor shows no (Dinkus Commerce|Product image & gallery) panel/, match => `the editor had no ${match[1]} panel`],
+  [/The store did not open Stripe Checkout:/, () => "the store didn't open Stripe Checkout"],
+  [/The (?:cart|checkout page) never offered checkout:/, () => "the cart never offered checkout"],
+  [/has a photo that didn't load/, () => "a product photo didn't load"],
+  [/(?:has )?no working Add to cart button/, () => "Add to cart never became ready"],
+  [/didn't answer \(.*?Timeout (\d+)ms exceeded[^)]*; still loading [^)]*(?:\/_image\b|\/_emdash\/api\/media\/)/, match => `timed out after ${Math.round(Number(match[1]) / 1000)} s (still loading a store image)`],
+  [/didn't answer \(.*?Timeout (\d+)ms exceeded[^)]*; still loading [^)]*\/_emdash\/api\/plugins\//, match => `timed out after ${Math.round(Number(match[1]) / 1000)} s (still loading a plugin route)`],
+  [/didn't answer \(.*?Timeout (\d+)ms exceeded[^)]*; still loading [^)]*\/api\/(?:guest-cart|checkout)\//, match => `timed out after ${Math.round(Number(match[1]) / 1000)} s (still loading the cart API)`],
+  [/didn't answer \(.*?Timeout (\d+)ms exceeded/, match => `the store page didn't answer within ${Math.round(Number(match[1]) / 1000)} s`],
   // products-admin.mjs saveEditor: what covered the editor's Save, in its own fixed words.
   [/The editor's Save took no click: (no dialog is open(?:, and at Save the page shows (?:off the screen|under nothing|the button, disabled|the button itself|a frame|a toast|a sidebar|another element|unreadable))?|the dialog (?:Review proposed changes|Add references) is open|another dialog is open)\./, match => `the editor's Save took no click (${match[1]})`],
   // products-admin.mjs `at`: which part of a product page's editor stopped, from its fixed few.
@@ -154,3 +168,9 @@ export const failureKind = detail => {
   }
   return "one of the step's own checks failed";
 };
+
+/** Fixed format of `facts["store refusals"]` that the public run summary may print. */
+export const STORE_REFUSALS_PATTERN = /^\d+x HTTP (?:429|5\d\d) \((?:store image|media|plugin route|admin API|cart API|store page)\)(?:, \d+x HTTP (?:429|5\d\d) \((?:store image|media|plugin route|admin API|cart API|store page)\))*$/;
+
+/** Whether `kind` is a wait or connection timeout rather than a store or plugin check failing on an answer. */
+export const isWaitFailureKind = kind => /^(?:timed out |the store page didn't answer |Commerce Settings didn't draw$|the (?:Dinkus Commerce|Product image & gallery) panel didn't draw$|Commerce never answered the panel press$|network error )/.test(kind);

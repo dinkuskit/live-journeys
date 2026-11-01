@@ -164,3 +164,67 @@ test("the public summary shows a journey that passed only on its retry as FLAKY,
   assert.match(out, /^\| Add to cart \| PASS \| {2}\|$/m);
   assert.doesNotMatch(out, /hidden-detail/);
 });
+
+test("the public summary prints fixed store HTTP 429 / 5xx counts and timeout notes on exit code 1, and suppresses notes on interrupted runs", () => {
+  const folder = mkdtempSync(join(tmpdir(), "summary-"));
+  const script = new URL("../scripts/run-summary.mjs", import.meta.url).pathname;
+  const runFailingSummary = (report, code = "1") => {
+    writeFileSync(join(folder, "report.json"), JSON.stringify(report));
+    let out = "", status = 0;
+    try {
+      out = execFileSync(process.execPath, [script, folder, code, "R2"], { encoding: "utf8" });
+    } catch (error) {
+      out = error.stdout;
+      status = error.status;
+    }
+    assert.equal(status, 1);
+    assert.match(out, /^## Live journeys: FAIL$/m);
+    return out;
+  };
+  // Mid-journey timeout followed by passing steps with Playwright exit code 1 gets the mid-journey Failure note.
+  const midJourneyReport = {
+    verdict: "FAIL",
+    journeys: [{ name: "Manage products", verdict: "FAIL" }],
+    steps: [
+      { journey: "Manage products", step: "A Draft product stays off the store", status: "FAIL", detail: "While the page is unpublished, / didn't answer (page.goto: Timeout 20000ms exceeded.; still loading /_image) after 61 s." },
+      { journey: "Manage products", step: "Publishing the page puts the product on sale", status: "PASS", detail: "private" },
+    ],
+  };
+  const midJourney = runFailingSummary(midJourneyReport, "1");
+  assert.match(midJourney, /^\| Test run \| FAIL: the run exited 1 \|$/m);
+  assert.match(midJourney, /^\| A Draft product stays off the store \| FAIL \| timed out after 20 s \(still loading a store image\) \|$/m);
+  assert.match(midJourney, /^Failure note: every failed step timed out waiting on the store or network, and later steps in the same journey passed;/m);
+  assert.doesNotMatch(midJourney, /private/);
+
+  // Rate-limited run with exit code 1 names the HTTP 429 bucket count and rate-limit Failure note.
+  const rateLimited = runFailingSummary({
+    verdict: "FAIL",
+    journeys: [{ name: "Commerce settings", verdict: "FAIL" }],
+    facts: { "store refusals": "3x HTTP 429 (plugin route), 1x HTTP 503 (store image)" },
+    steps: [{ journey: "Commerce settings", step: "Commerce Settings shows the store connected", status: "FAIL", detail: "Commerce Settings didn't draw within a minute." }],
+  }, "1");
+  assert.match(rateLimited, /^Store HTTP 429 \/ 5xx answers during the run: 3x HTTP 429 \(plugin route\), 1x HTTP 503 \(store image\)$/m);
+  assert.match(rateLimited, /^Failure note: every failed step timed out or lost its connection on a run where the store answered HTTP 429 \(rate limit\);/m);
+
+  // Interrupted, cut-off, or mid-journey crashed runs never claim every failure was a store/network timeout.
+  assert.doesNotMatch(runFailingSummary(midJourneyReport, ""), /Failure note:/);
+  assert.doesNotMatch(runFailingSummary(midJourneyReport, "130"), /Failure note:/);
+  assert.doesNotMatch(runFailingSummary({
+    ...midJourneyReport,
+    journeys: [...midJourneyReport.journeys, { name: "Cart", verdict: "INCOMPLETE" }],
+  }, "1"), /Failure note:/);
+  assert.doesNotMatch(runFailingSummary({
+    ...midJourneyReport,
+    journeys: [...midJourneyReport.journeys, { name: "Test run", verdict: "FAIL" }],
+    steps: [...midJourneyReport.steps, { journey: "Test run", step: "The test run finished", status: "FAIL", detail: "Playwright reported the run interrupted" }],
+  }, "1"), /Failure note:/);
+
+  // Unapproved words in facts["store refusals"] are dropped, and non-wait failures suppress the timeout note.
+  const productBug = runFailingSummary({
+    verdict: "FAIL",
+    journeys: [{ name: "Manage products", verdict: "FAIL" }],
+    facts: { "store refusals": `1x HTTP 429 (/hidden/slug?${["id", "synthetic"].join("=")})` },
+    steps: [{ journey: "Manage products", step: "Publishing the page puts the product on sale", status: "FAIL", detail: "after publishing, the page's Dinkus Commerce panel shows the product as draft instead of on sale" }],
+  }, "1");
+  assert.doesNotMatch(productBug, /Store HTTP 429|Failure note:|hidden|synthetic/);
+});
