@@ -1,5 +1,5 @@
 import { get, newPage, test, expect, shopperPage, closeShopper } from "../support/browser.mjs";
-import { catalogPlan } from "../support/catalog.mjs";
+import { COMMERCE_FOR_CATALOG, catalogCanAdd, catalogPlan } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
 import { firstLine, withoutQueries } from "../support/errors.mjs";
 import {
@@ -10,17 +10,16 @@ import { PHOTO_ROOM, STORE_BUDGET, paceStore } from "../support/pace.mjs";
 import { note } from "../support/proof.mjs";
 import { openShopperPage } from "../support/shopper.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
-import { pluginVersion, versionAtLeast } from "../support/store-plugins.mjs";
+import { pluginVersion } from "../support/store-plugins.mjs";
 import { journey, step } from "../support/steps.mjs";
 import { photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
 import { dollars, money } from "../support/storefront-text.mjs";
 
 // An error's first line without its full stop, since findings are joined into one sentence.
 const reason = error => firstLine(error).replace(/\.$/, "");
-// The first Commerce whose products are kept in each product page's Dinkus Commerce panel; before it,
-// Commerce had a Products page of its own, which this journey no longer drives.
-const COMMERCE_WITH_PANEL = "0.6.0-beta.1";
-const tooOld = (commerce, lacks) => new Error(`The catalog lacks ${lacks}, but this store runs Commerce ${commerce ?? "of a version the test couldn't read"}, which has no Dinkus Commerce panel on its product pages. It needs Commerce ${COMMERCE_WITH_PANEL} or later; nothing was added.`);
+// The journey adds to the store only on a Commerce whose panel its helpers drive (COMMERCE_FOR_CATALOG); on an
+// older one it writes nothing at all, so no category, photo or page is left behind by a panel it can't use.
+const tooOld = (commerce, lacks) => new Error(`The catalog lacks ${lacks}, but this store runs Commerce ${commerce ?? "of a version the test couldn't read"}, whose product panel this test doesn't drive. It needs Commerce ${COMMERCE_FOR_CATALOG} or later; nothing was added.`);
 // Commerce's image picker lists twelve photos a page, so uploading that many at a time keeps each new photo on its first page.
 const UPLOAD_BATCH = 12;
 // The most store requests the owner's work sends, measured on a local store: the Media library shows
@@ -254,7 +253,7 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
       pages = await productPages(page);
       // Commerce Orders' address carries Commerce's id: /_emdash/admin/plugins/<id>/orders.
       commerce = pluginVersion(await notePlugins(page), new URL(config.ordersAdmin).pathname.match(/\/plugins\/([^/]+)/)?.[1]);
-      canAdd = versionAtLeast(commerce, COMMERCE_WITH_PANEL);
+      canAdd = catalogCanAdd(commerce);
       note("product pages", total(pages));
       const have = products.filter(product => pages.has(product.name)).length;
       return `${plural(total(pages), "product page")}; ${have} of the catalog's ${products.length} among them`;
@@ -400,7 +399,7 @@ test("Full catalog", { tag: "@running" }, journey(async ({ page }) => {
       // A weight save once failed on a store with more than a handful of products, since each product
       // screen read the whole catalog; this is that save, in the product page's panel, with every page
       // of Content > Products read first.
-      if (!canAdd) throw new Error(`This store runs Commerce ${commerce ?? "of a version the test couldn't read"}, which has no Dinkus Commerce panel on its product pages; it needs ${COMMERCE_WITH_PANEL} or later.`);
+      if (!canAdd) throw new Error(`This store runs Commerce ${commerce ?? "of a version the test couldn't read"}, whose product panel this test doesn't drive; it needs ${COMMERCE_FOR_CATALOG} or later.`);
       await paceStore(PRODUCT_ROOM);
       const now = await productPages(page);
       const missing = products.filter(product => !now.has(product.name)).map(product => `"${product.name}"`);

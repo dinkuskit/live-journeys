@@ -295,8 +295,8 @@ product on sale fail. See the runner README's "Run on GitHub".
   the amounts the proof gives.
 - Manage products stops when Content > Products won't open, when its product
   page can't be added, or when the page's Dinkus Commerce panel can't give it a
-  product with a price and a weight (no panel means Commerce before
-  0.6.0-beta.1; report that the store needs it). When "Publishing the page puts
+  product with a price and a weight (a panel without the first Save that makes
+  the product means Commerce before 0.8.0-beta.1; report that the store needs it). When "Publishing the page puts
   the product on sale" fails because the panel still says Draft, report that the
   store lacks the template's publish check (template-store#152), not a Commerce
   fault. Its other steps are soft:
@@ -306,7 +306,8 @@ product on sale fail. See the runner README's "Run on GitHub".
 - Full catalog stops when Content > Products won't open or a category can't be
   published. Its other steps are soft: report each product a page leaves out or
   shows wrong, with the page. When it adds nothing because the store's Commerce
-  is older than 0.6.0-beta.1, report that the store needs that release first.
+  is older than 0.8.0-beta.1 (or its version can't be read), report that the
+  store needs that release first; it then writes nothing to the store.
 - Mark as completed stops when the owner can't open Commerce Orders, when an
   order can't be placed, or when EmDash won't make the agent's key. Its other
   steps are soft: report a refused completion with Commerce's answer, and an
