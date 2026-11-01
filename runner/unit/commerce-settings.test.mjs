@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { commerceSettings } from "../support/commerce-settings.mjs";
+import { commerceSettings, openCommercePage } from "../support/commerce-settings.mjs";
 
 const list = items => ({ data: { items } });
 const commerce = (extra = {}) => ({
@@ -50,4 +50,35 @@ test("Commerce settings stay closed unless Plugins would show that one form", ()
   assert.match(commerceSettings(list([commerce({ name: "" })])).error, /without a name/);
   assert.match(commerceSettings(null).error, /couldn't be read/);
   assert.equal(commerceSettings(list([commerce({ enabled: false })])).path, undefined);
+});
+
+function fakeCommercePage(outcomes) {
+  let attempt = -1;
+  const current = () => outcomes[Math.min(attempt, outcomes.length - 1)];
+  const locator = kind => ({
+    or: () => locator("any"),
+    first: () => locator(kind),
+    waitFor: async () => { if (current() === "timeout") throw new Error("Timeout 30000ms exceeded."); },
+    isVisible: async () => current() === "error",
+    count: async () => current() === "dinkus" ? 1 : 0,
+  });
+  return {
+    opens: () => attempt + 1,
+    open: async () => { attempt++; },
+    page: { getByRole: (_role, { name }) => locator(name) },
+  };
+}
+
+test("openCommercePage reloads once after a silent 30 s stall, stops on Plugin Error, and names a blank minute", async () => {
+  const recovered = fakeCommercePage(["timeout", "dinkus"]);
+  assert.equal(await openCommercePage(recovered.page, "https://store.example/settings", { open: recovered.open }), true);
+  assert.equal(recovered.opens(), 2);
+
+  const errored = fakeCommercePage(["error"]);
+  await assert.rejects(openCommercePage(errored.page, "https://store.example/settings", { open: errored.open }), /Plugin Error/);
+  assert.equal(errored.opens(), 1);
+
+  const blank = fakeCommercePage(["timeout", "timeout"]);
+  await assert.rejects(openCommercePage(blank.page, "https://store.example/settings", { open: blank.open }), /Commerce Settings didn't draw within a minute/);
+  assert.equal(blank.opens(), 2);
 });

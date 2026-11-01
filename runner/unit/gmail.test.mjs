@@ -164,3 +164,43 @@ test("the public summary shows a journey that passed only on its retry as FLAKY,
   assert.match(out, /^\| Add to cart \| PASS \| {2}\|$/m);
   assert.doesNotMatch(out, /hidden-detail/);
 });
+
+test("the public summary prints fixed store HTTP 429 / 5xx counts and timeout notes, and rejects free-form refusal text", () => {
+  const folder = mkdtempSync(join(tmpdir(), "summary-"));
+  const script = new URL("../scripts/run-summary.mjs", import.meta.url).pathname;
+  const runSummary = report => {
+    writeFileSync(join(folder, "report.json"), JSON.stringify(report));
+    try { return execFileSync(process.execPath, [script, folder, "0", "R2"], { encoding: "utf8" }); } catch (error) { return error.stdout; }
+  };
+  // Mid-journey timeout followed by passing steps gets the mid-journey Failure note.
+  const midJourney = runSummary({
+    verdict: "FAIL",
+    journeys: [{ name: "Manage products", verdict: "FAIL" }],
+    steps: [
+      { journey: "Manage products", step: "A Draft product stays off the store", status: "FAIL", detail: "While the page is unpublished, / didn't answer (page.goto: Timeout 20000ms exceeded.; still loading /_image) after 61 s." },
+      { journey: "Manage products", step: "Publishing the page puts the product on sale", status: "PASS", detail: "private" },
+    ],
+  });
+  assert.match(midJourney, /^\| A Draft product stays off the store \| FAIL \| timed out after 20 s \(still loading a store image\) \|$/m);
+  assert.match(midJourney, /^Failure note: every failed step timed out waiting on the store or network, and later steps in the same journey passed;/m);
+  assert.doesNotMatch(midJourney, /private/);
+
+  // Rate-limited run names the HTTP 429 bucket count and rate-limit Failure note.
+  const rateLimited = runSummary({
+    verdict: "FAIL",
+    journeys: [{ name: "Commerce settings", verdict: "FAIL" }],
+    facts: { "store refusals": "3x HTTP 429 (plugin route), 1x HTTP 503 (store image)" },
+    steps: [{ journey: "Commerce settings", step: "Commerce Settings shows the store connected", status: "FAIL", detail: "Commerce Settings didn't draw within a minute." }],
+  });
+  assert.match(rateLimited, /^Store HTTP 429 \/ 5xx answers during the run: 3x HTTP 429 \(plugin route\), 1x HTTP 503 \(store image\)$/m);
+  assert.match(rateLimited, /^Failure note: every failed step timed out or lost its connection on a run where the store answered HTTP 429 \(rate limit\);/m);
+
+  // Unapproved words in facts["store refusals"] are dropped, and non-wait failures suppress the timeout note.
+  const productBug = runSummary({
+    verdict: "FAIL",
+    journeys: [{ name: "Manage products", verdict: "FAIL" }],
+    facts: { "store refusals": `1x HTTP 429 (/hidden/slug?${["id", "synthetic"].join("=")})` },
+    steps: [{ journey: "Manage products", step: "Publishing the page puts the product on sale", status: "FAIL", detail: "after publishing, the page's Dinkus Commerce panel shows the product as draft instead of on sale" }],
+  });
+  assert.doesNotMatch(productBug, /Store HTTP 429|Failure note:|hidden|synthetic/);
+});

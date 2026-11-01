@@ -1,4 +1,5 @@
 import { config } from "./env.mjs";
+import { countStoreRequest, countStoreResponse } from "./pace.mjs";
 import { note } from "./proof.mjs";
 
 // An agent working on the store with an EmDash API key and nothing else: the key the test makes from
@@ -13,8 +14,11 @@ const redirected = response => response.status >= 300 && response.status < 400;
  * answer that carries it ever passes through the browser. A failure names only what went wrong.
  */
 export async function send(url, init, what) {
-  return fetch(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(30_000) })
+  countStoreRequest(url);
+  const response = await fetch(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(30_000) })
     .catch(error => { throw new Error(`The test couldn't reach ${what} (${error.cause?.code ?? error.name}).`); });
+  countStoreResponse(url, response.status);
+  return response;
 }
 
 /** A refused call's HTTP status and the reason EmDash or Commerce gave, or where it was sent instead. */

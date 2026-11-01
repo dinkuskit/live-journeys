@@ -89,11 +89,46 @@ const isStore = url => {
 };
 // Scripts only a local development server sends (a deployed store bundles them under /_astro/).
 const DEV_SERVER = /^\/(?:@|node_modules\/|src\/)/;
+const refusalsFile = join(config.runDir, ".store-refusals.log");
+
+function storeBucket(pathname) {
+  if (/^\/_image(?:\/|$)/.test(pathname)) return "store image";
+  if (/^\/_emdash\/api\/media\//.test(pathname)) return "media";
+  if (/^\/_emdash\/api\/(?:plugins|plugin-extensions|admin\/plugins)(?:\/|$)/.test(pathname)) return "plugin route";
+  if (/^\/_emdash\/api\//.test(pathname)) return "admin API";
+  if (/^\/api\/(?:guest-cart|checkout)(?:\/|$)/.test(pathname)) return "cart API";
+  return "store page";
+}
 
 // Requests more than a minute old no longer count.
 const forgetOld = () => {
   while (sent.length && sent[0].at <= Date.now() - MINUTE) sent.shift();
 };
+
+/**
+ * Counts a store HTTP 429 or 5xx answer in this run's proof folder, grouped by fixed route kind so the
+ * public run summary can show rate-limiting or server errors without naming paths or queries.
+ */
+export function countStoreResponse(url, status) {
+  if (!isStore(url) || (status !== 429 && (status < 500 || status > 599))) return;
+  const { pathname } = new URL(url);
+  if (DEV_SERVER.test(pathname)) return;
+  try { appendFileSync(refusalsFile, `${status}\t${storeBucket(pathname)}\n`); } catch {}
+}
+
+/** Fixed summary of store HTTP 429 / 5xx answers recorded across every worker in `runDir`, or "". */
+export function storeRefusals(runDir = config.runDir) {
+  let lines = [];
+  try { lines = readFileSync(join(runDir, ".store-refusals.log"), "utf8").split("\n").filter(Boolean); } catch { return ""; }
+  const counts = new Map();
+  for (const line of lines) {
+    const [status = "", bucket = ""] = line.split("\t");
+    if (!/^(?:429|5\d\d)$/.test(status) || !bucket) continue;
+    const key = `HTTP ${status} (${bucket})`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([key, count]) => `${count}x ${key}`).join(", ");
+}
 
 /**
  * Counts `context`'s requests that reach the store, from when each is sent, since the store counts it
@@ -111,6 +146,9 @@ export function watchStoreRequests(context, { replayed = wasReplayed } = {}) {
     const at = Date.now();
     sent.push({ at, request });
     logLine(at, at);
+  });
+  context.on("response", response => {
+    if (!replayed(response.request())) countStoreResponse(response.url(), response.status());
   });
   const done = request => {
     const index = sent.findLastIndex(entry => entry.request === request);

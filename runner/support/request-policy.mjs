@@ -44,8 +44,12 @@ export function requestPolicy({ store, accessOrigins = [], ship = "https://ship.
 
 const installed = new WeakMap();
 const guarded = new WeakMap();
-// Store requests answered from a browser's own copy, which never reach the store.
+// Store requests answered from a browser's own immutable copy, which never reach the store.
 const replayed = new WeakSet();
+// Store requests guardContext fulfilled itself (immutable replay or ETag revalidation), so its own
+// response listener leaves the stored copy alone.
+const fulfilled = new WeakSet();
+const MAX_COPIES = 256;
 
 /** Whether the run answered this browser request from its own copy of an immutable store file. */
 export const wasReplayed = request => replayed.has(request);
@@ -70,7 +74,7 @@ async function install(page, policy, settings) {
  */
 function guardContext(context, policy, settings) {
   if (!guarded.has(context)) guarded.set(context, (async () => {
-    const copies = immutableCopies(context, policy);
+    const copies = storeCopies(context, policy);
     await context.route("**/*", async route => {
       const request = route.request();
       if (!policy.allows(request.url())) return route.abort("blockedbyclient");
@@ -82,10 +86,7 @@ function guardContext(context, policy, settings) {
         // No interceptor could attach (the page is closing, say), so nothing would check a redirect.
         return route.abort("blockedbyclient").catch(() => {});
       }
-      if (policy.isStore(request.url())) {
-        const copy = request.method() === "GET" ? await copies.answer(request) : undefined;
-        return copy ? route.fulfill(copy) : route.fallback();
-      }
+      if (policy.isStore(request.url())) return copies.handle(route);
       // This first request left before its interceptor attached, so strip store headers here too.
       const headers = request.headers();
       const kept = policy.publicHeaders(Object.fromEntries(Object.entries(headers).filter(([name]) => name.toLowerCase() !== "cookie")));
@@ -99,59 +100,122 @@ function guardContext(context, policy, settings) {
   return guarded.get(context);
 }
 
+const keptHeaders = headers => Object.fromEntries(Object.entries(headers).filter(([name]) =>
+  !["content-encoding", "content-length", "transfer-encoding", "set-cookie"].includes(name.toLowerCase())));
+
 /**
  * Playwright turns Chromium's HTTP cache off while any route is set, so the run would fetch every
- * store script on every page view, far more often than a shopper's browser, and cross the store's
- * per-visitor request limit. A store file sent as immutable (its hashed /_astro/ build files) is
- * answered from this context's own copy after its first load, for as long as it stays fresh, as the
- * browser's cache would answer it. Copies stay with their context, so a new shopper's browser starts
- * empty, as a new shopper's does.
+ * store script and re-encode every /_image photo on every page view, far more often than a shopper's
+ * browser. A store file sent as immutable (its hashed /_astro/ build files) is answered from this
+ * context's own copy while it stays fresh, without touching the store. A store file sent with an ETag
+ * (EmDash's /_image and media files send max-age=0, must-revalidate with a weak ETag) asks the store
+ * with If-None-Match on repeat loads, answering from the kept bytes when the store replies 304 so
+ * unchanged photos skip R2 download and WebP encoding while still counting as a store request. Copies
+ * stay with their context, so a new shopper's browser starts empty, as a new shopper's does.
  */
-function immutableCopies(context, policy) {
+function storeCopies(context, policy) {
   const copies = new Map();
   const newest = new Map();
+  async function remember(turn, url, request, headers, readBody, received, timing) {
+    const sent = cacheDirectives(headers["cache-control"]);
+    if (sent.has("no-store")) return;
+    if (cacheDirectives(await request.headerValue("cache-control")).has("no-store")) return;
+    // A file that varies answers only requests sending the same values for the headers it names. The
+    // kept body is already decoded, so Accept-Encoding never matters, and Playwright sets its length.
+    const vary = (headers.vary ?? "").toLowerCase().split(",").map(name => name.trim()).filter(name => name && name !== "accept-encoding");
+    if (vary.includes("*")) return;
+    const lifetime = Number(sent.get("max-age"));
+    const age = ageOnArrival(headers, received, timing);
+    const immutable = sent.has("immutable") && !sent.has("no-cache") && lifetime > age;
+    const etag = !immutable && !sent.has("private") && await request.headerValue("authorization") === null ? (headers.etag ?? "") : "";
+    if (!immutable && !etag) return;
+    const chosenBy = await Promise.all(vary.map(async name => [name, await request.headerValue(name)]));
+    const body = await readBody();
+    if (newest.get(url) !== turn) return;
+    if (!copies.has(url) && copies.size >= MAX_COPIES) copies.delete(copies.keys().next().value);
+    const answer = { status: 200, headers: keptHeaders(headers), body };
+    copies.set(url, immutable ? { kind: "immutable", received, age, lifetime, chosenBy, answer } : { kind: "etag", etag, chosenBy, answer });
+  }
   context.on("response", async response => {
     try {
       const url = response.url();
       const received = Date.now();
-      // A replay never touches its copy, so it can't stretch the copy's lifetime.
-      if (replayed.has(response.request()) || !policy.isStore(url) || response.request().method() !== "GET") return;
+      // A fulfilled replay never touches its copy, so it can't stretch an immutable copy's lifetime.
+      if (fulfilled.has(response.request()) || !policy.isStore(url) || response.request().method() !== "GET") return;
       // Any store answer from the network takes the old copy's place, whether or not it is kept, and only
       // the newest one can become the copy, however long an older one's body takes to arrive.
+      const turn = {};
       copies.delete(url);
-      newest.set(url, response);
+      newest.set(url, turn);
       if (response.status() !== 200) return;
-      const headers = response.headers();
-      const sent = cacheDirectives(headers["cache-control"]);
-      // immutable never overrides a store's no-store or no-cache, and holds only while the file is fresh.
-      const lifetime = Number(sent.get("max-age"));
-      const age = ageOnArrival(headers, received, response.request().timing());
-      if (!sent.has("immutable") || sent.has("no-store") || sent.has("no-cache") || !(lifetime > age)) return;
-      if (cacheDirectives(await response.request().headerValue("cache-control")).has("no-store")) return;
-      // A file that varies answers only requests sending the same values for the headers it names. The
-      // kept body is already decoded, so Accept-Encoding never matters, and Playwright sets its length.
-      const vary = (headers.vary ?? "").toLowerCase().split(",").map(name => name.trim()).filter(name => name && name !== "accept-encoding");
-      if (vary.includes("*")) return;
-      const chosenBy = await Promise.all(vary.map(async name => [name, await response.request().headerValue(name)]));
-      const kept = Object.fromEntries(Object.entries(headers).filter(([name]) =>
-        !["content-encoding", "content-length", "transfer-encoding", "set-cookie"].includes(name)));
-      const body = await response.body();
-      if (newest.get(url) === response) copies.set(url, { received, age, lifetime, chosenBy, answer: { status: 200, headers: kept, body } });
+      await remember(turn, url, response.request(), response.headers(), () => response.body(), received, response.request().timing());
     } catch {} // The page closed before the body arrived, say; the next load fetches the file again.
   });
   return {
-    /**
-     * The copy to answer this request with, if any. A stale copy, or one the page asks the store about
-     * again, is dropped so the next load is kept in its place.
-     */
-    async answer(request) {
-      const copy = copies.get(request.url());
-      if (!copy) return;
-      const age = copy.age + (Date.now() - copy.received) / 1000;
-      if (!(copy.lifetime > age) || await asksAgain(request, age, copy.lifetime - age)) return void copies.delete(request.url());
-      for (const [name, value] of copy.chosenBy) if (await request.headerValue(name) !== value) return;
-      replayed.add(request);
-      return copy.answer;
+    async handle(route) {
+      const request = route.request();
+      if (request.method() !== "GET") return route.fallback();
+      const url = request.url();
+      const copy = copies.get(url);
+      if (!copy) return route.fallback();
+      if (copy.kind === "immutable") {
+        const age = copy.age + (Date.now() - copy.received) / 1000;
+        if (!(copy.lifetime > age) || await asksAgain(request, age, copy.lifetime - age)) {
+          copies.delete(url);
+          return route.fallback();
+        }
+        for (const [name, value] of copy.chosenBy) if (await request.headerValue(name) !== value) return route.fallback();
+        replayed.add(request);
+        fulfilled.add(request);
+        return route.fulfill(copy.answer);
+      }
+      if (typeof route.fetch !== "function" || request.isNavigationRequest?.()) return route.fallback();
+      if (await bypassesConditional(request)) {
+        copies.delete(url);
+        return route.fallback();
+      }
+      for (const name of ["if-none-match", "if-modified-since", "range"]) {
+        if (await request.headerValue(name) !== null) return route.fallback();
+      }
+      for (const [name, value] of copy.chosenBy) if (await request.headerValue(name) !== value) return route.fallback();
+      // Let context.request attach the browser's live cookie jar rather than forwarding any Cookie header.
+      const sentHeaders = Object.fromEntries(Object.entries(request.headers()).filter(([name]) => name.toLowerCase() !== "cookie"));
+      let check;
+      try {
+        check = await route.fetch({ headers: { ...sentHeaders, "if-none-match": copy.etag }, maxRedirects: 0, timeout: 20_000 });
+      } catch {
+        return route.fallback().catch(() => {});
+      }
+      const status = check.status();
+      const checkHeaders = check.headers();
+      if (status === 304) {
+        if (cacheDirectives(checkHeaders["cache-control"]).has("no-store")) copies.delete(url);
+        else if (checkHeaders.etag) copy.etag = checkHeaders.etag;
+        await check.dispose();
+        fulfilled.add(request);
+        return route.fulfill(copy.answer).catch(() => {});
+      }
+      if ([301, 302, 303, 307, 308].includes(status) && checkHeaders.location) {
+        copies.delete(url);
+        let allowed = false;
+        try { allowed = policy.allows(new URL(checkHeaders.location, url).href); } catch {}
+        await check.dispose();
+        return (allowed ? route.fallback() : route.abort("blockedbyclient")).catch(() => {});
+      }
+      const turn = {};
+      copies.delete(url);
+      newest.set(url, turn);
+      let body;
+      try {
+        body = await check.body();
+      } catch {
+        await check.dispose().catch(() => {});
+        return route.fallback().catch(() => {});
+      }
+      await check.dispose();
+      if (status === 200) await remember(turn, url, request, checkHeaders, async () => body, Date.now(), null);
+      fulfilled.add(request);
+      return route.fulfill({ status, headers: keptHeaders(checkHeaders), body }).catch(() => {});
     },
   };
 }
@@ -185,6 +249,13 @@ async function asksAgain(request, age, left) {
   const allows = (name, test) => !asked.has(name) || test(Number(asked.get(name)));
   return asked.has("no-cache") || asked.has("no-store")
     || !allows("max-age", most => most > 0 && age <= most) || !allows("min-fresh", least => left >= least)
+    || cacheDirectives(await request.headerValue("pragma")).has("no-cache");
+}
+
+/** Whether the page itself asked not to store or revalidate an ETag copy (no-cache or no-store). */
+async function bypassesConditional(request) {
+  const asked = cacheDirectives(await request.headerValue("cache-control"));
+  return asked.has("no-cache") || asked.has("no-store")
     || cacheDirectives(await request.headerValue("pragma")).has("no-cache");
 }
 

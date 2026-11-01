@@ -78,9 +78,13 @@ export async function openStoreAdmin(page, url, { waitForPerson = true } = {}) {
  * page is left on Access's login, away from the store.
  */
 export async function openStorePage(page, url) {
-  const response = await page.goto(url);
+  await paceStore(PAGE_ROOM);
+  // Storefront checks wait on the elements and photos they actually inspect, so another card's slow
+  // /_image never holds a store page open for 90 s.
+  const response = await page.goto(url, { waitUntil: "domcontentloaded" });
   if (at(page, config.store) || !await signInToAccessByCode(page)) return response;
-  return page.goto(url);
+  await paceStore(PAGE_ROOM);
+  return page.goto(url, { waitUntil: "domcontentloaded" });
 }
 
 /**

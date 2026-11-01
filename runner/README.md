@@ -106,8 +106,12 @@ existing same-store URLs and manual-redirect behavior.
 Playwright turns the browser's cache off while the filter is on, so each browser
 the run opens keeps its own copy of each store file the store marks immutable (the
 hashed scripts and styles under `/_astro/`) and answers repeat requests from it while
-the store says it stays fresh, as a shopper's browser would. A new shopper's browser
-starts with none. Without this, every page view fetches them all again, and a run
+the store says it stays fresh, as a shopper's browser would. Store files sent with
+an `ETag` (EmDash's `/_image` and media files send `max-age=0, must-revalidate` with a
+weak `ETag`) ask the store with `If-None-Match` on repeat loads and answer from the
+kept bytes when the store replies `304`, sparing R2 reads and WebP encoding while still
+counting against the store's request limit. A new shopper's browser
+starts with none. Without this, every page view fetches and re-encodes them all again, and a run
 can cross the store's limit of 120 requests a minute per visitor.
 
 That limit counts every request from one address, pages, photos and admin calls
@@ -301,8 +305,10 @@ Chrome runs headless, so the runner fails at once wherever it would wait for a p
 `scripts/gmail-mail.mjs`, through the Gmail API with a read-only key, in place of gogcli.
 The job log is public, so it shows only each journey's pass or fail, the plugin versions
 the store ran ("Plugins tested"), so a release can check its own beta passed, why the
-store update stopped, if it did, and, for a journey that failed, its step names with each
-step's pass or fail and one fixed kind of failure ("timed out after 30 s", "an expect check
+store update stopped, if it did, any store `HTTP 429` or `5xx` answers grouped by fixed
+route kind ("store image", "plugin route" and so on), a fixed failure note when every
+failed step was a store or network timeout, and, for a journey that failed, its step names with each
+step's pass or fail and one fixed kind of failure ("timed out after 20 s (still loading a store image)", "Commerce Settings didn't draw", "an expect check
 failed"; never the error's own words); what each step found,
 screenshots, console output and any video go to a private R2 bucket under
 `runs/github-<run id>-<attempt>/`.
