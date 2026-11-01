@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { filterPage, wasReplayed } from "../support/request-policy.mjs";
+import { filterPage, onExtraStoreAttempt, wasReplayed } from "../support/request-policy.mjs";
 
 const settings = { store: "https://e2e.sm0ky.dev", accessOrigins: ["https://smokyproduct.cloudflareaccess.com"] };
 
 async function contextRoute() {
   let handler;
   let listener;
+  const extra = [];
   const context = {
     newCDPSession: async () => ({ on: () => {}, send: async () => {} }),
     cookies: async () => [],
@@ -14,6 +15,7 @@ async function contextRoute() {
     routeWebSocket: async () => {},
     on: (event, fn) => { if (event === "response") listener = fn; },
   };
+  onExtraStoreAttempt(context, (url, status) => extra.push([url, status]));
   await filterPage({ context: () => context, on: () => {} }, settings);
   let lastRequest;
   const answer = async (url, method = "GET", requestHeaders = {}, { fetch: fetcher, navigation = false } = {}) => {
@@ -50,11 +52,11 @@ async function contextRoute() {
       },
     });
   };
-  return { answer, loaded, lastRequest: () => lastRequest };
+  return { answer, loaded, extra, lastRequest: () => lastRequest };
 }
 
 test("store photos with an ETag ask with If-None-Match, answer 304 from the kept bytes, and still count as store requests", async () => {
-  const { answer, loaded, lastRequest } = await contextRoute();
+  const { answer, loaded, extra, lastRequest } = await contextRoute();
   const image = settings.store + "/_image?href=cap.png&w=640";
   const headers = { "cache-control": "public, max-age=0, must-revalidate", etag: 'W/"v1"', "content-type": "image/webp", "set-cookie": ["session", "ignored"].join("=") };
   await loaded(image, headers, { body: Buffer.from("webp-v1") });
@@ -91,6 +93,7 @@ test("store photos with an ETag ask with If-None-Match, answer 304 from the kept
     },
   });
   assert.equal(afterUpdate.fulfilled.body.toString(), "webp-v2");
+  assert.deepEqual(extra, []);
 });
 
 test("ETag copies respect navigations, no-store, private, Authorization, no-cache, Vary and redirect policy", async () => {
@@ -123,4 +126,35 @@ test("ETag copies respect navigations, no-store, private, Authorization, no-cach
   }
   await loaded(image, { "cache-control": "public, max-age=0, must-revalidate", etag: 'W/"tee"' });
   assert.deepEqual(await answer(image, "GET", { "cache-control": "no-cache" }, { fetch: async () => { throw new Error("unexpected"); } }), { fallback: true });
+});
+
+test("ETag fetch timeouts, allowed redirects and unreadable bodies report one extra store attempt, while blocked redirects do not", async () => {
+  const { answer, loaded, extra } = await contextRoute();
+  const image = settings.store + "/_image?href=mug.png&w=640";
+  const cacheable = { "cache-control": "public, max-age=0, must-revalidate", etag: 'W/"mug"' };
+
+  await loaded(image, cacheable);
+  assert.deepEqual(await answer(image, "GET", {}, { fetch: async () => { throw new Error("Timeout 20000ms exceeded"); } }), { fallback: true });
+  assert.deepEqual(extra, [[image, undefined]]);
+
+  extra.length = 0;
+  await loaded(image, cacheable);
+  assert.deepEqual(await answer(image, "GET", {}, {
+    fetch: async () => ({ status: () => 302, headers: () => ({ location: settings.accessOrigins[0] + "/cdn-cgi/access/login" }), dispose: async () => {} }),
+  }), { fallback: true });
+  assert.deepEqual(extra, [[image, 302]]);
+
+  extra.length = 0;
+  await loaded(image, cacheable);
+  assert.deepEqual(await answer(image, "GET", {}, {
+    fetch: async () => ({ status: () => 302, headers: () => ({ location: "https://e2e-v2.sm0ky.dev/other" }), dispose: async () => {} }),
+  }), { aborted: "blockedbyclient" });
+  assert.deepEqual(extra, []);
+
+  extra.length = 0;
+  await loaded(image, cacheable);
+  assert.deepEqual(await answer(image, "GET", {}, {
+    fetch: async () => ({ status: () => 503, headers: () => ({}), body: async () => { throw new Error("socket reset"); }, dispose: async () => {} }),
+  }), { fallback: true });
+  assert.deepEqual(extra, [[image, 503]]);
 });

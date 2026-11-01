@@ -1,7 +1,7 @@
 import { appendFileSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { config } from "./env.mjs";
-import { wasReplayed } from "./request-policy.mjs";
+import { onExtraStoreAttempt, wasReplayed } from "./request-policy.mjs";
 
 // The store allows each visitor (each IP address) 120 requests a minute, and every page, photo and
 // admin call counts against it. Every browser the run opens counts its store requests here, whichever
@@ -139,6 +139,10 @@ export function storeRefusals(runDir = config.runDir) {
 export function watchStoreRequests(context, { replayed = wasReplayed } = {}) {
   if (watched.has(context)) return;
   watched.add(context);
+  onExtraStoreAttempt(context, (url, status) => {
+    countStoreRequest(url);
+    if (status !== undefined) countStoreResponse(url, status);
+  });
   context.on("request", request => {
     const url = request.url();
     if (!isStore(url) || DEV_SERVER.test(new URL(url).pathname)) return;

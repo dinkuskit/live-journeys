@@ -44,6 +44,7 @@ export function requestPolicy({ store, accessOrigins = [], ship = "https://ship.
 
 const installed = new WeakMap();
 const guarded = new WeakMap();
+const extraAttempts = new WeakMap();
 // Store requests answered from a browser's own immutable copy, which never reach the store.
 const replayed = new WeakSet();
 // Store requests guardContext fulfilled itself (immutable replay or ETag revalidation), so its own
@@ -53,6 +54,15 @@ const MAX_COPIES = 256;
 
 /** Whether the run answered this browser request from its own copy of an immutable store file. */
 export const wasReplayed = request => replayed.has(request);
+
+/**
+ * Registers `listener(url, status)` for extra store network attempts made when an ETag conditional
+ * `route.fetch()` falls back to `route.fallback()`, so pacing counts both network requests without
+ * double-counting ordinary 304 or 200 revalidations.
+ */
+export function onExtraStoreAttempt(context, listener) {
+  extraAttempts.set(context, listener);
+}
 
 /** Chromium pauses every hop, including redirects; install before navigating. */
 export function filterPage(page, settings) {
@@ -178,12 +188,14 @@ function storeCopies(context, policy) {
         if (await request.headerValue(name) !== null) return route.fallback();
       }
       for (const [name, value] of copy.chosenBy) if (await request.headerValue(name) !== value) return route.fallback();
+      const countFallback = status => extraAttempts.get(context)?.(url, status);
       // Let context.request attach the browser's live cookie jar rather than forwarding any Cookie header.
       const sentHeaders = Object.fromEntries(Object.entries(request.headers()).filter(([name]) => name.toLowerCase() !== "cookie"));
       let check;
       try {
         check = await route.fetch({ headers: { ...sentHeaders, "if-none-match": copy.etag }, maxRedirects: 0, timeout: 20_000 });
       } catch {
+        countFallback();
         return route.fallback().catch(() => {});
       }
       const status = check.status();
@@ -200,7 +212,9 @@ function storeCopies(context, policy) {
         let allowed = false;
         try { allowed = policy.allows(new URL(checkHeaders.location, url).href); } catch {}
         await check.dispose();
-        return (allowed ? route.fallback() : route.abort("blockedbyclient")).catch(() => {});
+        if (!allowed) return route.abort("blockedbyclient").catch(() => {});
+        countFallback(status);
+        return route.fallback().catch(() => {});
       }
       const turn = {};
       copies.delete(url);
@@ -210,6 +224,7 @@ function storeCopies(context, policy) {
         body = await check.body();
       } catch {
         await check.dispose().catch(() => {});
+        countFallback(status);
         return route.fallback().catch(() => {});
       }
       await check.dispose();
