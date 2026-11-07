@@ -127,7 +127,10 @@ a new worker after a journey fails, and into a run started straight after anothe
 each store request's time also goes, as it's sent, in that minute's log
 (`.store-requests-<store>-<minute>.log`) beside the run folders in
 `DINKUS_E2E_PROOF`, which takes it back if the browser answered it from its own
-copy. Each new worker counts the last minute's requests from those logs, and logs
+copy. A step already waiting for room when a request is taken back decides its
+wait again from the requests still counted, so it doesn't sleep on for one the
+store never saw; it goes only once they fit, and a step whose budget is still
+full waits on, for what is still owed. Each new worker counts the last minute's requests from those logs, and logs
 older than the last minute are removed as the run goes. On a store with a few
 products it never waits; with a large catalog it slows down rather than being
 turned away.
@@ -614,9 +617,9 @@ report when a timing fact departs from it. The value is
 | `body` | `returned` or `threw`: how the journey's body ended. A soft step failure returns, so read it with `verdict` |
 | `verdict` | The try's verdict from its recorded steps, as the proof has it when the body ended |
 | `body_ms` | The journey BODY's elapsed time, on the monotonic clock, from the wrapper starting the body to its return or throw. It leaves out the fixtures (opening and closing the saved profile or a shopper browser, and Playwright's own setup and teardown), the journey's start in the proof, and this fact's own write. It takes in what the body does for itself: its steps' screenshots and whatever cleanup it runs on its way out. Whole milliseconds |
-| `pace_sleeps` | How many explicit rate-limit sleeps `paceStore` took during the body (see the store's request limit above) |
-| `pace_sleep_requested_ms` | The sum of what those sleeps asked the timer for: each wait as `paceStore` computed it from the request log and the wall clock, as before, plus its 250 ms margin |
-| `pace_sleep_ms` | The sum of those sleeps as measured, on the monotonic clock, from before each timer to after it. More than requested when a timer fired late (a busy event loop); it can read a few milliseconds less, as the timer's own clock is read at the start of its event-loop turn |
+| `pace_sleeps` | How many explicit rate-limit sleeps `paceStore` took during the body (see the store's request limit above). A sleep that a request taken back woke early ends there and counts; when the budget was still full, the step's next sleep counts again |
+| `pace_sleep_requested_ms` | The sum of what those sleeps asked the timer for: each wait as `paceStore` computed it from the request log and the wall clock, as before, plus its 250 ms margin. A sleep woken early still counts what it asked for |
+| `pace_sleep_ms` | The sum of those sleeps as measured, on the monotonic clock, from before each timer to after it, or to the moment a request taken back woke it, when it reads well under what was asked for. More than requested when a timer fired late (a busy event loop); it can read a few milliseconds less, as the timer's own clock is read at the start of its event-loop turn |
 | `pace_sleep_wall_ms` | The wall time during which at least one of them was sleeping. Equal to the measured sum unless sleeps overlapped (two awaited together), when the sum double-counts, and can then exceed `body_ms`, while this does not |
 
 What the body spent beyond its pace sleeps is unattributed: the store, the

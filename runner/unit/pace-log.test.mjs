@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after } from "node:test";
+import { setImmediate } from "node:timers/promises";
 
 // Each test file runs in its own process, which here stands in for a worker Playwright starts after a
 // journey fails, or for a run started straight after another.
@@ -87,4 +88,39 @@ test("logs with nothing from the last minute start over", async t => {
   const { STORE_BUDGET, paceStore } = await import("../support/pace.mjs?later");
   assert.deepEqual(logs(), []);
   await paceStore(STORE_BUDGET);
+});
+
+test("a step a request taken back wakes finds the log already without it, as a worker started then would", { timeout: 10_000 }, async t => {
+  // Minute 98, so the earlier tests' logs no longer count.
+  const at = now + 900_000;
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: at });
+  const { PAGE_ROOM, STORE_BUDGET, paceStore, watchStoreRequests } = await import("../support/pace.mjs?refund");
+  assert.deepEqual(logs(), []);
+  const context = new EventEmitter();
+  const replays = new WeakSet();
+  watchStoreRequests(context, { replayed: request => replays.has(request) });
+  const requests = Array.from({ length: STORE_BUDGET - PAGE_ROOM + 1 }, () => ({ url: () => "https://store.example/_astro/page.js" }));
+  for (const request of requests) context.emit("request", request);
+  assert.equal(readFileSync(log(98), "utf8"), lines(requests.length, at));
+  // Sixty-one logged: forty more don't fit, so the step sleeps.
+  let seen;
+  const waiting = paceStore(PAGE_ROOM).then(() => { seen = readFileSync(log(98), "utf8"); });
+  await setImmediate();
+  assert.equal(seen, undefined);
+  // The browser answers one from its own copy: the log takes it back, and only then is the step woken,
+  // so what it finds is what a worker started at that moment would count.
+  replays.add(requests[0]);
+  context.emit("requestfinished", requests[0]);
+  await waiting;
+  assert.equal(seen, `${lines(requests.length, at)}-${at}\n`);
+  // Such a worker counts sixty: forty fit it at once, and forty-one wait the minute, as before.
+  const later = await import("../support/pace.mjs?after-refund");
+  await later.paceStore(PAGE_ROOM);
+  let ready = false;
+  const more = later.paceStore(PAGE_ROOM + 1).then(() => { ready = true; });
+  await setImmediate();
+  assert.equal(ready, false);
+  t.mock.timers.tick(60_250);
+  await more;
+  assert.equal(ready, true);
 });

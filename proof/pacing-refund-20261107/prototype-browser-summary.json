@@ -1,0 +1,23 @@
+{
+  "note": "The coordinator's browser-summary.json for the disposable prototype, copied with each sample's temporary artifact_root path left out; nothing else differs. Fixture timings over seeded history, not live measurements.",
+  "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+  "samples": [
+    { "capture": "browser-baseline-1", "mode": "baseline", "cache": "immutable", "pace_elapsed_ms": 4670.20105, "capture_wall_seconds": 5.504995949999284, "request_paths": ["/", "/asset.js"], "replayed_observed": true, "count_before_replay": 60, "count_after_replay": 60, "released_within_75ms": false, "pace": { "sleeps": 1, "requestedMs": 4667, "ms": 4669.24594, "wallMs": 4669.24594 } },
+    { "capture": "browser-baseline-2", "mode": "baseline", "cache": "immutable", "pace_elapsed_ms": 4605.720577, "capture_wall_seconds": 5.495440765998865, "request_paths": ["/", "/asset.js"], "replayed_observed": true, "count_before_replay": 60, "count_after_replay": 60, "released_within_75ms": false, "pace": { "sleeps": 1, "requestedMs": 4602, "ms": 4605.043521, "wallMs": 4605.043521 } },
+    { "capture": "browser-baseline-3", "mode": "baseline", "cache": "immutable", "pace_elapsed_ms": 4634.71573, "capture_wall_seconds": 5.481288721000965, "request_paths": ["/", "/asset.js"], "replayed_observed": true, "count_before_replay": 60, "count_after_replay": 60, "released_within_75ms": false, "pace": { "sleeps": 1, "requestedMs": 4632, "ms": 4634.036834, "wallMs": 4634.036834 } },
+    { "capture": "browser-baseline-control", "mode": "baseline", "cache": "no-store", "pace_elapsed_ms": 4678.9430839999995, "capture_wall_seconds": 5.4841064360007294, "request_paths": ["/", "/asset.js", "/asset.js"], "replayed_observed": false, "count_before_replay": 60, "count_after_replay": 61, "released_within_75ms": false, "pace": { "sleeps": 1, "requestedMs": 4675, "ms": 4677.718975, "wallMs": 4677.718975 } },
+    { "capture": "browser-candidate-1", "mode": "candidate", "cache": "immutable", "pace_elapsed_ms": 7.9470870000000104, "capture_wall_seconds": 0.9428248399999575, "request_paths": ["/", "/asset.js"], "replayed_observed": true, "count_before_replay": 60, "count_after_replay": 60, "released_within_75ms": true, "pace": { "sleeps": 1, "requestedMs": 4616, "ms": 7.555676999999946, "wallMs": 7.555676999999946 } },
+    { "capture": "browser-candidate-2", "mode": "candidate", "cache": "immutable", "pace_elapsed_ms": 10.170674000000076, "capture_wall_seconds": 0.9572324260007008, "request_paths": ["/", "/asset.js"], "replayed_observed": true, "count_before_replay": 60, "count_after_replay": 60, "released_within_75ms": true, "pace": { "sleeps": 1, "requestedMs": 4621, "ms": 9.832643000000076, "wallMs": 9.832643000000076 } },
+    { "capture": "browser-candidate-3", "mode": "candidate", "cache": "immutable", "pace_elapsed_ms": 9.635301000000027, "capture_wall_seconds": 0.901813492000656, "request_paths": ["/", "/asset.js"], "replayed_observed": true, "count_before_replay": 60, "count_after_replay": 60, "released_within_75ms": true, "pace": { "sleeps": 1, "requestedMs": 4637, "ms": 9.354020999999989, "wallMs": 9.354020999999989 } },
+    { "capture": "browser-candidate-control", "mode": "candidate", "cache": "no-store", "pace_elapsed_ms": 4631.608388, "capture_wall_seconds": 5.513666446999196, "request_paths": ["/", "/asset.js", "/asset.js"], "replayed_observed": false, "count_before_replay": 60, "count_after_replay": 61, "released_within_75ms": false, "pace": { "sleeps": 1, "requestedMs": 4626, "ms": 4629.43223, "wallMs": 4629.43223 } }
+  ],
+  "stats": {
+    "baseline": { "n": 3, "median_pace_ms": 4634.71573, "min_pace_ms": 4605.720577, "max_pace_ms": 4670.20105 },
+    "candidate": { "n": 3, "median_pace_ms": 9.635301000000027, "min_pace_ms": 7.9470870000000104, "max_pace_ms": 10.170674000000076 }
+  },
+  "limits": [
+    "seeded request history and controlled call interleaving",
+    "no live incidence or end-to-end speedup measurement",
+    "timing mostly intentionally near-expiry budget; absolute savings vary with remaining budget window"
+  ]
+}

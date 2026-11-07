@@ -160,6 +160,8 @@ export function watchStoreRequests(context, { replayed = wasReplayed } = {}) {
     if (replayed(request)) {
       logLine(sent[index].at, `-${sent[index].at}`);
       sent.splice(index, 1);
+      // A step asleep in paceStore decided its wait before this one was taken back; it rechecks now.
+      for (const wake of sleepers) wake();
     } else delete sent[index].request;
   };
   context.on("requestfinished", done);
@@ -187,18 +189,34 @@ export function waitFor(times, room, now = Date.now()) {
 
 // The explicit sleeps paceStore has taken since this worker started, for the private timing fact each
 // journey keeps (see steps.mjs): how many, the sum of what they asked the timer for, the sum of their
-// measured lengths (longer when the timer fired late), and the wall time during which at least one was
-// sleeping, which is less than the sum when sleeps overlap. Measured on the monotonic clock; the wait
-// itself is still decided from Date.now() and the request log, as before. Only the difference between
-// two snapshots of one worker means anything. A sleep counts, whole, when it ends: a journey's
-// difference holds the sleeps that ended during its body, and a sleep it started but never awaited
-// (one still running when its body threw) lands in the next journey's, or nowhere.
+// measured lengths (longer when the timer fired late, shorter when a replay woke the sleep before its
+// timer), and the wall time during which at least one was sleeping, which is less than the sum when
+// sleeps overlap. Measured on the monotonic clock; the wait itself is still decided from Date.now()
+// and the request log, as before. Only the difference between two snapshots of one worker means
+// anything. A sleep counts, whole, when it ends: a journey's difference holds the sleeps that ended
+// during its body, and a sleep it started but never awaited (one still running when its body threw)
+// lands in the next journey's, or nowhere. A sleep a replay wakes ends then, asked-for time and all;
+// when the budget is still full the step sleeps again, and that is another sleep.
 const paced = { sleeps: 0, requestedMs: 0, ms: 0, wallMs: 0 };
 let sleeping = 0;
 let sleepingFrom = 0;
 
 /** A copy of this worker's pace-sleep counters so far. */
 export const paceSnapshot = () => ({ ...paced });
+
+// The steps asleep in paceStore, each as the call that ends its sleep. A wait is decided once from the
+// requests counted then, so when the browser answers one of them from its own copy (watchStoreRequests
+// takes it back), every sleeping step is woken to decide again, from the requests still counted, rather
+// than sleeping on for a request the store never saw. This worker's own replays only: another worker's
+// reach it through the log when it starts, as before.
+const sleepers = new Set();
+
+/** Sleeps `ms`, or less when a replay wakes it; the timer goes either way, and nothing holds the step. */
+const sleep = ms => new Promise(resolve => {
+  const wake = () => { clearTimeout(timer); sleepers.delete(wake); resolve(); };
+  const timer = setTimeout(wake, ms);
+  sleepers.add(wake);
+});
 
 /** Waits until `room` more store requests fit under STORE_BUDGET for the last minute. */
 export async function paceStore(room = 1) {
@@ -208,7 +226,7 @@ export async function paceStore(room = 1) {
     if (!wait) return;
     const from = performance.now();
     if (!sleeping++) sleepingFrom = from;
-    await new Promise(resolve => setTimeout(resolve, wait + 250));
+    await sleep(wait + 250);
     const to = performance.now();
     paced.sleeps += 1;
     paced.requestedMs += wait + 250;
