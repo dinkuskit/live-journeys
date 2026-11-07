@@ -194,7 +194,7 @@ test("Problems", { tag: "@running" }, journey(async ({ page }) => {
         added = (await testOrders(page)).filter(order => order.number > newestBefore);
         if (added.length || Date.now() >= deadline) break;
         await page.waitForTimeout(30_000);
-        await page.reload();
+        // testOrders opens Orders afresh on every poll; reloading here would load it twice.
       }
       if (!added.length) throw new Error(`No new TEST order in Commerce Orders ${Math.round(config.completeWaitMs / 1000)}s after the shopper paid and closed the tab.`);
       // Only now does the test ask for the checkout's status, which could otherwise have made the order itself.
