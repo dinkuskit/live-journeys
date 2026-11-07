@@ -1,0 +1,72 @@
+{
+  "base": "3548b52b4203ae87f938352fb653c041b8abd73d",
+  "source_commit": "61f4c3a970d127a0e6f86c4b4335848fa26b7d8a",
+  "runtime": "Node v24.22.0",
+  "platform": "Linux aarch64",
+  "environment": "env -i; task-local /tmp HOME, proof and profile; DINKUS_E2E_ENV_FILE=/dev/null",
+  "dependencies": "no installation; no browser or live service used",
+  "source_sha256": {
+    "runner/tests/01-install-plugins.spec.mjs": "700870fa82d26c8d39481291750b8ec8195fecde527ee8fd7f348d493047c3be",
+    "runner/tests/02-connect-dinkuskit.spec.mjs": "3d58c397f8d962e2697203e744ff6b5b57607f731d9ee8c1851ade528b7573db",
+    "runner/unit/fixtures/observer-dwell.mjs": "90840e7500096e51fc2de7d467d34e8f559b0c0ae0c387a45235c52049a554dc",
+    "runner/unit/observer-dwell.test.mjs": "65fb6093c3b0d18bdfeaecf64a9ece4ba62e269d008e0a8954d4ee3dc15b8087"
+  },
+  "checks": {
+    "canonical": {
+      "command": "node --test runner/unit/*.test.mjs",
+      "exit": 1,
+      "wall_seconds": 0.3847064430010505,
+      "resources": {
+        "user_seconds": 1.340574,
+        "system_seconds": 0.610972,
+        "max_rss": 85064,
+        "max_rss_unit": "KiB",
+        "aggregation": "waited-children"
+      },
+      "stdout_sha256": "a6f9aa309d08af5d40433667db2a0f4ae443225a786135f9bf839949e883c98f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "passed_files": 23,
+      "failed_files": [
+        "runner/unit/gmail.test.mjs",
+        "runner/unit/proof.test.mjs"
+      ],
+      "classification": "partial; not a full-suite pass"
+    },
+    "targeted": {
+      "command": "node --test --test-isolation=none runner/unit/observer-dwell.test.mjs",
+      "exit": 0,
+      "wall_seconds": 0.09561298699554754,
+      "resources": {
+        "user_seconds": 0.113412,
+        "system_seconds": 0.033166999999999995,
+        "max_rss": 81276,
+        "max_rss_unit": "KiB",
+        "aggregation": "waited-children"
+      },
+      "stdout_sha256": "e8ddff3a5d8dbed3f4e4e10b838daffc77c23d15810fdce946c55ee6b79249c8",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    "diagnostic": {
+      "command": "node --test --test-isolation=none runner/unit/*.test.mjs",
+      "exit": 1,
+      "wall_seconds": 0.6404388239971013,
+      "resources": {
+        "user_seconds": 0.632803,
+        "system_seconds": 0.2581,
+        "max_rss": 107128,
+        "max_rss_unit": "KiB",
+        "aggregation": "waited-children"
+      },
+      "stdout_sha256": "3f79d28b657dbf09b9a66dc0dbc4f170626fbf233e5b77c5196491b36e8166b4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "passed": 180,
+      "failed": 23,
+      "skipped": 0,
+      "classification": "diagnostic only; removing isolation also causes cross-file shared-state failures"
+    }
+  },
+  "full_suite_gap": "Existing summary subprocess checks report spawnSync node EPERM. No permission changes attempted."
+}
