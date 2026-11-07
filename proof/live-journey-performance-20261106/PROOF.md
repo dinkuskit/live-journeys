@@ -137,3 +137,21 @@ background-check coverage.
 No live workflow was dispatched. CI, comprehensive OpenClaw and native
 ClawSweeper evidence for the exact reviewed revision are still required.
 This candidate is not review-ready, and no merge is authorized.
+
+## Pinned-runtime acceptance follow-up
+
+The hosted offline workflow pins Node `24.22.0`. Read-only inspection of the
+existing mise installations found Node `24.22.1` and `26.13.0`; the `24` and
+`24.22` aliases resolve to `24.22.1`. Executing that installed binary with
+`--version` returned `v24.22.1`. The exact `24.22.0/bin/node` executable is
+absent. No runtime was installed or global setting modified.
+
+No new unit or benchmark run was attempted: the required runtime is missing.
+Existing Node 26 results remain noncanonical history; prior Node 24.22.1
+results also do not satisfy the exact Node 24.22.0 acceptance check. The
+coordinator must provision the pinned Node 24.22.0 runtime before rerunning
+`node --test runner/unit/*.test.mjs` and the recorded offline benchmark with
+`DINKUS_E2E_ENV_FILE=/dev/null` and task-local writable HOME, proof and profile
+paths. Dependency availability under that exact runtime remains unverified.
+The candidate source is unchanged, including the initial Orders open and its
+`ordersListed` behavior. No live workflow, push, PR or review was initiated.
