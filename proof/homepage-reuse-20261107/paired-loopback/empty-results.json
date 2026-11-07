@@ -1,0 +1,588 @@
+{
+  "variant": "empty",
+  "samples_per_revision": 5,
+  "primary": "document/request counts and unchanged absence-check results; elapsed time descriptive only",
+  "base": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+  "candidate": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+  "all_checks_equal": true,
+  "homepage_documents": {
+    "base": 2,
+    "candidate": 1
+  },
+  "total_documents": {
+    "base": 4,
+    "candidate": 3
+  },
+  "rows": [
+    {
+      "pair": 1,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5235.699264,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 1,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5208.26383,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 2,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5217.078592,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 2,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5172.571549,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 3,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5244.882092,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 3,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5204.451076,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 4,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5180.26577,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 4,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5256.168642,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 5,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5265.745761,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 5,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "empty",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5227.520085,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "empty catalog is explicitly readable",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    }
+  ]
+}

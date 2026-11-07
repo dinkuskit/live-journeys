@@ -1,0 +1,40 @@
+{
+  "source": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+  "node": "v24.22.0",
+  "playwright": "1.61.1",
+  "scope": "loopback-only freshness guard check; no store, settings, credentials or other network",
+  "checks": [
+    {
+      "name": "a fresh open hands on its own response: the goto's navigation event arrives before goto resolves",
+      "ok": true
+    },
+    {
+      "name": "a hash change the page makes spoils it",
+      "ok": true
+    },
+    {
+      "name": "a pushState the page makes spoils it",
+      "ok": true
+    },
+    {
+      "name": "a reload spoils it",
+      "ok": true
+    },
+    {
+      "name": "a child frame navigating leaves it current",
+      "ok": true
+    },
+    {
+      "name": "another page, another address and a closed page are refused",
+      "ok": true
+    },
+    {
+      "name": "a later open spends the earlier handoff",
+      "ok": true
+    },
+    {
+      "name": "the status check holds and hands nothing on",
+      "ok": true
+    }
+  ]
+}
