@@ -1,0 +1,170 @@
+[
+  {
+    "journey": "Install the Registry plugins",
+    "step_count": 3,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "DinkusKit.com account and connect the store",
+    "step_count": 7,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Payments status",
+    "step_count": 3,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Commerce settings",
+    "step_count": 5,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Ship settings",
+    "step_count": 4,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Buy and ship",
+    "step_count": 10,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Storefront",
+    "step_count": 7,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Cart",
+    "step_count": 6,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Manage products",
+    "step_count": 13,
+    "failed_step_count": 1,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 1,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Full catalog",
+    "step_count": 7,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Mark as completed",
+    "step_count": 9,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Problems",
+    "step_count": 12,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "Buy a label in the store admin",
+    "step_count": 12,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  },
+  {
+    "journey": "One product with a category",
+    "step_count": 5,
+    "failed_step_count": 0,
+    "link_problems": {
+      "missing_card_or_link": 0,
+      "navigation_missing": 0,
+      "non_200": 0,
+      "heading_mismatch": 0,
+      "unknown": 0
+    }
+  }
+]
