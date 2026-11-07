@@ -1,0 +1,137 @@
+{
+  "base": "39723f974d5ed7fda703ea11cec0cc20153b235f",
+  "samples_per_case": 10,
+  "cases": 6,
+  "comparison": "interleaved deterministic offline fixtures",
+  "source_sha256": "6406dabc859d55192e70e189b2ee63c06c6904189124e16b3f4becf8dc18dd41",
+  "results": {
+    "immediate": [
+      {
+        "navigation": 2,
+        "reloads": 0,
+        "reads": 1,
+        "waits": [],
+        "virtual_elapsed_ms": 0
+      },
+      {
+        "navigation": 2,
+        "reloads": 0,
+        "reads": 1,
+        "waits": [],
+        "virtual_elapsed_ms": 0
+      }
+    ],
+    "third_poll": [
+      {
+        "navigation": 6,
+        "reloads": 2,
+        "reads": 3,
+        "waits": [
+          30000,
+          30000
+        ],
+        "virtual_elapsed_ms": 60000
+      },
+      {
+        "navigation": 4,
+        "reloads": 0,
+        "reads": 3,
+        "waits": [
+          30000,
+          30000
+        ],
+        "virtual_elapsed_ms": 60000
+      }
+    ],
+    "missing": [
+      {
+        "navigation": 8,
+        "reloads": 3,
+        "reads": 4,
+        "waits": [
+          30000,
+          30000,
+          30000
+        ],
+        "virtual_elapsed_ms": 90000,
+        "error": "No new TEST order in Commerce Orders 90s after the shopper paid and closed the tab."
+      },
+      {
+        "navigation": 5,
+        "reloads": 0,
+        "reads": 4,
+        "waits": [
+          30000,
+          30000,
+          30000
+        ],
+        "virtual_elapsed_ms": 90000,
+        "error": "No new TEST order in Commerce Orders 90s after the shopper paid and closed the tab."
+      }
+    ],
+    "deadline": [
+      {
+        "navigation": 8,
+        "reloads": 3,
+        "reads": 4,
+        "waits": [
+          30000,
+          30000,
+          30000
+        ],
+        "virtual_elapsed_ms": 90000
+      },
+      {
+        "navigation": 5,
+        "reloads": 0,
+        "reads": 4,
+        "waits": [
+          30000,
+          30000,
+          30000
+        ],
+        "virtual_elapsed_ms": 90000
+      }
+    ],
+    "unordered": [
+      {
+        "navigation": 2,
+        "reloads": 0,
+        "reads": 1,
+        "waits": [],
+        "virtual_elapsed_ms": 0
+      },
+      {
+        "navigation": 2,
+        "reloads": 0,
+        "reads": 1,
+        "waits": [],
+        "virtual_elapsed_ms": 0
+      }
+    ],
+    "scan_failure": [
+      {
+        "navigation": 6,
+        "reloads": 2,
+        "reads": 3,
+        "waits": [
+          30000,
+          30000
+        ],
+        "virtual_elapsed_ms": 60000,
+        "error": "fixture pagination failed"
+      },
+      {
+        "navigation": 4,
+        "reloads": 0,
+        "reads": 3,
+        "waits": [
+          30000,
+          30000
+        ],
+        "virtual_elapsed_ms": 60000,
+        "error": "fixture pagination failed"
+      }
+    ]
+  }
+}

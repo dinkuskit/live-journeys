@@ -1,0 +1,57 @@
+{
+  "source_commit": "f00d29324a268282a512d302180e8ed74f3f5b1d",
+  "base_commit": "39723f974d5ed7fda703ea11cec0cc20153b235f",
+  "node_version": "24.22.0",
+  "execution": "coordinator-run; safe output inspected by proof worker",
+  "working_directory": "runner",
+  "command": "node --test unit/*.test.mjs",
+  "environment": {
+    "DINKUS_E2E_ENV_FILE": "/dev/null",
+    "HOME": "fresh task-local temporary directory",
+    "DINKUS_E2E_PROOF": "fresh task-local temporary directory",
+    "DINKUS_E2E_PROFILE": "fresh task-local temporary directory"
+  },
+  "dependencies": {
+    "install": "npm ci with pinned Node and isolated HOME",
+    "packages_installed": 3,
+    "lockfile_unchanged": true,
+    "lockfile_sha256": "51a538a6154719d5bebb4393b607303a175be28d18518b605e3dfaa47637f397"
+  },
+  "unit_result": {
+    "tests": 189,
+    "passed": 189,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "duration_ms": 608.151105,
+    "raw_log_name": "independent-unit-node24.log",
+    "raw_log_sha256": "1c7485fe8a99becc4cedce5f144e5111199b108b274f7a26779525121c767137",
+    "raw_log_location": "coordinator-held; sanitized summary retained here"
+  },
+  "roster": {
+    "command": "Playwright --list --grep @running",
+    "tests": 14,
+    "files": 14,
+    "artifact": "candidate-roster.log",
+    "sha256": "dc5067fda9b19c1f981988646773f0dbf320c017f87df971917e194965da336e",
+    "live_execution": false
+  },
+  "benchmark": {
+    "artifact": "canonical-benchmark.json",
+    "sha256": "4a0683ba8bfa1e3225609f0dc7b434bbedf964adb962e8c0205a43e3454adb26",
+    "cases": 6,
+    "pairs_per_case": 10,
+    "pairs": 60,
+    "executions": 120,
+    "metric": "explicit admin navigation counts in deterministic offline fixtures; no live latency measurement"
+  },
+  "source_sha256": "6406dabc859d55192e70e189b2ee63c06c6904189124e16b3f4becf8dc18dd41",
+  "pending": [
+    "controlled live comparison",
+    "exact-head CI",
+    "comprehensive OpenClaw review",
+    "native ClawSweeper review"
+  ],
+  "review_ready": false
+}
