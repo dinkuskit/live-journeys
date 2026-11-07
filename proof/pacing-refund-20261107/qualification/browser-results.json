@@ -46,7 +46,6 @@
         "ms": 4641.928842,
         "wallMs": 4641.928842
       },
-      "source_manifest": "source-manifest.json",
       "limits": [
         "synthetic near-expiry history and controlled call interleaving",
         "real Playwright context/filter/cache",
@@ -82,7 +81,6 @@
         "ms": 8.915317999999957,
         "wallMs": 8.915317999999957
       },
-      "source_manifest": "source-manifest.json",
       "limits": [
         "synthetic near-expiry history and controlled call interleaving",
         "real Playwright context/filter/cache",
@@ -118,7 +116,6 @@
         "ms": 9.768298000000073,
         "wallMs": 9.768298000000073
       },
-      "source_manifest": "source-manifest.json",
       "limits": [
         "synthetic near-expiry history and controlled call interleaving",
         "real Playwright context/filter/cache",
@@ -154,7 +151,6 @@
         "ms": 4591.1234589999995,
         "wallMs": 4591.1234589999995
       },
-      "source_manifest": "source-manifest.json",
       "limits": [
         "synthetic near-expiry history and controlled call interleaving",
         "real Playwright context/filter/cache",
@@ -190,7 +186,6 @@
         "ms": 4635.115089,
         "wallMs": 4635.115089
       },
-      "source_manifest": "source-manifest.json",
       "limits": [
         "synthetic near-expiry history and controlled call interleaving",
         "real Playwright context/filter/cache",
@@ -226,7 +221,6 @@
         "ms": 9.905130999999983,
         "wallMs": 9.905130999999983
       },
-      "source_manifest": "source-manifest.json",
       "limits": [
         "synthetic near-expiry history and controlled call interleaving",
         "real Playwright context/filter/cache",
@@ -263,7 +257,6 @@
         "ms": 4619.7394939999995,
         "wallMs": 4619.7394939999995
       },
-      "source_manifest": "source-manifest.json",
       "limits": [
         "synthetic near-expiry history and controlled call interleaving",
         "real Playwright context/filter/cache",
@@ -300,7 +293,6 @@
         "ms": 4574.7356660000005,
         "wallMs": 4574.7356660000005
       },
-      "source_manifest": "source-manifest.json",
       "limits": [
         "synthetic near-expiry history and controlled call interleaving",
         "real Playwright context/filter/cache",

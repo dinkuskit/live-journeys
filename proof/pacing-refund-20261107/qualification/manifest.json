@@ -6,10 +6,109 @@
     "model.mjs": "67636271207b156b45ede26d5cb39d8e0032c8551642c97fb8779f2b9ade4ca6",
     "browser-sample.mjs": "c2eb0a7a4653aa4d6874293d9c8b07b98c82fe22d9a7af0774e3606d86c38963",
     "README.md": "22bdc02ce3cee86697f843517d98d64163af1fdf1028b7c38340116e79ec0655",
-    "browser-results.json": "5d0b7b5f65663bc677aede77e15ee89e1005e420c286a502de8af9256888aa2b",
+    "browser-results.json": "3fa8eae834281f3cbc546a9c6716b133c531eafd6b5c4509de8708d1cf1dbd08",
     "model-results.json": "f43e42d4a55c0e5b3a8f1a51cbf67ff6238db2fb27000d593c5f347d5918dd76",
     "unit-results.json": "6c7693e115a19c3a52083d9e6bc66130a5c70a9dd4afb4dbcf53182e768d1846"
   },
   "raw_model_timer_events": "omitted from compact public result; raw hash recorded in model-results.json",
-  "provenance": "coordinator executed exact committed source with pinned runtime; browser history/interleaving synthetic"
+  "provenance": "coordinator executed exact committed source with pinned runtime; browser history/interleaving synthetic",
+  "browser_source_manifests": {
+    "immutable-base-1": {
+      "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+      "scope": "runner-relative actual helper import closure",
+      "sha256": {
+        "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+        "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+        "support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
+        "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+        "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+        "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd"
+      }
+    },
+    "immutable-candidate-1": {
+      "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+      "scope": "runner-relative actual helper import closure",
+      "sha256": {
+        "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+        "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+        "support/pace.mjs": "962226ba29c83cbf255bffbc104be7d7d3c11f7ceb9f9968cbfca5234b977196",
+        "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+        "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+        "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd"
+      }
+    },
+    "immutable-candidate-2": {
+      "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+      "scope": "runner-relative actual helper import closure",
+      "sha256": {
+        "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+        "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+        "support/pace.mjs": "962226ba29c83cbf255bffbc104be7d7d3c11f7ceb9f9968cbfca5234b977196",
+        "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+        "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+        "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd"
+      }
+    },
+    "immutable-base-2": {
+      "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+      "scope": "runner-relative actual helper import closure",
+      "sha256": {
+        "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+        "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+        "support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
+        "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+        "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+        "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd"
+      }
+    },
+    "immutable-base-3": {
+      "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+      "scope": "runner-relative actual helper import closure",
+      "sha256": {
+        "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+        "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+        "support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
+        "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+        "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+        "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd"
+      }
+    },
+    "immutable-candidate-3": {
+      "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+      "scope": "runner-relative actual helper import closure",
+      "sha256": {
+        "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+        "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+        "support/pace.mjs": "962226ba29c83cbf255bffbc104be7d7d3c11f7ceb9f9968cbfca5234b977196",
+        "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+        "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+        "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd"
+      }
+    },
+    "no-store-base-1": {
+      "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+      "scope": "runner-relative actual helper import closure",
+      "sha256": {
+        "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+        "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+        "support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
+        "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+        "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+        "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd"
+      }
+    },
+    "no-store-candidate-1": {
+      "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+      "scope": "runner-relative actual helper import closure",
+      "sha256": {
+        "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+        "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+        "support/pace.mjs": "962226ba29c83cbf255bffbc104be7d7d3c11f7ceb9f9968cbfca5234b977196",
+        "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+        "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+        "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd"
+      }
+    }
+  },
+  "sanitization": "Per-row generic temporary source_manifest paths removed; actual per-case manifests embedded here."
 }
