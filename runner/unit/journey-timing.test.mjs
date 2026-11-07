@@ -351,11 +351,11 @@ test("a timing write that fails changes neither the journey's outcome nor its er
 
 test("a retry in a new worker reads the failed try's entry back from the report and adds its own beside it", async t => {
   quiet(t);
-  await wrapper("Free shipping", 0).run(async () => {
+  await wrapper("Free shipping over an amount", 0).run(async () => {
     proof.record("Free shipping shows at the threshold", "FAIL", "the cart still shows a shipping charge");
     await wait(20);
   }).catch(() => {});
-  const [failed] = timingOf("Free shipping").tries;
+  const [failed] = timingOf("Free shipping over an amount").tries;
   assert.equal(failed.verdict, "FAIL");
   // Playwright retries in a new worker: a fresh copy of the proof module loads the report from disk,
   // with the failed try's steps and entry, and its wrapper writes the retry's entry as try 2. A fresh
@@ -365,13 +365,13 @@ test("a retry in a new worker reads the failed try's entry back from the report 
   const nextPace = await import("../support/pace.mjs?retry-worker");
   assert.ok(pace.paceSnapshot().sleeps >= 4, `this copy has slept ${pace.paceSnapshot().sleeps} times`);
   assert.deepEqual(nextPace.paceSnapshot(), { sleeps: 0, requestedMs: 0, ms: 0, wallMs: 0 });
-  const { journey } = wrapper("Free shipping", 1, {
+  const { journey } = wrapper("Free shipping over an amount", 1, {
     attemptVerdict: next.attemptVerdict, journeyVerdict: next.journeyVerdict, noteJourneyTiming: next.noteJourneyTiming,
     record: next.record, startJourney: next.startJourney, paceSnapshot: nextPace.paceSnapshot,
   });
   await journey(async () => { next.record("Free shipping shows at the threshold", "PASS"); })({ page: undefined });
-  assert.equal(next.journeyVerdict("Free shipping"), "FLAKY");
-  const { tries } = timingOf("Free shipping");
+  assert.equal(next.journeyVerdict("Free shipping over an amount"), "FLAKY");
+  const { tries } = timingOf("Free shipping over an amount");
   assert.deepEqual(tries[0], failed);
   assert.deepEqual(tries.map(entry => [entry.try, entry.verdict]), [[1, "FAIL"], [2, "PASS"]]);
   assert.equal(tries[1].pace_sleeps, 0);
@@ -391,9 +391,9 @@ test("a later worker keeps every journey's timing and the run's other facts, and
   });
   await journey(async () => { later.record("The owner can open Commerce Orders", "PASS"); })({ page: undefined });
   const saved = report();
-  const names = ["Full catalog", "Storefront", "Cart", "Payments status", "Problems", "Manage products", "One product with a category", "Buy and ship", "Free shipping", "Mark as completed"];
+  const names = ["Full catalog", "Storefront", "Cart", "Payments status", "Problems", "Manage products", "One product with a category", "Buy and ship", "Free shipping over an amount", "Mark as completed"];
   for (const name of names) assert.ok(Array.isArray(saved.facts[`${name} timing`]?.tries), `${name} timing kept`);
-  assert.equal(saved.facts["Free shipping timing"].tries.length, 2);
+  assert.equal(saved.facts["Free shipping over an amount timing"].tries.length, 2);
   assert.equal(saved.facts["products listed"], 4);
   assert.equal(saved.facts.plugins, "dinkus-commerce-beta 0.8.0-beta.1");
   assert.deepEqual(Object.keys(saved), ["run", "mode", "store", "ship", "verdict", "journeys", "facts", "steps"]);
@@ -410,7 +410,7 @@ test("a later worker keeps every journey's timing and the run's other facts, and
   }
   assert.ok(saved.journeys.some(entry => entry.name === "Ship settings"));
   assert.ok(!("timing" in projected.find(entry => entry.journey === "Ship settings")));
-  assert.equal(projected.find(entry => entry.journey === "Free shipping").timing.tries.length, 2);
+  assert.equal(projected.find(entry => entry.journey === "Free shipping over an amount").timing.tries.length, 2);
   assert.doesNotMatch(JSON.stringify(projected), /products listed|dinkus-commerce-beta/);
   // The default public run summary names no timing: it reads only the facts it knows.
   const summary = publicSummary(join(dir, "timed"));

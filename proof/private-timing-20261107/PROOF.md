@@ -2,12 +2,15 @@
 
 Base: `da61f2206486504eb4784571e6b15680328c5fc3` (the expected fresh base; no drift,
 worktree clean at start). Branch: `ridge/live-journey-timing-20261107`.
-Source hashes are in [validation.json](validation.json). Four turns of source
+Source hashes are in [validation.json](validation.json). Five turns of source
 work: the first commit (`c315f28`) added the fact; the second (`d637573`)
 answers the read-only design audit below; the third (`71bb42e`) answers the
 independent review of `c315f28` (two proof limits, below), with no further
-source change to the metric itself; the fourth extends the manual diagnostics
-analyzer to project the fact (below), touching no producer source.
+source change to the metric itself; the fourth (`3a7f913`) extends the manual
+diagnostics analyzer to project the fact (below), touching no producer source;
+the fifth renames the one fixture title the fourth left outside the analyzer's
+allowlist, the single failure in the coordinator's full suite at `d637573`
+(below), and records that acceptance as source-specific historical evidence.
 
 ## What changed
 
@@ -85,14 +88,21 @@ built from fresh literals in a fixed key order (never a spread of the fact):
 | Tries are passed through apart, in the report's order; nothing is summed, no speed-up or residual CPU is computed; an overlap sum above `body_ms` passes through as the producer's documented figure | `timing()` maps entries one to one |
 | No transport, credential, selector, workflow or default public summary change; no new private read or dispatch | Only `analyze` and its helpers changed; the workflow file and `run-summary.mjs` are untouched, and the existing workflow tests still pin them |
 
-The timing unit test's two journey titles outside the analyzer's allowlist
-("Buy a label", "Order details") were renamed to allowlisted ones ("Buy a label
-in the store admin", "One product with a category"), so its later-worker case,
-which already handed the run's report to `analyze`, is a real producer-to-
-consumer check: it now asserts the projection carries each saved timing fact
-byte for byte and no `timing` key for the journey whose write failed (Ship
-settings). Before this rename that call would have refused the report for the
-unlisted titles.
+The timing unit test used three synthetic journey titles outside the
+analyzer's allowlist. Turn 4 renamed two ("Buy a label", "Order details") to
+allowlisted ones ("Buy a label in the store admin", "One product with a
+category") and left "Free shipping" in place; the coordinator's full suite at
+`d637573` (below) failed exactly that later-worker case, because the existing
+analyzer correctly refuses a report naming an unlisted journey. Turn 5 renames
+it to the real journey "Free shipping over an amount" (the fixture's step
+names are free text and stay). The analyzer was not weakened at any point. The
+later-worker case, which hands the run's report to `analyze`, is now a real
+producer-to-consumer check: it asserts the projection carries each saved
+timing fact byte for byte and no `timing` key for the journey whose write
+failed (Ship settings). Its expectation changed on purpose with the consumer
+projection: a report without timing facts still projects nothing new, a
+report with valid facts projects fixed numeric timing, and the default run
+summary still omits it.
 
 Three adversarial cases were added to `runner/unit/report-diagnostics.test.mjs`,
 running the actual analyzer and its in-process CLI boundary:
@@ -161,7 +171,7 @@ needs no `npm ci`, as `tests.yml` runs the suite without one. Thirteen cases
 | Cut off and rerun | A finished entry, then module reload and snapshot write nothing; a rerun's start clears the entry; nothing appears while the body is held, however many steps it records; one entry after |
 | Timing write fails | Outcome and error identity unchanged, no entry |
 | Retry in a new worker | Fresh proof and pace module copies: the proof copy loads the failed try's entry from disk and adds try 2 beside it, byte-equal try 1; the pace copy reads all zeros while this copy has slept at least four times, the retry's entry reads zero sleeps from it, and it stays at zero |
-| Later worker and public surfaces | Fresh proof module keeps every earlier timing (both Free shipping tries) and arbitrary facts, exact report key set, diagnostics `analyze` and the real `run-summary.mjs` output name no timing |
+| Later worker and public surfaces | Fresh proof module keeps every earlier timing (both Free shipping over an amount tries) and arbitrary facts, exact report key set; diagnostics `analyze` projects each saved fact byte for byte and no key for Ship settings; the real `run-summary.mjs` output names no timing |
 
 `benchmark.mjs` here evaluates base and candidate `pace.mjs`, `proof.mjs` and
 `steps.mjs` from source with identical stand-ins, interleaves samples, counts
@@ -177,25 +187,41 @@ unchanged by turn 2 and reads the candidate from the working tree.
 In turns 1 and 2, every form of Node execution was denied by this session's
 permission policy: the pinned Node 24.22.0 (`--version`, `--check`, `--test`,
 with and without an isolated `env -i` environment), the PATH Node, `npm ci`,
-inline `node -e`, and in turn 1 a delegated subagent. In turns 3 and 4 the
+inline `node -e`, and in turn 1 a delegated subagent. In turns 3, 4 and 5 the
 coordinator stated Node is intentionally unavailable on this worker's tool
 surface, so nothing was attempted, retried or delegated. So **no unit result,
 no full-suite result and no benchmark sample exists from this worker.** None
 is claimed, and neither test file has been syntax-checked by a parser in any
 turn; both were proof-read only. `git diff --check` passed in every turn.
 
-The coordinator reported draft evidence for the earlier source (before turn 3):
-a preliminary full unit suite of 221 passed on the pinned Node 24.22.0 with
-unchanged-source hashes, and a 30-pair benchmark that passed with equal timer
-and delay counts per variant, kept in the coordinator's own run folder
-(`live-journey-performance-runs/20261106/timing`). That is previous draft
-evidence only: it predates turns 3 and 4 (their test cases, the analyzer
-change, the title renames and the docs), and the coordinator reruns every
+## Coordinator producer acceptance at `d637573` (historical evidence)
+
+The coordinator ran the producer checks independently on the immutable turn 2
+commit `d637573d4f92c607e91fdafd1ceaf9ddae4b7e0e` with the pinned Node 24.22.0
+and stable-source hashes captured, and keeps the files in its own task folder:
+`producer-unit.log`, `producer-unit.json`, `producer-benchmark-results.json`,
+`capture-producer/`, and `real-playwright/PROOF.md` with
+`source-manifest.json`. Figures below are as the coordinator reported them;
+the raw samples are in those files, not here.
+
+| Check at `d637573` | Result reported by the coordinator |
+| --- | --- |
+| Full unit suite, pinned Node 24.22.0 | 224 tests, 223 passed, 1 failed: the timing test's later-worker case, whose report named the synthetic journeys "Order details" and "Free shipping", which the analyzer correctly refuses. A fixture defect, not a producer or analyzer defect; fixed by the title renames in turns 4 and 5 |
+| Benchmark, 30 interleaved pairs | Passed with equal timer and delay counts per variant in every workload. Per-call deltas, candidate less base: no-wait `paceStore` +0.002 µs; forced single sleep −0.56 µs (within noise, no improvement is claimed); completed wrapper per journey +175 µs, which carries the entry's report load and write |
+| Real Playwright producer probe | Passed, with a `FLAKY` journey whose failed try's entry was retained across the retry's new worker; no live I/O |
+
+This evidence is specific to `d637573`. Between it and the current head, the
+producer source `proof.mjs` and `steps.mjs` are byte-identical and `pace.mjs`
+differs by a comment only (turn 3; see `validation.json`), so the measured
+figures describe the same producer code; the analyzer change (turn 4), the
+analyzer's adversarial tests, the renamed fixture titles and the docs are
+later than it and are not covered by it. The one failed case is expected to
+pass on the current head once "Free shipping over an amount" is an allowlisted
+name, but that is an expectation, not a result: the coordinator reruns every
 check on the final source and supplies the final results for a proof-only
-update. Nothing here restates those drafts as final. Primary acceptance
-(correct private metrics with behavior unchanged, negligible measured
-overhead, and the consumer reading the producer's shape) rests on the
-coordinator's independent run:
+update. Primary acceptance (correct private metrics with behavior unchanged,
+negligible measured overhead, and the consumer reading the producer's shape)
+rests on that rerun:
 
 ```sh
 # from live-journeys/, with the pinned Node 24.22.0 as NODE, isolated HOME/proof/profile

@@ -4,14 +4,15 @@
   "turn_1_commit": "c315f28e764e7a8c4f5e6839cc395e805e93e64b",
   "turn_2_commit": "d637573d4f92c607e91fdafd1ceaf9ddae4b7e0e",
   "turn_3_commit": "71bb42ef8206e9a3c9faf7a45b65388a50e1dd46",
-  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turns 3 and 4 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted, retried or delegated",
+  "turn_4_commit": "3a7f913a7dffb8ff526c3f4aac1368ccf391d6ef",
+  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turns 3, 4 and 5 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted, retried or delegated",
   "platform": "Linux aarch64",
   "source_sha256": {
     "runner/support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
     "runner/support/proof.mjs": "741fe99d73538c8778681c6ae533055d2b8691d89a817e9cbe21da050e2a9359",
     "runner/support/steps.mjs": "8570b784b2ef9beef9c2bbd7a98860ed61be722b950c5609f0e2afaea69d714c",
     "runner/scripts/report-diagnostics.mjs": "9f2a2c015b83bd193745d0708470519fc38f0857c3f05196837d9e7d291c8cb5",
-    "runner/unit/journey-timing.test.mjs": "e2cbd4980c5f8dfbe79ea79ac863abcec5ccd6a5ba5d8f10b5ac0b4e1e0ae3b1",
+    "runner/unit/journey-timing.test.mjs": "d2f592516c1fe17e881a633b3b5036aa773240ad8a192423f05739438750a7e1",
     "runner/unit/report-diagnostics.test.mjs": "181b0961f25904e91abf306d50c12ea440c9d5dc85fd6d5c119e1d7f0c5708e9",
     "runner/unit/fixtures/journey-wrapper.mjs": "70e4061b524356a49b77c70dd09606014f1b1413f2b2b6a4b6a9a9a463b68bae",
     "proof/private-timing-20261107/benchmark.mjs": "8f0db8ac2601765df3eb726d45abd195805e17907b98d15f0b2a1bbd121b9e37",
@@ -20,12 +21,22 @@
   },
   "turn_3_source_changes": "pace.mjs: comment only (attribution of a sleep at its end); journey-timing.test.mjs: one new case and a fresh pace module copy in the new-worker case; README: no fresh-worker reset claim, cross-boundary sleep limit stated",
   "turn_4_source_changes": "report-diagnostics.mjs: analyze projects an optional timing field per listed journey from facts[\"<journey> timing\"] in the producer's exact shape, fresh literals, whole-projection failure on a malformed fact, other facts ignored, old shape byte-equal without the fact; report-diagnostics.test.mjs: three adversarial cases; journey-timing.test.mjs: two titles renamed to allowlisted journeys and the later-worker case asserts the analyzer's projection of each saved timing and the absence of a key for a failed write; README and references/report-diagnostics.md: contract, limits, consumed approval; producer source (pace.mjs, proof.mjs, steps.mjs) unchanged, hashes equal to turn 3",
+  "turn_5_source_changes": "journey-timing.test.mjs only: the synthetic title \"Free shipping\" (the one turn 4 left outside the analyzer's allowlist) renamed to the real journey \"Free shipping over an amount\" in the new-worker and later-worker cases; step names unchanged; analyzer, producer source, fixtures, benchmark and docs unchanged, hashes equal to turn 4",
+  "coordinator_producer_acceptance": {
+    "at_commit": "d637573d4f92c607e91fdafd1ceaf9ddae4b7e0e",
+    "node": "24.22.0 pinned, stable-source hashes captured by the coordinator",
+    "unit_full": { "tests": 224, "passed": 223, "failed": 1, "failure": "journey-timing.test.mjs later-worker case: its report named the unlisted synthetic journeys Order details and Free shipping, which the analyzer correctly refuses; fixture defect, fixed by the renames in turns 4 and 5, analyzer not weakened" },
+    "benchmark": { "pairs": 30, "status": "passed", "timers_and_delays": "equal per variant in every workload", "per_call_delta_candidate_minus_base_us": { "no_wait": 0.002, "forced_sleep": -0.56, "completed_wrapper": 175 }, "improvement_claimed": false },
+    "real_playwright_probe": { "status": "passed", "flaky_new_worker_retention": true, "live_io": false },
+    "coordinator_files": ["producer-unit.log", "producer-unit.json", "producer-benchmark-results.json", "capture-producer/", "real-playwright/PROOF.md", "real-playwright/source-manifest.json"],
+    "covers_current_head": "producer only: proof.mjs and steps.mjs byte-identical since d637573, pace.mjs comment-only change in turn 3; the analyzer change, its adversarial tests, the title renames and the docs are later and need the coordinator's rerun"
+  },
   "checks": {
     "git_diff_check": { "exit": 0 },
     "syntax_check": { "command": "node --check runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs runner/scripts/report-diagnostics.mjs", "run": false, "reason": "no Node on this worker; proof-read only" },
     "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs", "run": false, "reason": "no Node on this worker" },
-    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "no Node on this worker", "coordinator_draft_before_turn_3": "221 passed on pinned Node 24.22.0; draft only, predates turns 3 and 4, to be rerun on the final source" },
-    "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "no Node on this worker", "coordinator_draft_before_turn_3": "30 pairs, equal timers and delays per variant; draft only, to be rerun on the final source" }
+    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "no Node on this worker", "coordinator_at_d637573": "224 tests, 223 passed, 1 fixture failure (see coordinator_producer_acceptance); historical, to be rerun on the final source" },
+    "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "no Node on this worker", "coordinator_at_d637573": "30 pairs passed, equal timers and delays per variant (see coordinator_producer_acceptance); historical, to be rerun on the final source" }
   },
   "claims": {
     "live_performance": false,
