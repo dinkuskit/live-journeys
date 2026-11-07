@@ -4,7 +4,7 @@
   "runtime": "Node v24.22.0",
   "platform": "Linux aarch64",
   "environment": "env -i; task-local /tmp HOME, proof and profile; DINKUS_E2E_ENV_FILE=/dev/null",
-  "dependencies": "no installation; no browser or live service used",
+  "dependencies": "Worker installed none; coordinator reports exact npm ci installed three packages with lockfile unchanged; no live service used.",
   "source_sha256": {
     "runner/tests/01-install-plugins.spec.mjs": "700870fa82d26c8d39481291750b8ec8195fecde527ee8fd7f348d493047c3be",
     "runner/tests/02-connect-dinkuskit.spec.mjs": "3d58c397f8d962e2697203e744ff6b5b57607f731d9ee8c1851ade528b7573db",
@@ -12,26 +12,6 @@
     "runner/unit/observer-dwell.test.mjs": "65fb6093c3b0d18bdfeaecf64a9ece4ba62e269d008e0a8954d4ee3dc15b8087"
   },
   "checks": {
-    "canonical": {
-      "command": "node --test runner/unit/*.test.mjs",
-      "exit": 1,
-      "wall_seconds": 0.3847064430010505,
-      "resources": {
-        "user_seconds": 1.340574,
-        "system_seconds": 0.610972,
-        "max_rss": 85064,
-        "max_rss_unit": "KiB",
-        "aggregation": "waited-children"
-      },
-      "stdout_sha256": "a6f9aa309d08af5d40433667db2a0f4ae443225a786135f9bf839949e883c98f",
-      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "passed_files": 23,
-      "failed_files": [
-        "runner/unit/gmail.test.mjs",
-        "runner/unit/proof.test.mjs"
-      ],
-      "classification": "partial; not a full-suite pass"
-    },
     "targeted": {
       "command": "node --test --test-isolation=none runner/unit/observer-dwell.test.mjs",
       "exit": 0,
@@ -66,7 +46,59 @@
       "failed": 23,
       "skipped": 0,
       "classification": "diagnostic only; removing isolation also causes cross-file shared-state failures"
+    },
+    "canonical_worker_attempt": {
+      "command": "node --test runner/unit/*.test.mjs",
+      "exit": 1,
+      "wall_seconds": 0.3847064430010505,
+      "resources": {
+        "user_seconds": 1.340574,
+        "system_seconds": 0.610972,
+        "max_rss": 85064,
+        "max_rss_unit": "KiB",
+        "aggregation": "waited-children"
+      },
+      "stdout_sha256": "a6f9aa309d08af5d40433667db2a0f4ae443225a786135f9bf839949e883c98f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "passed_files": 23,
+      "failed_files": [
+        "runner/unit/gmail.test.mjs",
+        "runner/unit/proof.test.mjs"
+      ],
+      "classification": "partial; not a full-suite pass"
+    },
+    "canonical": {
+      "command": "node --test runner/unit/*.test.mjs",
+      "validated_by": "coordinator; raw log inspected by worker",
+      "reviewed_head": "fce5c130c17b7c3c2f688f9e13dd55e64217f80f",
+      "runtime": "Node v24.22.0",
+      "environment": "task-local HOME/proof/profile; DINKUS_E2E_ENV_FILE=/dev/null",
+      "passed": 203,
+      "failed": 0,
+      "skipped": 0,
+      "log": "canonical-unit.log",
+      "log_sha256": "7eeb91cc6389a9e113ad6860558a13c410e0a84aca6bbe5211f492c4348ef0df"
+    },
+    "roster": {
+      "command": "exact npm ci, then Playwright --list --grep @running",
+      "validated_by": "coordinator; raw roster log inspected by worker",
+      "tests": 14,
+      "files": 14,
+      "packages_installed": 3,
+      "lockfile_changed": false,
+      "log": "roster.log",
+      "log_sha256": "dc5067fda9b19c1f981988646773f0dbf320c017f87df971917e194965da336e"
+    },
+    "independent_source_review": {
+      "reported_by": "coordinator",
+      "head": "fce5c130c17b7c3c2f688f9e13dd55e64217f80f",
+      "actionable_findings": 0,
+      "preserved": [
+        "prior readiness",
+        "screenshot wrapper"
+      ],
+      "replaces_required_external_reviews": false
     }
   },
-  "full_suite_gap": "Existing summary subprocess checks report spawnSync node EPERM. No permission changes attempted."
+  "full_suite_gap": "Resolved by coordinator canonical isolated suite: 203 pass, zero failures/skips. Earlier worker spawnSync node EPERM retained as history; no permission changes attempted."
 }

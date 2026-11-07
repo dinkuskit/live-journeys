@@ -15,7 +15,13 @@ The actual step callbacks were extracted and executed with controlled reads, con
 
 [comparison.json](comparison.json) records one deterministic base/candidate pair per mode, with identical successful return values. This counts scheduled timer work in these two successful callbacks, not wall-clock performance. No browser/network timing or end-to-end speedup is claimed; the Commerce path must be selected for its 3,500 ms reduction to apply.
 
-Validation used the supplied **Node v24.22.0** executable on Linux aarch64, with an empty inherited environment, task-local `/tmp` HOME/proof/profile, and `DINKUS_E2E_ENV_FILE=/dev/null`. No dependencies were installed.
+Accepted coordinator validation at reviewed head `fce5c130c17b7c3c2f688f9e13dd55e64217f80f` used **Node v24.22.0**, task-local HOME/proof/profile, and `DINKUS_E2E_ENV_FILE=/dev/null`. The raw logs were inspected for this proof-only handoff; their SHA-256 hashes are in [validation.json](validation.json).
+
+- Canonical `node --test runner/unit/*.test.mjs`: **203 pass, 0 fail, 0 skipped**. The earlier full-suite validation gap is resolved.
+- Exact `npm ci`, then Playwright `--list --grep @running`: **14 tests in 14 files**. The coordinator reports three packages installed and the lockfile unchanged. Listing is offline discovery, not live execution.
+- The coordinator reports an independent source review at that head with **no actionable findings**, specifically preserving prior readiness and the screenshot wrapper. This does not replace CI or either required external review.
+
+Earlier worker validation history used an empty inherited environment and task-local `/tmp` HOME/proof/profile, with no dependency installation:
 
 - `node --test --test-isolation=none runner/unit/observer-dwell.test.mjs`: **14 pass, 0 fail, 0 skipped**, exit 0.
 - Canonical `node --test runner/unit/*.test.mjs`: **exit 1**, 23 file passes and failures in existing `gmail.test.mjs` and `proof.test.mjs`. It is not a full-suite pass. Isolated diagnostic execution of those files identifies `spawnSync node EPERM` in their existing subprocess checks (9 failures, 14 passes).
@@ -24,4 +30,4 @@ Validation used the supplied **Node v24.22.0** executable on Linux aarch64, with
 
 An initial targeted run under the inherited environment failed at file level; a diagnostic exposed a test synchronization assumption (two microtasks did not reach the deferred read). The test now yields one event-loop turn and checks that readiness was reached. The final clean-environment targeted run passes all 14 cases.
 
-Full canonical validation remains a coordinator gap; no privilege widening was attempted. The source commit exists and the worktree was clean afterward, despite Git reporting blocked shared `packed-refs.lock` and `rr-cache` housekeeping writes. The coordinator owns pushing, the PR and required reviews, and targeted live verification after the current baseline/candidate pair finishes. This worker dispatched no live run and performed no merge.
+The earlier sandbox subprocess limitation is retained as history; accepted independent canonical validation above resolves the validation gap. No privilege widening was attempted. The source commit exists and the worktree was clean afterward, despite Git reporting blocked shared `packed-refs.lock` and `rr-cache` housekeeping writes. The coordinator owns pushing, the PR, CI and both required external reviews, and targeted live verification after the current baseline/candidate pair finishes. Standing owner authorization permits the coordinator to merge this issue #36 observer change only when CI and both external required reviews are clean. This worker dispatched no live run and performed no merge.
