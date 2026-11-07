@@ -620,11 +620,22 @@ journey's outcome nor the error it threw. A try the run cut off before that
 (Playwright's timeout, a stopped run, a killed worker) leaves no entry at all;
 nothing writes a zero or a pass in its place, so a journey listed without its
 timing, or a retried journey with one entry, was cut off. Listing the journeys
-(`--list`) runs none and writes nothing. The counters behind `pace_*` belong to
-one worker process and start at zero in each, so a journey's entry is the
-difference between two snapshots in its own worker; a retry, which Playwright
-runs in a new worker, reads the failed try's entry back from the report and
-adds its own beside it, as every other fact survives a worker restart.
+(`--list`) runs none and writes nothing.
+
+The counters behind `pace_*` belong to one worker process, and a journey's
+entry is the difference between two snapshots taken in its own worker, so what
+they held before the journey began never reaches its entry. A retry, which
+Playwright runs in a new worker, reads the failed try's entry back from the
+report and adds its own beside it, as every other fact survives a worker
+restart. Each sleep counts, whole, in the journey whose body is running when
+the sleep ends, and a stretch of overlapping sleeps counts in the wall figure
+when the last of them ends; so the `pace_*` figures are exact for a body that
+awaits every sleep it starts, as every journey's does. A sleep still running
+when a body ends (a step that threw while a sleep it started, and did not
+await, was waiting) is left out of that try's entry, and counts in the next
+journey of the same worker, whose `pace_sleep_ms` can then exceed its own
+`body_ms` with no overlap to explain it, or nowhere when none follows. The
+fact does not split such a sleep across the two.
 
 On Linux, label rendering requires Poppler's `pdftoppm`; macOS uses Quick Look.
 A missing renderer, failed render or invalid picture fails the label-PDF step

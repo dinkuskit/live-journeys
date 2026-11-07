@@ -181,6 +181,47 @@ test("a wall-clock jump during a sleep moves what paceStore decides, as before, 
   assert.equal(pace.paceSnapshot().sleeps, before.sleeps + 1);
 });
 
+test("a sleep still running when the body ends is left out of that try's entry, and counts where it ends", async t => {
+  quiet(t);
+  // Every journey awaits each sleep it starts, so its sleeps end inside its body. One that didn't (a body
+  // that threw while a sleep it started was waiting) is the known limit: the sleep counts, whole, when
+  // it ends, so it lands in the next journey of this worker, not split across the two.
+  const scheduled = fillBudget();
+  const before = pace.paceSnapshot();
+  const { run } = wrapper("Buy a label");
+  const thrown = new Error("the label dialog closed");
+  let sleeping;
+  const caught = await run(async () => {
+    proof.record("Buy a label opens the label dialog", "PASS");
+    sleeping = pace.paceStore(1);
+    await wait(50);
+    throw thrown;
+  }).catch(error => error);
+  assert.equal(caught, thrown);
+  const [first] = timingOf("Buy a label").tries;
+  assert.equal(first.body, "threw");
+  assert.equal(first.pace_sleeps, 0);
+  assert.equal(first.pace_sleep_requested_ms, 0);
+  assert.equal(first.pace_sleep_ms, 0);
+  assert.equal(first.pace_sleep_wall_ms, 0);
+  assert.ok(first.body_ms >= 45 && first.body_ms < scheduled, `${first.body_ms} ms body, the sleep still has ${scheduled} ms to run`);
+  // The worker's counters have not moved yet: nothing is counted for a sleep until it ends.
+  assert.deepEqual(pace.paceSnapshot(), before);
+  // The next journey of this worker (here, the retry) is running when the sleep ends, so its entry
+  // takes in the whole sleep, beside a body that ran for less than it: the figure the README warns of.
+  await wrapper("Buy a label", 1).run(async () => {
+    proof.record("Buy a label opens the label dialog", "PASS");
+    await sleeping;
+  });
+  const [, retry] = timingOf("Buy a label").tries;
+  assert.equal(retry.try, 2);
+  assert.equal(retry.pace_sleeps, 1);
+  assert.ok(retry.pace_sleep_ms >= scheduled - 100, `${retry.pace_sleep_ms} ms counted once it ended, scheduled ${scheduled} ms`);
+  assert.equal(retry.pace_sleep_wall_ms, retry.pace_sleep_ms);
+  assert.ok(retry.pace_sleep_ms > retry.body_ms, `${retry.pace_sleep_ms} ms of sleep > ${retry.body_ms} ms body, with no overlap`);
+  assert.equal(pace.paceSnapshot().sleeps, before.sleeps + 1);
+});
+
 test("a journey that throws keeps its error, records the failure, and still writes its timing", async t => {
   quiet(t);
   const { run } = wrapper("Problems");
@@ -317,17 +358,24 @@ test("a retry in a new worker reads the failed try's entry back from the report 
   const [failed] = timingOf("Free shipping").tries;
   assert.equal(failed.verdict, "FAIL");
   // Playwright retries in a new worker: a fresh copy of the proof module loads the report from disk,
-  // with the failed try's steps and entry, and its wrapper writes the retry's entry as try 2.
+  // with the failed try's steps and entry, and its wrapper writes the retry's entry as try 2. A fresh
+  // copy of the pace module, as that worker loads one, starts its counters from nothing: this worker's
+  // sleeps so far stay with this copy, and the retry's entry is read from the new copy alone.
   const next = await import("../support/proof.mjs?retry-worker");
+  const nextPace = await import("../support/pace.mjs?retry-worker");
+  assert.ok(pace.paceSnapshot().sleeps >= 4, `this copy has slept ${pace.paceSnapshot().sleeps} times`);
+  assert.deepEqual(nextPace.paceSnapshot(), { sleeps: 0, requestedMs: 0, ms: 0, wallMs: 0 });
   const { journey } = wrapper("Free shipping", 1, {
     attemptVerdict: next.attemptVerdict, journeyVerdict: next.journeyVerdict, noteJourneyTiming: next.noteJourneyTiming,
-    record: next.record, startJourney: next.startJourney,
+    record: next.record, startJourney: next.startJourney, paceSnapshot: nextPace.paceSnapshot,
   });
   await journey(async () => { next.record("Free shipping shows at the threshold", "PASS"); })({ page: undefined });
   assert.equal(next.journeyVerdict("Free shipping"), "FLAKY");
   const { tries } = timingOf("Free shipping");
   assert.deepEqual(tries[0], failed);
   assert.deepEqual(tries.map(entry => [entry.try, entry.verdict]), [[1, "FAIL"], [2, "PASS"]]);
+  assert.equal(tries[1].pace_sleeps, 0);
+  assert.deepEqual(nextPace.paceSnapshot(), { sleeps: 0, requestedMs: 0, ms: 0, wallMs: 0 });
 });
 
 test("a later worker keeps every journey's timing and the run's other facts, and the public summary shows none of it", async t => {

@@ -2,23 +2,25 @@
   "base": "da61f2206486504eb4784571e6b15680328c5fc3",
   "branch": "ridge/live-journey-timing-20261107",
   "turn_1_commit": "c315f28e764e7a8c4f5e6839cc395e805e93e64b",
-  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in both turns (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent)",
+  "turn_2_commit": "d637573d4f92c607e91fdafd1ceaf9ddae4b7e0e",
+  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turn 3 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted",
   "platform": "Linux aarch64",
   "source_sha256": {
-    "runner/support/pace.mjs": "5ec6e9d522f3f03aefcf9798fb9f22154a4d14e770335e8d655648d19b06926b",
+    "runner/support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
     "runner/support/proof.mjs": "741fe99d73538c8778681c6ae533055d2b8691d89a817e9cbe21da050e2a9359",
     "runner/support/steps.mjs": "8570b784b2ef9beef9c2bbd7a98860ed61be722b950c5609f0e2afaea69d714c",
-    "runner/unit/journey-timing.test.mjs": "e383721fd936844c19d924e6e2f3f0c1047797e5c59dbe6d58b0125b718674c2",
+    "runner/unit/journey-timing.test.mjs": "14cf4ff6c841ca7fc85d3b8cc9fc397d4869fdc6cb9b79f359012d161a68eb7c",
     "runner/unit/fixtures/journey-wrapper.mjs": "70e4061b524356a49b77c70dd09606014f1b1413f2b2b6a4b6a9a9a463b68bae",
     "proof/private-timing-20261107/benchmark.mjs": "8f0db8ac2601765df3eb726d45abd195805e17907b98d15f0b2a1bbd121b9e37",
-    "runner/README.md": "97923e7fbcc4723d9c487fc5d6fab456e2e6835581fd7725a30e144d3acb0f0f"
+    "runner/README.md": "0b1b4c0effead83e04c7eb40f0e763450291ba8c2f37c81b420e37f50e7f2840"
   },
+  "turn_3_source_changes": "pace.mjs: comment only (attribution of a sleep at its end); journey-timing.test.mjs: one new case and a fresh pace module copy in the new-worker case; README: no fresh-worker reset claim, cross-boundary sleep limit stated",
   "checks": {
     "git_diff_check": { "exit": 0 },
-    "syntax_check": { "command": "node --check runner/unit/journey-timing.test.mjs", "run": false, "reason": "execution denied; proof-read only" },
-    "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs", "run": false, "reason": "execution denied" },
-    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "execution denied" },
-    "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "execution denied" }
+    "syntax_check": { "command": "node --check runner/unit/journey-timing.test.mjs", "run": false, "reason": "no Node on this worker; proof-read only" },
+    "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs", "run": false, "reason": "no Node on this worker" },
+    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "no Node on this worker", "coordinator_draft_before_turn_3": "221 passed on pinned Node 24.22.0; draft only, to be rerun on the final source" },
+    "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "no Node on this worker", "coordinator_draft_before_turn_3": "30 pairs, equal timers and delays per variant; draft only, to be rerun on the final source" }
   },
   "claims": {
     "live_performance": false,

@@ -1,10 +1,12 @@
-# Private journey timing: source prepared, offline checks not yet run
+# Private journey timing: source prepared, final offline checks owned by the coordinator
 
 Base: `da61f2206486504eb4784571e6b15680328c5fc3` (the expected fresh base; no drift,
 worktree clean at start). Branch: `ridge/live-journey-timing-20261107`.
-Source hashes are in [validation.json](validation.json). Two turns of source
-work: the first commit (`c315f28`) added the fact; the second answers the
-read-only design audit below.
+Source hashes are in [validation.json](validation.json). Three turns of source
+work: the first commit (`c315f28`) added the fact; the second (`d637573`)
+answers the read-only design audit below; the third answers the independent
+review of `c315f28` (two proof limits, below), with no further source change
+to the metric itself.
 
 ## What changed
 
@@ -51,7 +53,12 @@ double-count overlapping sleeps and then exceed `body_ms`, which the wall
 figure does not; time beyond the sleeps is unattributed and is not claimed as
 CPU; a try cut off before its wrapper finished (timeout, stopped run, killed
 worker) leaves no entry rather than a zero or a pass; `--list` writes nothing;
-pace counters are per worker, so only same-worker snapshot differences are used.
+pace counters are per worker, so only same-worker snapshot differences are
+used, and what a worker's counters held before a journey never reaches its
+entry; each sleep counts, whole, in the journey whose body is running when it
+ends, so the figures are exact for a body that awaits every sleep it starts
+(as every journey's does), while a sleep still running when a body ends is left
+out of that try and lands in the worker's next journey, or nowhere.
 
 The public `scripts/run-summary.mjs` prints only the facts it names
 (`plugins`, `update stopped`, `held`, `store refusals`) and is unchanged; the
@@ -72,13 +79,28 @@ accepts the report and projects fixed counters only. It was not extended or run.
 | Body boundary excludes fixtures, `startJourney`, the write; includes body-owned screenshots and cleanup | `from` taken after `startJourney`, `to` before the write | "the body's span…" (200 ms stalls on either side, screenshot and `finally` inside) |
 | Passed, soft-failed and thrown bodies; retry plus reload; private-only output | As in turn 1 | Existing tests, kept |
 
+## Independent review of `c315f28` (turn 3) and where each limit lands
+
+The review found no actionable defect beyond the stale retry-0 timing already
+cleared in turn 2, and two proof limits:
+
+| Limit | Where it lands |
+| --- | --- |
+| The new-worker retry test reloaded the proof module but reused the pace module, so a fresh-worker counter reset was asserted in the README without a test | The README no longer rests on a reset: a journey's entry is a same-worker snapshot difference, so what the counters held before it never reaches the entry. The retry-in-a-new-worker test now also loads a fresh copy of `pace.mjs` (as that worker would), checks this copy has slept at least four times while the fresh copy reads all zeros, binds the retry's wrapper to the fresh copy, and checks the retry's entry reads zero sleeps and the fresh copy stays at zero. A module copy is the offline stand-in for a worker process; a real worker is fresher still, and no claim beyond the copy is made |
+| Sleep differences are exact only when the relevant sleeps begin and end inside the body; a sleep across the boundary is misattributed | Documented, not changed: `paceStore` counts a sleep, whole, when it ends, so a journey's difference holds the sleeps that ended during its body. Every journey awaits each sleep it starts, so for the journeys as written every sleep ends inside its body and the figures are exact. The limit is a sleep a body started and did not await before throwing: it is left out of that try and lands in the worker's next journey (whose `pace_sleep_ms` can then exceed its `body_ms` with no overlap) or nowhere, never split. The README and the `pace.mjs` comment say so, and a new test pins it: a body starts a sleep, throws 50 ms in, and its entry reads zero sleeps with the counters unmoved; the retry that then awaits the same sleep reads one sleep, measured at least the scheduled wait less 100 ms, wall equal to measured, and more than its own `body_ms` |
+
+Splitting a sleep across two journeys would need the snapshot to read in-flight
+sleeps and count sleeps at their start; it was not added, as no journey has an
+un-awaited sleep and the turn's scope was the two limits.
+
 ## Offline checks written
 
 `runner/unit/journey-timing.test.mjs` runs the actual wrapper source from
 `steps.mjs` (via `runner/unit/fixtures/journey-wrapper.mjs`, a `vm` fixture in
 the style of the observer-dwell one) against the real `proof.mjs`, `pace.mjs`
 and `errors.mjs`, with stand-ins only for Playwright's `test`/`expect`. It
-needs no `npm ci`, as `tests.yml` runs the suite without one. Thirteen cases:
+needs no `npm ci`, as `tests.yml` runs the suite without one. Thirteen cases
+(twelve before turn 3; the earlier count of thirteen here was off by one):
 
 | Case | Boundary exercised |
 | --- | --- |
@@ -86,13 +108,14 @@ needs no `npm ci`, as `tests.yml` runs the suite without one. Thirteen cases:
 | Never waits | Zero sleeps, zero requested and measured time, body time still measured |
 | Overlapping sleeps | Two `paceStore` awaited together: sum counts both and exceeds `body_ms`, wall counts once, is smaller and within `body_ms` |
 | Wall-clock jump | `Date.now` jumps an hour while a sleep's timer runs: measured sleep and body stay at the real second; pacing then waits for nothing, as the wall clock says |
+| Sleep across the boundary | A body starts a sleep, does not await it and throws 50 ms in: its entry reads zero sleeps and the counters have not moved; the retry that awaits the same sleep reads one whole sleep, wall equal to measured, more than its own `body_ms` |
 | Body throws | Same error object rethrown with its first line only, failure step recorded, `body: "threw"`, timing still written |
 | Soft step failed | `body: "returned"`, `verdict: "FAIL"`, final expect still fails the journey |
 | Body boundary | `startJourney` and the timing write each hold the thread 200 ms; a step's 30 ms screenshot and a 20 ms `finally` sit inside; `body_ms` lands between |
 | Retry | Failed first try kept beside the passing retry (`FLAKY`), kept through the retry's start, same retry replaces only its own entry, a fresh run starts over |
 | Cut off and rerun | A finished entry, then module reload and snapshot write nothing; a rerun's start clears the entry; nothing appears while the body is held, however many steps it records; one entry after |
 | Timing write fails | Outcome and error identity unchanged, no entry |
-| Retry in a new worker | Fresh proof module loads the failed try's entry from disk and adds try 2 beside it, byte-equal try 1 |
+| Retry in a new worker | Fresh proof and pace module copies: the proof copy loads the failed try's entry from disk and adds try 2 beside it, byte-equal try 1; the pace copy reads all zeros while this copy has slept at least four times, the retry's entry reads zero sleeps from it, and it stays at zero |
 | Later worker and public surfaces | Fresh proof module keeps every earlier timing (both Free shipping tries) and arbitrary facts, exact report key set, diagnostics `analyze` and the real `run-summary.mjs` output name no timing |
 
 `benchmark.mjs` here evaluates base and candidate `pace.mjs`, `proof.mjs` and
@@ -106,13 +129,24 @@ unchanged by turn 2 and reads the candidate from the working tree.
 
 ## Not run by this worker
 
-In both turns, every form of Node execution was denied by this session's
+In turns 1 and 2, every form of Node execution was denied by this session's
 permission policy: the pinned Node 24.22.0 (`--version`, `--check`, `--test`,
 with and without an isolated `env -i` environment), the PATH Node, `npm ci`,
-inline `node -e`, and in turn 1 a delegated subagent. So **no unit result, no
-full-suite result and no benchmark sample exists from this worker.** None is
-claimed, and the turn-2 test file has not even been syntax-checked by a
-parser; it was proof-read only. `git diff --check` passed in both turns.
+inline `node -e`, and in turn 1 a delegated subagent. In turn 3 the
+coordinator stated Node is intentionally unavailable on this worker's tool
+surface, so nothing was attempted. So **no unit result, no full-suite result
+and no benchmark sample exists from this worker.** None is claimed, and the
+test file has not been syntax-checked by a parser in any turn; it was
+proof-read only. `git diff --check` passed in every turn.
+
+The coordinator reported draft evidence for the earlier source (before turn 3):
+a preliminary full unit suite of 221 passed on the pinned Node 24.22.0 with
+unchanged-source hashes, and a 30-pair benchmark that passed with equal timer
+and delay counts per variant, kept in the coordinator's own run folder
+(`live-journey-performance-runs/20261106/timing`). That is previous draft
+evidence only: it predates this turn's test file and README, and the
+coordinator reruns every check on the final source and supplies the final
+results for a proof-only update. Nothing here restates those drafts as final.
 Primary acceptance (correct private metrics with behavior unchanged, and
 negligible measured overhead) rests on the coordinator's independent run:
 
@@ -129,7 +163,7 @@ env -i HOME="$TMP_HOME" PATH="$PATH" DINKUS_E2E_ENV_FILE=/dev/null \
   --out proof/private-timing-20261107/benchmark-results.json
 ```
 
-The timing test takes about five seconds of real timers (four seeded sleeps of
+The timing test takes about six seconds of real timers (five seeded sleeps of
 about 1.25 s each) and holds the thread for 0.4 s in the boundary case. Its
 time bounds leave 50 to 180 ms of headroom for a loaded machine; a bound that
 trips under heavy load is a test-tolerance matter, not a metric defect, and

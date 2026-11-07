@@ -189,8 +189,10 @@ export function waitFor(times, room, now = Date.now()) {
 // journey keeps (see steps.mjs): how many, the sum of what they asked the timer for, the sum of their
 // measured lengths (longer when the timer fired late), and the wall time during which at least one was
 // sleeping, which is less than the sum when sleeps overlap. Measured on the monotonic clock; the wait
-// itself is still decided from Date.now() and the request log, as before. Each worker starts from
-// zero, so only the difference between two snapshots of one worker means anything.
+// itself is still decided from Date.now() and the request log, as before. Only the difference between
+// two snapshots of one worker means anything. A sleep counts, whole, when it ends: a journey's
+// difference holds the sleeps that ended during its body, and a sleep it started but never awaited
+// (one still running when its body threw) lands in the next journey's, or nowhere.
 const paced = { sleeps: 0, requestedMs: 0, ms: 0, wallMs: 0 };
 let sleeping = 0;
 let sleepingFrom = 0;
