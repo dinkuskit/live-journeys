@@ -1,0 +1,11 @@
+{
+  "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+  "node": "24.22.0",
+  "command": "node --test runner/unit/*.test.mjs",
+  "tests": 243,
+  "passed": 243,
+  "failed": 0,
+  "stdout_sha256": "f69501b94e7ffbff0f740f9d9c51240930ba95c25a12b49b8865ea0e5536be84",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "independent_source_review": "no actionable findings at the recorded source; no live claim"
+}

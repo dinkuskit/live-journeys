@@ -1,0 +1,15 @@
+{
+  "base": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+  "candidate": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+  "hashes": {
+    "compare.mjs": "d436200fd784b043a1a882040ceb693e19819c4205ea0a99d6e6a95cb610944e",
+    "model.mjs": "67636271207b156b45ede26d5cb39d8e0032c8551642c97fb8779f2b9ade4ca6",
+    "browser-sample.mjs": "c2eb0a7a4653aa4d6874293d9c8b07b98c82fe22d9a7af0774e3606d86c38963",
+    "README.md": "22bdc02ce3cee86697f843517d98d64163af1fdf1028b7c38340116e79ec0655",
+    "browser-results.json": "5d0b7b5f65663bc677aede77e15ee89e1005e420c286a502de8af9256888aa2b",
+    "model-results.json": "f43e42d4a55c0e5b3a8f1a51cbf67ff6238db2fb27000d593c5f347d5918dd76",
+    "unit-results.json": "6c7693e115a19c3a52083d9e6bc66130a5c70a9dd4afb4dbcf53182e768d1846"
+  },
+  "raw_model_timer_events": "omitted from compact public result; raw hash recorded in model-results.json",
+  "provenance": "coordinator executed exact committed source with pinned runtime; browser history/interleaving synthetic"
+}
