@@ -3,7 +3,7 @@
 Source base: `39723f974d5ed7fda703ea11cec0cc20153b235f`.
 Candidate source commit: `f00d29324a268282a512d302180e8ed74f3f5b1d`.
 Branch: `ridge/live-journey-performance-20261106`.
-Classification: offline operation-count improvement demonstrated; live performance and full verification remain partial.
+Classification: offline operation-count improvement and pinned-runtime offline validation passed; live performance and exact-head review gates remain outstanding.
 
 ## Change and rationale
 
@@ -155,3 +155,48 @@ coordinator must provision the pinned Node 24.22.0 runtime before rerunning
 paths. Dependency availability under that exact runtime remains unverified.
 The candidate source is unchanged, including the initial Orders open and its
 `ordersListed` behavior. No live workflow, push, PR or review was initiated.
+
+## Coordinator acceptance evidence — 2026-11-07
+
+This update resolves the earlier pinned-runtime, dependency, sandbox unit-suite
+and remote-freshness gaps. Those observations above remain chronological
+history, not current blockers. No source changes or new test runs were made by
+this worker for this update.
+
+The coordinator located and verified Node `v24.22.0` at
+`/home/bobby-xps/Work/repos/saari-co/x-api/runs/ci-opportunity-runs/20261106/commerce-baseline/runtime/node-v24.22.0-linux-arm64/bin/node`.
+The coordinator reports installing the locked dependencies with `npm ci`
+(three packages; lockfile unchanged), then running from `runner/` with
+`DINKUS_E2E_ENV_FILE=/dev/null` and fresh temporary HOME, proof and profile
+paths. The exact commands reported are `node --test unit/*.test.mjs` and
+Playwright `--list --grep @running`, using that pinned runtime; the recorded
+`benchmark.mjs` comparison was also rerun with it. This worker read the safe
+logs and benchmark JSON, rather than rerunning these checks.
+
+| Acceptance check | Observed result |
+| --- | --- |
+| Full offline unit suite | 189 passed; 0 failed, cancelled, skipped or todo; reported duration 608.151105 ms |
+| Playwright running roster | 14 tests in 14 files; listing only, no live execution |
+| Exact-Node benchmark | Six cases × ten interleaved pairs = 60 pairs; same navigation, scan, wait and failure results as the comparison table above |
+| Candidate source binding | Benchmark SHA-256 `6406dabc859d55192e70e189b2ee63c06c6904189124e16b3f4becf8dc18dd41` matches current `runner/tests/problems.spec.mjs` |
+| Locked dependencies | Current lockfile SHA-256 remains `51a538a6154719d5bebb4393b607303a175be28d18518b605e3dfaa47637f397` |
+
+Safe evidence files, under the coordinator's
+`x-api/runs/live-journey-performance-runs/20261106/` directory:
+
+- `independent-unit-node24.log`: SHA-256 `1c7485fe8a99becc4cedce5f144e5111199b108b274f7a26779525121c767137`.
+- `candidate-roster.log`: SHA-256 `dc5067fda9b19c1f981988646773f0dbf320c017f87df971917e194965da336e`.
+- `canonical-benchmark.json`: SHA-256 `4a0683ba8bfa1e3225609f0dc7b434bbedf964adb962e8c0205a43e3454adb26`.
+
+The coordinator also reports a fresh `git fetch origin main` resolving to
+`39723f974d5ed7fda703ea11cec0cc20153b235f` (no base drift), and an independent
+source review with no actionable issues at source commit
+`f00d29324a268282a512d302180e8ed74f3f5b1d`. The local remote-tracking ref
+matches that base. These coordinator attestations are separate from the safe
+log results this worker inspected and do not replace required reviewer rails.
+
+Next owner remains the coordinator: non-force push, PR to `main`, exact-head
+CI/comprehensive OpenClaw/native ClawSweeper evidence, and controlled live
+comparison through the existing workflow. No live latency improvement is
+claimed from synthetic operation counts. This worker dispatched no live run,
+push, PR or review. The candidate is not review-ready; no merge is authorized.
