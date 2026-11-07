@@ -11,8 +11,11 @@ diagnostics analyzer to project the fact (below), touching no producer source;
 the fifth (`7bd7379`) renames the one fixture title the fourth left outside the
 analyzer's allowlist, the single failure in the coordinator's full suite at
 `d637573` (below), and records that acceptance as source-specific historical
-evidence; the sixth makes the fact's write whole-or-nothing, the required
-correctness fix the coordinator raised before final review (below).
+evidence; the sixth (`c0b0338`) makes the fact's write whole-or-nothing, the
+required correctness fix the coordinator raised before final review (below);
+the seventh makes the benchmark fail, rather than look fast, when the
+candidate's wrapper did not publish every entry (below). No producer, analyzer
+or test source changed after `c0b0338`.
 
 ## What changed
 
@@ -200,6 +203,40 @@ its per-journey figure will therefore differ from the `+175 µs` the coordinator
 measured at `d637573`, and that figure is historical. No sample exists from
 this worker.
 
+## Benchmark consistency (turn 7)
+
+The coordinator asked, after the atomic fix, that the benchmark could not
+mistake a candidate whose timing write failed for a fast one: the wrapper lets
+a failed write go by design (`steps.mjs` `finally`), so if `proof.mjs` named a
+`node:fs` function the benchmark had not supplied, the `ReferenceError` would
+be swallowed, the entry never published, and the sample would run with less
+work. Two guards were added to `benchmark.mjs`; no runner source changed.
+
+| Guard | What it does |
+| --- | --- |
+| Import coverage | Before evaluating any of the three modules, in either revision, the benchmark collects the local names of its `import { ... } from` lines and refuses to run if the bindings do not cover every one, naming the module and the missing names. On this head `proof.mjs` imports `readFileSync`, `writeFileSync`, `renameSync` and `unlinkSync` from `node:fs` (no `mkdtemp`, `rmSync` or other), all four bound and counted; `pace.mjs` and `steps.mjs` name nothing beyond the bindings, in either revision |
+| Per-sample publication check | After every wrapper sample, outside the timed span, the benchmark reads each variant's `report.json` back and asserts: the work per sample equals a fixed expectation (base: 100 writes, 0 reads, 0 renames, 0 unlinks; candidate: 150 writes, 25 reads, 50 renames, 0 unlinks; 0 timers and 0 ms of delay for both), the report's verdict is `PASS` over 25 journeys, no `.tmp` file is left in the run folder, the base holds no `<name> timing` fact, and the candidate holds exactly 25, `Bench 0` to `Bench 24`, each `{ unit: "ms", tries: [one entry] }` with the eight producer keys in order, `try` 1, `body` `returned`, `verdict` `PASS`, the four `pace_*` figures 0 and `body_ms` a non-negative safe integer; and the 25 `body_ms` sum to no more than the sample's own wall time (plus one millisecond of rounding per entry). A candidate entry is present only if that sample's write succeeded, since the journey's start clears it in the same write. After the workload it also asserts every sample of both variants was checked and 25 × samples entries examined, and records the counts under `wrapper_samples_checked` in the results |
+
+The fixed expectations are those of this head's sources, stated in "Required
+correctness fix (turn 6)": the base writes two files at `startJourney` and two
+at `record`; the candidate adds one report read, two temporary-file writes and
+two renames per published entry. A revision that does more or less work, or
+publishes fewer entries, fails the benchmark instead of reporting a figure.
+The existing checks (equal timers and delays per variant in every workload,
+work constant across samples, no network or child-process import) stand.
+
+The coordinator's combined suite at `3a7f913` (the fourth commit, before the
+title rename in `7bd7379`) was reported as 228 tests, 227 passed, with the sole
+failure the later-worker case's synthetic "Free shipping" title, which the
+analyzer correctly refuses; `7bd7379` renamed it to "Free shipping over an
+amount", the real journey (the analyzer's allowlist, `NAMES` in
+`report-diagnostics.mjs`, carries it), and every other title the timing test
+uses (Full catalog, Storefront, Cart, Payments status, Buy a label in the store
+admin, Problems, Manage products, One product with a category, Buy and ship,
+Ship settings, Commerce settings, Mark as completed) is on that list. That
+result is evidence specific to `3a7f913`; the coordinator reruns the suite on
+the final head.
+
 ## Offline checks written
 
 `runner/unit/journey-timing.test.mjs` runs the actual wrapper source from
@@ -234,19 +271,21 @@ Workloads: 10,000 `paceStore` calls with room; 200 forced single sleeps over a
 fake clock; 25 wrapped journeys. It reports raw per-sample microseconds,
 min/median/p90/max/mean, per-call figures, and the per-sample work for each
 variant. It reads the candidate from the working tree; turn 6 added the rename
-and unlink bindings and counts.
+and unlink bindings and counts; turn 7 added the import-coverage refusal and
+the per-sample publication check (see "Benchmark consistency (turn 7)").
 
 ## Not run by this worker
 
 In turns 1 and 2, every form of Node execution was denied by this session's
 permission policy: the pinned Node 24.22.0 (`--version`, `--check`, `--test`,
 with and without an isolated `env -i` environment), the PATH Node, `npm ci`,
-inline `node -e`, and in turn 1 a delegated subagent. In turns 3 to 6 the
+inline `node -e`, and in turn 1 a delegated subagent. In turns 3 to 7 the
 coordinator stated Node is intentionally unavailable on this worker's tool
 surface, so nothing was attempted, retried or delegated. So **no unit result,
 no full-suite result and no benchmark sample exists from this worker.** None
-is claimed, and neither test file has been syntax-checked by a parser in any
-turn; both were proof-read only. `git diff --check` passed in every turn.
+is claimed, and neither test file nor `benchmark.mjs` has been syntax-checked
+by a parser in any turn; all were proof-read only. `git diff --check` passed
+in every turn.
 
 ## Coordinator producer acceptance at `d637573` (historical evidence)
 
@@ -301,6 +340,11 @@ and a few file writes. Its
 time bounds leave 50 to 180 ms of headroom for a loaded machine; a bound that
 trips under heavy load is a test-tolerance matter, not a metric defect, and
 the assertion message prints the figure that tripped it.
+
+The benchmark now also asserts the wrapper workload's work per sample exactly
+(the counts above) and the candidate's 25 published entries after every
+sample, and exits non-zero otherwise; a passing run therefore shows the
+candidate published every entry in every sample and the base none.
 
 Expected shape, unmeasured: per pace sleep, two `performance.now()` reads and
 four additions against a sleep of 250 ms or more; per journey, one counter

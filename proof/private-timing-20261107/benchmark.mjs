@@ -10,8 +10,11 @@
 //
 // Without --candidate the working tree's files are the candidate. Reports raw per-sample wall times
 // (microseconds) and work counts, then min / median / p90 / max / mean per variant and per call.
+// The proof module gets every node:fs function it names (read, write, rename, unlink), each counted;
+// a function it named but was not given would throw inside the wrapper's guard and go unseen, so the
+// wrapper workload also checks, after every sample, that the candidate published every entry.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Script, createContext } from "node:vm";
@@ -37,7 +40,15 @@ for (const [variant, files] of Object.entries(sources)) {
 }
 
 const strip = source => source.replace(/^import .*$/gm, "").replace(/^export /gm, "");
-const evaluate = (source, bindings, names) => new Script(`${strip(source)}\n({ ${names} });`).runInContext(createContext(bindings));
+/** The local names a module's `import { ... } from` lines bind, which its evaluation must be given. */
+const imported = source => [...source.matchAll(/^import \{([^}]*)\} from/gm)]
+  .flatMap(([, list]) => list.split(",").map(name => name.trim().split(/\s+as\s+/).at(-1)).filter(Boolean));
+/** Evaluates one module over `bindings`, refusing any revision whose imports the bindings do not cover. */
+function evaluate(label, source, bindings, names) {
+  const missing = imported(source).filter(name => !(name in bindings));
+  if (missing.length) throw new Error(`${label} imports ${missing.join(", ")}, which this benchmark does not supply`);
+  return new Script(`${strip(source)}\n({ ${names} });`).runInContext(createContext(bindings));
+}
 
 const work = mkdtempSync(join(tmpdir(), "dinkus-timing-bench-"));
 
@@ -61,16 +72,16 @@ function build(variant, time) {
     renameSync: (...a) => { counted.renames += 1; return renameSync(...a); },
     unlinkSync: (...a) => { counted.unlinks += 1; return unlinkSync(...a); },
   };
-  const proof = evaluate(files["runner/support/proof.mjs"], { ...fs, join, config, Date, console },
+  const proof = evaluate(`${variant} proof.mjs`, files["runner/support/proof.mjs"], { ...fs, join, config, Date, console },
     "startJourney, record, note, attemptVerdict, journeyVerdict, noteJourneyTiming: typeof noteJourneyTiming === 'function' ? noteJourneyTiming : null");
-  const pace = evaluate(files["runner/support/pace.mjs"], {
+  const pace = evaluate(`${variant} pace.mjs`, files["runner/support/pace.mjs"], {
     appendFileSync() {}, readdirSync: () => [], readFileSync: () => "", unlinkSync() {}, dirname: () => work, join,
     config, onExtraStoreAttempt() {}, wasReplayed: () => false, URL, Date: time.Date, setTimeout: time.setTimeout, performance,
   }, "paceStore, countStoreRequest, paceSnapshot: typeof paceSnapshot === 'function' ? paceSnapshot : null");
   const current = { title: "Bench", retry: 0 };
   const test = { info: () => ({ title: current.title, retry: current.retry }), step: (_n, fn) => fn(), describe: { configure() {} } };
   const expect = (actual, message) => ({ toBe(expected) { if (actual !== expected) throw new Error(`${message}: ${actual}`); } });
-  const steps = evaluate(files["runner/support/steps.mjs"], {
+  const steps = evaluate(`${variant} steps.mjs`, files["runner/support/steps.mjs"], {
     test, expect, config, console: { log() {} }, firstLine: e => String(e?.message ?? e), forProof: e => e,
     paceSnapshot: pace.paceSnapshot, attemptVerdict: proof.attemptVerdict, journeyVerdict: proof.journeyVerdict,
     noteJourneyTiming: proof.noteJourneyTiming, record: proof.record, shot: async () => "", startJourney: proof.startJourney,
@@ -90,8 +101,13 @@ const stats = list => {
   return { min: sorted[0], median: at(0.5), p90: at(0.9), max: sorted.at(-1), mean: Math.round(sorted.reduce((s, v) => s + v, 0) / sorted.length) };
 };
 
-/** Runs `body(variant)` `samples` times per variant, interleaved, keeping each sample's wall time in microseconds and its work. */
-async function workload(name, calls, body, counts) {
+/**
+ * Runs `body(variant)` `samples` times per variant, interleaved, keeping each sample's wall time in
+ * microseconds and its work. `check(variant, sampleMs)`, outside the timed span, asserts what the sample
+ * left behind: a sample that ran fast because the module under test threw inside a guard and did less
+ * must fail here, not pass as an improvement.
+ */
+async function workload(name, calls, body, counts, check = () => {}) {
   const out = { calls_per_sample: calls, samples_us: { base: [], candidate: [] }, work_per_sample: {} };
   for (let i = 0; i < samples; i++) {
     for (const variant of order(i)) {
@@ -104,6 +120,7 @@ async function workload(name, calls, body, counts) {
       const delta = Object.fromEntries(Object.keys(after).map(key => [key, after[key] - before[key]]));
       out.work_per_sample[variant] ??= delta;
       if (JSON.stringify(out.work_per_sample[variant]) !== JSON.stringify(delta)) throw new Error(`${name} ${variant}: work changed between samples`);
+      check(variant, us / 1000, delta);
     }
   }
   out.same_timers_and_delays = out.work_per_sample.base.timers === out.work_per_sample.candidate.timers
@@ -136,21 +153,64 @@ await workload("pace-one-sleep", 200, async variant => {
 }, timerCounts);
 
 // 3. The journey wrapper around a body that records one passing step: the base writes the report at
-// startJourney and at record; the candidate also writes its timing fact once at the end, each file to
-// a temporary one renamed over it (two more writes and two renames per journey, no unlink).
-await workload("journey-wrapper", 25, async variant => {
+// startJourney and at record (two files each); the candidate also writes its timing fact once at the
+// end, each file to a temporary one renamed over it (two more writes and two renames per journey, one
+// report read, no unlink). After every sample, `wrapperLeft` reads the proof folder back and checks
+// the candidate published one well-formed entry per journey in that sample and the base none: the
+// wrapper lets a failed timing write go by design, so a candidate whose write threw (a binding this
+// benchmark forgot, say) would otherwise run faster and look like an improvement.
+const JOURNEYS = 25;
+const ENTRY_KEYS = ["try", "body", "verdict", "body_ms", "pace_sleeps", "pace_sleep_requested_ms", "pace_sleep_ms", "pace_sleep_wall_ms"];
+const WRAPPER_WORK = {
+  base: { timers: 0, delay_ms: 0, writes: 4 * JOURNEYS, reads: 0, renames: 0, unlinks: 0 },
+  candidate: { timers: 0, delay_ms: 0, writes: 6 * JOURNEYS, reads: JOURNEYS, renames: 2 * JOURNEYS, unlinks: 0 },
+};
+const checked = { base: { samples: 0, timing_facts: 0 }, candidate: { samples: 0, timing_facts: 0, entries: 0 } };
+const report = variant => JSON.parse(readFileSync(join(built[variant].config.runDir, "report.json"), "utf8"));
+
+function wrapperLeft(variant, sampleMs, work) {
+  const fail = what => { throw new Error(`journey-wrapper ${variant}: ${what}`); };
+  for (const [key, expected] of Object.entries(WRAPPER_WORK[variant])) if (work[key] !== expected) fail(`${key} ${work[key]}, expected ${expected} per sample`);
+  const left = report(variant);
+  if (left.verdict !== "PASS" || left.journeys.length !== JOURNEYS) fail(`verdict ${left.verdict} over ${left.journeys.length} journeys`);
+  if (readdirSync(built[variant].config.runDir).some(file => file.endsWith(".tmp"))) fail("a temporary file was left");
+  const timingKeys = Object.keys(left.facts).filter(key => key.endsWith(" timing"));
+  if (variant === "base") {
+    if (timingKeys.length !== 0) fail(`${timingKeys.length} timing facts, expected none`);
+  } else {
+    if (timingKeys.length !== JOURNEYS) fail(`${timingKeys.length} timing facts, expected ${JOURNEYS}`);
+    let bodySum = 0;
+    for (let i = 0; i < JOURNEYS; i++) {
+      const fact = left.facts[`Bench ${i} timing`];
+      if (!fact || fact.unit !== "ms" || !Array.isArray(fact.tries) || fact.tries.length !== 1) fail(`Bench ${i} timing is ${JSON.stringify(fact)}`);
+      const [entry] = fact.tries;
+      if (JSON.stringify(Object.keys(entry)) !== JSON.stringify(ENTRY_KEYS)) fail(`Bench ${i} entry keys ${Object.keys(entry)}`);
+      if (entry.try !== 1 || entry.body !== "returned" || entry.verdict !== "PASS") fail(`Bench ${i} entry ${JSON.stringify(entry)}`);
+      for (const key of ENTRY_KEYS.slice(4)) if (entry[key] !== 0) fail(`Bench ${i} ${key} ${entry[key]}, expected 0 (no sleep)`);
+      if (!Number.isSafeInteger(entry.body_ms) || entry.body_ms < 0) fail(`Bench ${i} body_ms ${entry.body_ms}`);
+      bodySum += entry.body_ms;
+      checked.candidate.entries += 1;
+    }
+    // The bodies' times, measured in this sample, fit inside it (each rounded to the millisecond).
+    if (bodySum > Math.ceil(sampleMs) + JOURNEYS) fail(`bodies sum to ${bodySum} ms in a sample of ${sampleMs} ms`);
+  }
+  checked[variant].samples += 1;
+  checked[variant].timing_facts = timingKeys.length;
+}
+
+await workload("journey-wrapper", JOURNEYS, async variant => {
   const { journey, current, proof } = built[variant];
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < JOURNEYS; i++) {
     current.title = `Bench ${i}`;
     await journey(async () => { proof.record("A step", "PASS"); })({ page: undefined });
   }
-}, fileCounts);
+}, fileCounts, wrapperLeft);
 
-// What each variant's proof folder holds after workload 3: the candidate's wrapper wrote one timing
-// fact per journey (zero sleeps, no manufactured time); the base wrote none.
-const facts = variant => JSON.parse(readFileSync(join(built[variant].config.runDir, "report.json"), "utf8")).facts;
-results.timing_facts_written = { base: Object.keys(facts("base")).filter(k => k.endsWith(" timing")).length, candidate: Object.keys(facts("candidate")).filter(k => k.endsWith(" timing")).length };
-results.candidate_fact_example = facts("candidate")["Bench 0 timing"] ?? null;
+if (checked.base.samples !== samples || checked.candidate.samples !== samples || checked.candidate.entries !== samples * JOURNEYS) throw new Error(`journey-wrapper: ${JSON.stringify(checked)} checked over ${samples} samples`);
+// What each variant's proof folder holds after workload 3, as checked after every sample: the
+// candidate's wrapper wrote one timing fact per journey (zero sleeps, no manufactured time); the base wrote none.
+results.wrapper_samples_checked = { ...checked, expected_work_per_sample: WRAPPER_WORK, entry_keys: ENTRY_KEYS };
+results.candidate_fact_example = report("candidate").facts["Bench 0 timing"] ?? null;
 rmSync(work, { recursive: true, force: true });
 
 if (args.out) writeFileSync(args.out, JSON.stringify(results, null, 2) + "\n");
