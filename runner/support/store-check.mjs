@@ -53,16 +53,22 @@ function stillLoading(open) {
 /**
  * Reloads a store page until `check` finds nothing wrong, giving the store a minute to show a change
  * the owner just made. Returns the last problems found (none once the page caught up) and the wait.
+ * `opened`, the handoff openShopperPage returned for this same page, stands in for its first load while
+ * the page still shows that document (see shopper.mjs); after a failed first check it reloads as ever.
  */
-export async function catchUp(shopper, path, check) {
+export async function catchUp(shopper, path, check, opened = null) {
   const started = Date.now();
+  const href = new URL(path, config.store).href;
   for (;;) {
-    // Each reload brings the page's photos again, so on a store with many products it waits its turn.
+    // Each reload brings the page's photos again, so on a store with many products it waits its turn;
+    // so does a check of the page just opened, which can scroll its photos into view.
     await paceStore(PAGE_ROOM);
     const open = watchLoads(shopper);
     // Only the document has to arrive before `check` reads it (`photo` and Add to cart each wait on
     // what they inspect), so another card's slow /_image can't hold one try past CATCH_UP_MS.
-    const response = await shopper.goto(new URL(path, config.store).href, { waitUntil: "domcontentloaded", timeout: PAGE_LOAD_MS }).catch(error => error);
+    const reused = typeof opened?.take === "function" ? opened.take(shopper, href) : null;
+    opened = null;
+    const response = reused ?? await shopper.goto(href, { waitUntil: "domcontentloaded", timeout: PAGE_LOAD_MS }).catch(error => error);
     const problems = response instanceof Error ? [`${path} didn't answer (${firstLine(response)}${stillLoading(open)})`]
       : new URL(shopper.url()).origin !== config.store ? [`${path} sent the shopper away from the store`]
         : await check(response);
@@ -174,9 +180,10 @@ export const places = state => ["the Shop list", ...state.productPath ? [state.p
  * Everything wrong with how the store shows this run's product now (the Shop list, and its page and
  * any category page once published), with the longest the store took to catch up. When `state.shared`
  * says the category holds other products too, its page must list them beside this one; `state.beside`
- * learns how many it does.
+ * learns how many it does. `opened`, the handoff from openShopperPage(shopper, "/"), spares the
+ * homepage's first load (see catchUp).
  */
-export async function storeShows(shopper, state) {
+export async function storeShows(shopper, state, { opened = null } = {}) {
   const { id, name, cents, hasPhoto, photoHash, productPath, categoryPath } = state;
   const checks = [await catchUp(shopper, "/", async response => {
     if (response.status() !== 200) return [`the homepage answered HTTP ${response.status()}`];
@@ -186,7 +193,7 @@ export async function storeShows(shopper, state) {
     // A product shown without its own ID still tells the journey which ID the Shop list gave it.
     if (card && !state.id) state.id = await card.getAttribute("data-commerce-product") ?? "";
     return cardProblems(card, "the Shop list", { name, cents, hasPhoto, photoHash, path: productPath });
-  })];
+  }, opened)];
   if (productPath) {
     checks.push(await catchUp(shopper, productPath, response => productPageProblems(shopper, response, state)));
     if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => {
@@ -209,16 +216,17 @@ export async function storeShows(shopper, state) {
  * Everything that still offers this run's product to shoppers once the owner archived it or took its
  * page down. An archived product's page must say it's no longer available, and its category, still
  * published then, must answer for the missing card to count; so must a category the store's other
- * products are in (`shared`), which the clean-up leaves on the store.
+ * products are in (`shared`), which the clean-up leaves on the store. `opened`, the handoff from
+ * openShopperPage(shopper, "/"), spares the homepage's first load (see catchUp).
  */
-export async function storeHides(shopper, { id, name, productPath, categoryPath, shared = false }, { archived = false } = {}) {
+export async function storeHides(shopper, { id, name, productPath, categoryPath, shared = false }, { archived = false, opened = null } = {}) {
   // A homepage that doesn't answer, or whose Shop list can't be read, shows no cards either, which proves nothing.
   const checks = [await catchUp(shopper, "/", async response => {
     if (response.status() !== 200) return [`the homepage answered HTTP ${response.status()}`];
     if (await findCard(shopCards(shopper), { id, name })) return ["the Shop list still lists it"];
     const unreadable = await unreadableShop(shopper);
     return unreadable ? [unreadable] : [];
-  })];
+  }, opened)];
   if (productPath) {
     checks.push(await catchUp(shopper, productPath, async response => {
       const product = shopper.locator("[data-product-page]");

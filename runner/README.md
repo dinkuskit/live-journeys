@@ -162,7 +162,11 @@ places no order and leaves nothing behind in the store.
 
 Manage products works in the store admin with the saved profile, as an owner
 does: the product page's editor with its Dinkus Commerce panel in one tab,
-EmDash's Media library and categories in another. After each change it checks the store in a clean shopper browser. Its
+EmDash's Media library and categories in another. After each change it checks the store in a clean shopper browser. A check
+that follows the shopper's opening of the homepage (the Draft check, the clean-up; the same in One
+product with a category and An agent manages a product) reads the homepage it just opened instead of
+loading it again, as long as nothing has moved the page since; a homepage that doesn't yet show the
+change is reloaded as before. Its
 photo is one the browser draws for each run, labeled with the product's name, so
 every run uploads a file of its own: the Media library keeps one copy of
 identical files, under the first one's name. It tidies up

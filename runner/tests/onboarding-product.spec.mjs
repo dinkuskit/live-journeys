@@ -92,9 +92,10 @@ test("One product with a category", { tag: "@running" }, journey(async ({ page }
       }
       // The panel says whether the publish put the product on sale, so a store that doesn't show it says why.
       const problems = await panelSays(page, made.page, "on sale").then(() => [], error => [`after publishing, ${firstLine(error)}`]);
-      // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first.
-      await openShopperPage(shopper, "/");
-      const { problems: storeProblems, seconds } = await storeShows(shopper, state);
+      // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first; the
+      // homepage that opens is the Shop list's first look.
+      const opened = await openShopperPage(shopper, "/");
+      const { problems: storeProblems, seconds } = await storeShows(shopper, state, { opened });
       problems.push(...storeProblems);
       if (problems.length) throw new Error(`${problems.join("; ")}${after(seconds)}.`);
       return `the panel says On sale; the Shop card links to ${state.productPath}, which shows "${state.name}" at ${dollars(state.cents)}${withPhoto(state)} and Add to cart; ${state.categoryPath} lists it${after(seconds)}`;
@@ -121,8 +122,9 @@ test("One product with a category", { tag: "@running" }, journey(async ({ page }
       for (const what of made.lost) problems.push(`the ${what} may have been saved without the test learning where, so look for it under Content in the store admin`);
       // A step that stopped the journey early can leave the shopper's browser not yet signed in to a store
       // that keeps every page behind Cloudflare Access, so it opens the store first.
-      if (await openShopperPage(shopper, "/").then(() => true, error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return false; })) {
-        problems.push(...(await storeHides(shopper, { ...state, productPath: made.pagePath, categoryPath: made.categoryPath })).problems);
+      const opened = await openShopperPage(shopper, "/").catch(error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return null; });
+      if (opened) {
+        problems.push(...(await storeHides(shopper, { ...state, productPath: made.pagePath, categoryPath: made.categoryPath }, { opened })).problems);
         // Every address the run saved stops answering within a minute, published or not.
         for (const path of [made.pagePath, made.categoryPath].filter(Boolean)) {
           problems.push(...(await catchUp(shopper, path, response => response.status() === 200 ? [`${path} still answers HTTP 200`] : [])).problems);
