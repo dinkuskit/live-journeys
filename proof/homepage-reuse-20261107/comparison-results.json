@@ -1,0 +1,1542 @@
+{
+  "node": "v24.22.0",
+  "base": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+  "candidate": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+  "scenarios": [
+    {
+      "name": "draft kept off the store",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "pass",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 2,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 4,
+        "paces": 5,
+        "waits": 0,
+        "gets": 0,
+        "tries": 3
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 1,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 3,
+        "paces": 5,
+        "waits": 0,
+        "gets": 0,
+        "tries": 3
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "draft off the store after 5 s",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "pass",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [],
+          "seconds": 7
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 4,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 6,
+        "paces": 7,
+        "waits": 2,
+        "gets": 0,
+        "tries": 5
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 7
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 3,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 5,
+        "paces": 7,
+        "waits": 2,
+        "gets": 0,
+        "tries": 5
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "product still on sale everywhere",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "fail",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [
+            "the Shop list still lists it",
+            "/products/live-test still shows $12.00 and offers Add to cart",
+            "the category page /categories/catalog-caps still lists it"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 20,
+          "/categories/catalog-caps": 19,
+          "/products/live-test": 19
+        },
+        "navigated": 58,
+        "paces": 59,
+        "waits": 54,
+        "gets": 0,
+        "tries": 57
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [
+            "the Shop list still lists it",
+            "/products/live-test still shows $12.00 and offers Add to cart",
+            "the category page /categories/catalog-caps still lists it"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 19,
+          "/categories/catalog-caps": 19,
+          "/products/live-test": 19
+        },
+        "navigated": 57,
+        "paces": 59,
+        "waits": 54,
+        "gets": 0,
+        "tries": 57
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "homepage without a Shop list",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "fail",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [
+            "the homepage has no Shop list"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 20,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 22,
+        "paces": 23,
+        "waits": 18,
+        "gets": 0,
+        "tries": 21
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [
+            "the homepage has no Shop list"
+          ],
+          "seconds": 61
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 19,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 21,
+        "paces": 23,
+        "waits": 18,
+        "gets": 0,
+        "tries": 21
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "homepage answers 503 once reloaded",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "fail",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [
+            "the homepage answered HTTP 503"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 20,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 22,
+        "paces": 23,
+        "waits": 18,
+        "gets": 0,
+        "tries": 21
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [
+            "the homepage answered HTTP 503"
+          ],
+          "seconds": 61
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 19,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 21,
+        "paces": 23,
+        "waits": 18,
+        "gets": 0,
+        "tries": 21
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "published product shown",
+      "pattern": "published-shows",
+      "state": "shows",
+      "expect": "pass",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 2,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 4,
+        "paces": 5,
+        "waits": 0,
+        "gets": 3,
+        "tries": 3
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 1,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 3,
+        "paces": 5,
+        "waits": 0,
+        "gets": 3,
+        "tries": 3
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "published product shown after 5 s",
+      "pattern": "published-shows",
+      "state": "shows",
+      "expect": "pass",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [],
+          "seconds": 7
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 4,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 6,
+        "paces": 7,
+        "waits": 2,
+        "gets": 3,
+        "tries": 5
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 7
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 3,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 5,
+        "paces": 7,
+        "waits": 2,
+        "gets": 3,
+        "tries": 5
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "published product at the wrong price",
+      "pattern": "published-shows",
+      "state": "shows",
+      "expect": "fail",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [
+            "the Shop list shows \"$9.00\" instead of $12.00",
+            "the product page shows \"$9.00\" instead of $12.00",
+            "the category page /categories/catalog-caps shows \"$9.00\" instead of $12.00"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 20,
+          "/categories/catalog-caps": 19,
+          "/products/live-test": 19
+        },
+        "navigated": 58,
+        "paces": 59,
+        "waits": 54,
+        "gets": 57,
+        "tries": 57
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [
+            "the Shop list shows \"$9.00\" instead of $12.00",
+            "the product page shows \"$9.00\" instead of $12.00",
+            "the category page /categories/catalog-caps shows \"$9.00\" instead of $12.00"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 19,
+          "/categories/catalog-caps": 19,
+          "/products/live-test": 19
+        },
+        "navigated": 57,
+        "paces": 59,
+        "waits": 54,
+        "gets": 57,
+        "tries": 57
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "published product with another photo",
+      "pattern": "published-shows",
+      "state": "shows",
+      "expect": "fail",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [
+            "the Shop list shows another photo (/_image/swapped.jpg) than the one the owner chose",
+            "the product page shows another photo (/_image/swapped.jpg) than the one the owner chose",
+            "the category page /categories/catalog-caps shows another photo (/_image/swapped.jpg) than the one the owner chose"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 20,
+          "/categories/catalog-caps": 19,
+          "/products/live-test": 19
+        },
+        "navigated": 58,
+        "paces": 59,
+        "waits": 54,
+        "gets": 57,
+        "tries": 57
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [
+            "the Shop list shows another photo (/_image/swapped.jpg) than the one the owner chose",
+            "the product page shows another photo (/_image/swapped.jpg) than the one the owner chose",
+            "the category page /categories/catalog-caps shows another photo (/_image/swapped.jpg) than the one the owner chose"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 19,
+          "/categories/catalog-caps": 19,
+          "/products/live-test": 19
+        },
+        "navigated": 57,
+        "paces": 59,
+        "waits": 54,
+        "gets": 57,
+        "tries": 57
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "clean-up with the shared category kept",
+      "pattern": "cleanup-hides",
+      "state": "hides",
+      "expect": "pass",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/products/live-test"
+        ],
+        "navigations": {
+          "/": 2,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 2
+        },
+        "navigated": 5,
+        "paces": 6,
+        "waits": 0,
+        "gets": 0,
+        "tries": 4
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/products/live-test"
+        ],
+        "navigations": {
+          "/": 1,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 2
+        },
+        "navigated": 4,
+        "paces": 6,
+        "waits": 0,
+        "gets": 0,
+        "tries": 4
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "clean-up with the page and category trashed",
+      "pattern": "cleanup-hides",
+      "state": "cleanup",
+      "expect": "pass",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 2,
+          "/categories/catalog-caps": 2,
+          "/products/live-test": 2
+        },
+        "navigated": 6,
+        "paces": 7,
+        "waits": 0,
+        "gets": 0,
+        "tries": 5
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 1,
+          "/categories/catalog-caps": 2,
+          "/products/live-test": 2
+        },
+        "navigated": 5,
+        "paces": 7,
+        "waits": 0,
+        "gets": 0,
+        "tries": 5
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "clean-up while the page still answers",
+      "pattern": "cleanup-hides",
+      "state": "cleanup",
+      "expect": "fail",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [
+            "/products/live-test still shows $12.00 and offers Add to cart",
+            "/products/live-test still answers HTTP 200"
+          ],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 2,
+          "/categories/catalog-caps": 2,
+          "/products/live-test": 38
+        },
+        "navigated": 42,
+        "paces": 43,
+        "waits": 36,
+        "gets": 0,
+        "tries": 41
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [
+            "/products/live-test still shows $12.00 and offers Add to cart",
+            "/products/live-test still answers HTTP 200"
+          ],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 1,
+          "/categories/catalog-caps": 2,
+          "/products/live-test": 38
+        },
+        "navigated": 41,
+        "paces": 43,
+        "waits": 36,
+        "gets": 0,
+        "tries": 41
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "Access sign-in at the open",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "throws",
+      "reuse": false,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "threw": "/ sent the shopper to a Cloudflare Access sign-in instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox."
+        },
+        "sequence": [
+          "/"
+        ],
+        "navigations": {
+          "/": 1
+        },
+        "navigated": 1,
+        "paces": 2,
+        "waits": 0,
+        "gets": 0,
+        "tries": 0
+      },
+      "candidate": {
+        "outcome": {
+          "threw": "/ sent the shopper to a Cloudflare Access sign-in instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox."
+        },
+        "sequence": [
+          "/"
+        ],
+        "navigations": {
+          "/": 1
+        },
+        "navigated": 1,
+        "paces": 2,
+        "waits": 0,
+        "gets": 0,
+        "tries": 0
+      },
+      "loads_spared": 0,
+      "free_looks": {
+        "base": 0,
+        "candidate": 0
+      }
+    },
+    {
+      "name": "Access sign-in at the clean-up's open",
+      "pattern": "cleanup-hides",
+      "state": "hides",
+      "expect": "fail",
+      "reuse": false,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [
+            "the test couldn't open the store as a shopper to check it: / sent the shopper to a Cloudflare Access sign-in instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox."
+          ],
+          "seconds": 0
+        },
+        "sequence": [
+          "/"
+        ],
+        "navigations": {
+          "/": 1
+        },
+        "navigated": 1,
+        "paces": 2,
+        "waits": 0,
+        "gets": 0,
+        "tries": 0
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [
+            "the test couldn't open the store as a shopper to check it: / sent the shopper to a Cloudflare Access sign-in instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox."
+          ],
+          "seconds": 0
+        },
+        "sequence": [
+          "/"
+        ],
+        "navigations": {
+          "/": 1
+        },
+        "navigated": 1,
+        "paces": 2,
+        "waits": 0,
+        "gets": 0,
+        "tries": 0
+      },
+      "loads_spared": 0,
+      "free_looks": {
+        "base": 0,
+        "candidate": 0
+      }
+    },
+    {
+      "name": "homepage answers 503 at the open",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "throws",
+      "reuse": false,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "threw": "/ answered HTTP 503."
+        },
+        "sequence": [
+          "/"
+        ],
+        "navigations": {
+          "/": 1
+        },
+        "navigated": 1,
+        "paces": 2,
+        "waits": 0,
+        "gets": 0,
+        "tries": 0
+      },
+      "candidate": {
+        "outcome": {
+          "threw": "/ answered HTTP 503."
+        },
+        "sequence": [
+          "/"
+        ],
+        "navigations": {
+          "/": 1
+        },
+        "navigated": 1,
+        "paces": 2,
+        "waits": 0,
+        "gets": 0,
+        "tries": 0
+      },
+      "loads_spared": 0,
+      "free_looks": {
+        "base": 0,
+        "candidate": 0
+      }
+    },
+    {
+      "name": "page moved between the open and the check",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "pass",
+      "reuse": false,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 2,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 4,
+        "paces": 5,
+        "waits": 0,
+        "gets": 0,
+        "tries": 3
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 2,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 4,
+        "paces": 5,
+        "waits": 0,
+        "gets": 0,
+        "tries": 3
+      },
+      "loads_spared": 0,
+      "free_looks": {
+        "base": 0,
+        "candidate": 0
+      }
+    },
+    {
+      "name": "a child frame moved between the open and the check",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "pass",
+      "reuse": true,
+      "divergent": null,
+      "base": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 2,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 4,
+        "paces": 5,
+        "waits": 0,
+        "gets": 0,
+        "tries": 3
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 1,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 3,
+        "paces": 5,
+        "waits": 0,
+        "gets": 0,
+        "tries": 3
+      },
+      "loads_spared": 1,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    },
+    {
+      "name": "store unreachable once the homepage opened",
+      "pattern": "draft-hides",
+      "state": "hides",
+      "expect": "pass",
+      "reuse": true,
+      "divergent": "the base reloads the homepage and can't; the candidate's first look is the page it opened, a true observation made after the change",
+      "base": {
+        "outcome": {
+          "problems": [
+            "/ didn't answer (net::ERR_CONNECTION_REFUSED)"
+          ],
+          "seconds": 62
+        },
+        "sequence": [
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 20,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 22,
+        "paces": 23,
+        "waits": 18,
+        "gets": 0,
+        "tries": 21
+      },
+      "candidate": {
+        "outcome": {
+          "problems": [],
+          "seconds": 0
+        },
+        "sequence": [
+          "/",
+          "/products/live-test",
+          "/categories/catalog-caps"
+        ],
+        "navigations": {
+          "/": 1,
+          "/categories/catalog-caps": 1,
+          "/products/live-test": 1
+        },
+        "navigated": 3,
+        "paces": 5,
+        "waits": 0,
+        "gets": 0,
+        "tries": 3
+      },
+      "loads_spared": 19,
+      "free_looks": {
+        "base": 0,
+        "candidate": 1
+      }
+    }
+  ],
+  "summary": {
+    "scenarios": 18,
+    "reuse_scenarios": 14,
+    "loads_spared_total": 32,
+    "divergent": [
+      "store unreachable once the homepage opened"
+    ],
+    "rule": "one homepage load spared per adopted call whose opened page stood in; outcomes, waits, pacing and photo fetches otherwise equal"
+  }
+}

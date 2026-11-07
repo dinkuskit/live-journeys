@@ -130,9 +130,10 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
     });
 
     await step(shopper, "A Draft product stays off the store", async () => {
-      // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first.
-      await openShopperPage(shopper, "/");
-      const { problems, seconds } = await storeHides(shopper, where());
+      // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first; the
+      // homepage that opens is the Shop list's first look.
+      const opened = await openShopperPage(shopper, "/");
+      const { problems, seconds } = await storeHides(shopper, where(), { opened });
       if (problems.length) throw new Error(`While the page is unpublished, ${problems.join("; ")}${after(seconds)}.`);
       return `the Shop list, ${made.pagePath} and ${made.categoryPath} don't offer it while its page is unpublished`;
     }, soft);
@@ -257,8 +258,9 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
       for (const what of made.lost) problems.push(`the ${what} may have been saved without the test learning where, so look for it under Content in the store admin`);
       // A step that stopped the journey early can leave the shopper's browser not yet signed in to a store
       // that keeps every page behind Cloudflare Access, so it opens the store first.
-      if (await openShopperPage(shopper, "/").then(() => true, error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return false; })) {
-        problems.push(...(await storeHides(shopper, where())).problems);
+      const opened = await openShopperPage(shopper, "/").catch(error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return null; });
+      if (opened) {
+        problems.push(...(await storeHides(shopper, where(), { opened })).problems);
         // Every address the run saved stops answering within a minute, published or not; the shared
         // category stays, without the product.
         for (const path of [made.pagePath, state.shared ? "" : made.categoryPath].filter(Boolean)) {

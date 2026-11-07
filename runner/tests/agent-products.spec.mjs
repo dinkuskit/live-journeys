@@ -147,9 +147,10 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
     });
 
     await step(shopper, "A Draft product stays off the store", async () => {
-      // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first.
-      await openShopperPage(shopper, "/");
-      const { problems, seconds } = await storeHides(shopper, state);
+      // A store that keeps every page behind Cloudflare Access gets a one-time PIN sign-in first; the
+      // homepage that opens is the Shop list's first look.
+      const opened = await openShopperPage(shopper, "/");
+      const { problems, seconds } = await storeHides(shopper, state, { opened });
       if (problems.length) throw new Error(`While the page is unpublished, ${problems.join("; ")}${after(seconds)}.`);
       return `${places(state)} don't offer it while its page is unpublished`;
     }, soft);
@@ -212,8 +213,9 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
         await agentAsk(page, agent, undefined, { url: `${agent.apis.products}/${encodeURIComponent(made.entry)}`, method: "DELETE", what: "EmDash's content API (delete)" })
           .catch(error => problems.push(`moving the page "${run.product}" to the Trash failed: ${firstLine(error)}`));
       }
-      if (await openShopperPage(shopper, "/").then(() => true, error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return false; })) {
-        problems.push(...(await storeHides(shopper, state)).problems);
+      const opened = await openShopperPage(shopper, "/").catch(error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return null; });
+      if (opened) {
+        problems.push(...(await storeHides(shopper, state, { opened })).problems);
         if (state.productPath) problems.push(...(await catchUp(shopper, state.productPath, response => response.status() === 200 ? [`${state.productPath} still answers HTTP 200`] : [])).problems);
       }
       if (problems.length) throw new Error(`${problems.join("; ")}.`);

@@ -1,0 +1,121 @@
+{
+  "comparisons": [
+    {
+      "variant": "empty",
+      "cache_control": "no-store",
+      "by_revision": {
+        "base": {
+          "samples": 5,
+          "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+          "homepage_documents": [
+            2
+          ],
+          "all_documents": [
+            4
+          ],
+          "server_requests_including_preflight": [
+            5
+          ],
+          "image_requests": [
+            0
+          ],
+          "all_checks_empty": true,
+          "pacing_sleep_counts": [
+            0
+          ],
+          "elapsed_ms": {
+            "median": 5244.882092,
+            "min": 5172.571549,
+            "max": 5265.745761
+          }
+        },
+        "candidate": {
+          "samples": 5,
+          "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+          "homepage_documents": [
+            1
+          ],
+          "all_documents": [
+            3
+          ],
+          "server_requests_including_preflight": [
+            4
+          ],
+          "image_requests": [
+            0
+          ],
+          "all_checks_empty": true,
+          "pacing_sleep_counts": [
+            0
+          ],
+          "elapsed_ms": {
+            "median": 5208.26383,
+            "min": 5180.26577,
+            "max": 5227.520085
+          }
+        }
+      },
+      "raw_result": "local temporary path removed; sanitized copy in empty-results.json"
+    },
+    {
+      "variant": "cards",
+      "cache_control": "no-store",
+      "by_revision": {
+        "base": {
+          "samples": 5,
+          "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+          "homepage_documents": [
+            2
+          ],
+          "all_documents": [
+            4
+          ],
+          "server_requests_including_preflight": [
+            11
+          ],
+          "image_requests": [
+            6
+          ],
+          "all_checks_empty": true,
+          "pacing_sleep_counts": [
+            0
+          ],
+          "elapsed_ms": {
+            "median": 5303.208305,
+            "min": 5291.598683,
+            "max": 5320.400669
+          }
+        },
+        "candidate": {
+          "samples": 5,
+          "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+          "homepage_documents": [
+            1
+          ],
+          "all_documents": [
+            3
+          ],
+          "server_requests_including_preflight": [
+            7
+          ],
+          "image_requests": [
+            3
+          ],
+          "all_checks_empty": true,
+          "pacing_sleep_counts": [
+            0
+          ],
+          "elapsed_ms": {
+            "median": 5283.454929,
+            "min": 5238.906468,
+            "max": 5314.632875
+          }
+        }
+      },
+      "raw_result": "local temporary path removed; sanitized copy in cards-results.json"
+    }
+  ],
+  "grouping": "immutable source_commit; raw row mode describes helper sample",
+  "same_url_reload_result": "local temporary path removed; sanitized copy in reload-result.json",
+  "live_speedup_claim": false
+}

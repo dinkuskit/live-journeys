@@ -1,0 +1,768 @@
+{
+  "variant": "cards",
+  "samples_per_revision": 5,
+  "primary": "document/request counts and unchanged absence-check results; elapsed time descriptive only",
+  "base": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+  "candidate": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+  "all_checks_equal": true,
+  "homepage_documents": {
+    "base": 2,
+    "candidate": 1
+  },
+  "total_documents": {
+    "base": 4,
+    "candidate": 3
+  },
+  "rows": [
+    {
+      "pair": 1,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5320.400669,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 1,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5238.906468,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 2,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5266.208235,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 2,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5305.149013,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 3,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5303.208305,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 3,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5314.632875,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 4,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5294.968363,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 4,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5291.598683,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 5,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 4,
+      "homepage_documents": 2,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5295.217357,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    },
+    {
+      "pair": 5,
+      "mode": "immutable-sample",
+      "artifacts": "local temporary path removed",
+      "source_commit": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "browser": "153.0.8010.36",
+      "variant": "cards",
+      "scope": "actual openShopperPage then storeHides; no source mocks",
+      "state": {
+        "productPath": "/products/fixture",
+        "categoryPath": "/categories/fixture",
+        "shared": true
+      },
+      "checks": {
+        "problems": [],
+        "seconds": 5
+      },
+      "requests": [
+        {
+          "path": "/",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/",
+          "kind": "document"
+        },
+        {
+          "path": "/images/unrelated-0.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-1.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/images/unrelated-2.svg",
+          "kind": "preflight-or-other"
+        },
+        {
+          "path": "/products/fixture",
+          "kind": "document"
+        },
+        {
+          "path": "/categories/fixture",
+          "kind": "document"
+        }
+      ],
+      "document_count": 3,
+      "homepage_documents": 1,
+      "pacing": {
+        "sleeps": 0,
+        "requestedMs": 0,
+        "ms": 0,
+        "wallMs": 0
+      },
+      "elapsed_ms": 5283.454929,
+      "closed": true,
+      "limits": [
+        "synthetic no-auth loopback",
+        "hide path only",
+        "three unrelated cards with real SVG responses",
+        "no real request-limit pressure",
+        "single sample is not a live speed estimate"
+      ]
+    }
+  ]
+}

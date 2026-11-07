@@ -1,0 +1,84 @@
+{
+  "task": "homepage-reuse-20261107",
+  "branch": "ridge/live-journey-homepage-20261107",
+  "base": "e3fff0090468de0237e10a5d4e9443c0ac761e68",
+  "core_candidate": "587fc2e3eec5f2f36d7fd11f86bda057a0e197f4",
+  "fixture_repair": "c8e74ca99fdcab3a32eb3e891a0c9f55942632f5",
+  "production_source_frozen": "git diff --stat 587fc2e c8e74ca -- runner/support runner/tests runner/README.md README.md is empty; c8e74ca changed only the unit test, its fixture and PROOF.md",
+  "runtime_reported_by_coordinator": {
+    "node": "24.22.0",
+    "playwright": "1.61.1",
+    "chromium": "153.0.8010.36",
+    "environment": "isolated HOME, DINKUS_E2E_ENV_FILE=/dev/null, loopback only, no credentials or live traffic"
+  },
+  "source_sha256_at_c8e74ca": {
+    "runner/support/shopper.mjs": "6ba258c5d66b5123ec56df381d1e75be6c015b3979250d0ddf67081047d767c8",
+    "runner/support/store-check.mjs": "4c8e8630f6fbd08ea8ee0fc29ab5637959a3914201d422ff875cb837fc0b81d7",
+    "runner/unit/fixtures/homepage-reuse.mjs": "f99cd9bd9543cb9879abad80d529513cfb832ebcf9de162628ddbaba1600b292",
+    "runner/unit/homepage-reuse.test.mjs": "c43bd8d42da232b553a40ba9bb12c5d6e3797dd7c65186daa9d14c033487e626",
+    "note": "computed here from git show c8e74ca:<file>; the helpers are byte-identical at 587fc2e; all four equal the hashes unit-results.json records for the coordinator's run"
+  },
+  "coordinator_results": {
+    "full_unit_suite": {
+      "copy": "unit-results.json",
+      "origin": "repaired-draft-unit.json in the coordinator's task folder, copied whole",
+      "source": "working tree at the time: helpers of 587fc2e plus the repaired test and fixture later committed as c8e74ca (hashes above)",
+      "tests": 238, "pass": 238, "fail": 0, "cancelled": 0, "skipped": 0, "exit": 0, "duration_ms": 5771.345571
+    },
+    "offline_compare": {
+      "copy": "comparison-results.json",
+      "origin": "compare.mjs --base e3fff00 --candidate 587fc2e with the repaired fixture, copied whole",
+      "scenarios": 18, "reuse_scenarios": 14, "loads_spared_total": 32, "divergent_by_design": ["store unreachable once the homepage opened"]
+    },
+    "loopback_freshness": {
+      "copy": "freshness-results.json", "source": "587fc2e", "checks": 8, "all_pass": true
+    },
+    "paired_actual_helpers": {
+      "copies": ["paired-loopback/summary.json", "paired-loopback/empty-results.json", "paired-loopback/cards-results.json"],
+      "pairs_per_variant": 5,
+      "empty": { "homepage_documents": [2, 1], "all_documents": [4, 3], "server_requests_including_preflight": [5, 4], "image_requests": [0, 0] },
+      "cards": { "homepage_documents": [2, 1], "all_documents": [4, 3], "server_requests_including_preflight": [11, 7], "image_requests": [6, 3] },
+      "order": "base then candidate in each pair of figures",
+      "cache_control": "no-store", "all_checks_matched": true, "pacing_sleeps": [0, 0], "live_speedup_claim": false
+    },
+    "same_url_reload_fallback": {
+      "copy": "paired-loopback/reload-result.json", "homepage_documents": 3, "problems": [], "pacing_sleeps": 0
+    }
+  },
+  "raw_sha256_reported_by_coordinator": {
+    "freshness-results.json": "2f09098ec51ad84189e6dee327a7d2d88c0e6f0c55599f27d28868312c1c5e80",
+    "paired-loopback/empty-results.json": "e7aa141adb49166cc9797b7b5f85cf9084596c18edf7ba34f20145b7d4ffce45",
+    "paired-loopback/cards-results.json": "aab4a5a1b38ae41f07fcd4e3ecd0b144edaf5f9b83afde8fc90f2bf145c4adf3",
+    "paired-loopback/reload-result.json": "ff274fb85889e4a8d817fa9148e43bb93fe50d81f44b461228d08b6533c4d3a7",
+    "paired-loopback/paired.mjs": "42a1fd7750fd2d094a9c728c76509e303493cd40e58254f3717e91d91649d0a4",
+    "paired-loopback/sample.mjs": "40e198b9f103c6fd16bada716e2884795f4e528fdacdba1220857e4e77f8514d",
+    "paired-loopback/same-url-reload.mjs": "d8f623f790c41673faeaace2f588b374191ad575930b1b515d5b364c87895ae5",
+    "note": "as listed in the coordinator's validation-inputs.json; no raw hash was supplied for comparison-results.json, repaired-draft-unit.json or summary.json"
+  },
+  "copy_sha256": {
+    "compare.mjs": "8e98031d81fab28aaf4339542b95392c7e35d971c1dd3ca529b74134c5fb3ade",
+    "loopback-freshness.mjs": "9fadb95d1077907894cbbaa2f04a3985720cef2ecc6ca2bb0c98320b93adbf04",
+    "comparison-results.json": "f4197212cf76a04c3cd20a0f4ff249bb001a3dc1c490b7dcfb2fd6dd2fdec61b",
+    "freshness-results.json": "2f09098ec51ad84189e6dee327a7d2d88c0e6f0c55599f27d28868312c1c5e80",
+    "unit-results.json": "e6343a179035bde43ba48d86c6b6b9918dd4c7178e0dde544e44f2ba79b0e14c",
+    "paired-loopback/README.md": "ed5034faba72811e1740e8ef0ce174e3fbef413cd1ecc49b4637a4b53c617740",
+    "paired-loopback/paired.mjs": "42a1fd7750fd2d094a9c728c76509e303493cd40e58254f3717e91d91649d0a4",
+    "paired-loopback/sample.mjs": "40e198b9f103c6fd16bada716e2884795f4e528fdacdba1220857e4e77f8514d",
+    "paired-loopback/same-url-reload.mjs": "d8f623f790c41673faeaace2f588b374191ad575930b1b515d5b364c87895ae5",
+    "paired-loopback/summary.json": "e5764c2f06339e319e1f8d23d15b4bbc692f083b67f2548d00834cbec7f94800",
+    "paired-loopback/reload-result.json": "ff274fb85889e4a8d817fa9148e43bb93fe50d81f44b461228d08b6533c4d3a7",
+    "paired-loopback/empty-results.json": "60a4205177dd66d8b0f2c24b8207b2d660ed40805d76aed26102b72692bb7f05",
+    "paired-loopback/cards-results.json": "84bd9cd012fe49d85f184ccf19c61c2e00275145045b4794c9f09b999f044d1b"
+  },
+  "sanitization": {
+    "byte_identical_to_raw": ["freshness-results.json", "paired-loopback/reload-result.json", "paired-loopback/paired.mjs", "paired-loopback/sample.mjs", "paired-loopback/same-url-reload.mjs"],
+    "sanitized": {
+      "paired-loopback/empty-results.json": "each row's artifacts value, a local temporary directory, replaced by 'local temporary path removed'; nothing else changed",
+      "paired-loopback/cards-results.json": "same replacement, ten rows",
+      "paired-loopback/summary.json": "the two raw_result values and same_url_reload_result, local temporary paths, replaced by pointers to the sanitized copies"
+    },
+    "copied_whole_without_a_raw_hash": ["comparison-results.json", "unit-results.json (from repaired-draft-unit.json)", "paired-loopback/README.md"],
+    "not_copied": "repaired-draft-unit.log (247 lines, the test reporter's per-test lines; totals are in unit-results.json), capture receipts (they name coordinator workstation paths), the coordinator's own paired-loopback/PROOF.md (folded into PROOF.md here), baseline and preliminary runs (history)"
+  },
+  "writer_limits": "This writer's tool surface ran no Node, npm or Python, cannot copy or hash files outside its workspace, and transcribed each copy from the coordinator's file as read. The five byte-identical copies were confirmed by hashing the copies against the coordinator's reported raw hashes. The sanitized and whole copies were checked by line count against the originals and by bracket balance; they were not machine-parsed here."
+}
