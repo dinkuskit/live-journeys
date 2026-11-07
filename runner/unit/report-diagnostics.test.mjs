@@ -188,7 +188,8 @@ test('workflow keeps manual/default-branch gate, minimal read permissions and st
   assert.match(workflow, /contents: read\n  actions: read/);
   const secretSteps = workflow.split(/\n      - name:/).filter(part => part.includes('secrets.'));
   assert.equal(secretSteps.length, 1);
-  assert.match(secretSteps[0], /Read only the bounded selected report/);
+  // Static policy regression only; production process isolation needs runtime evidence.
+  assert.match(secretSteps[0], /run: node scripts\/report-diagnostics\.mjs fetch /);
   assert.deepEqual([...workflow.matchAll(/secrets\.([A-Z0-9_]+)/g)].map(match => match[1]).sort(), ['R2_ACCESS_KEY_ID', 'R2_ACCOUNT_ID', 'R2_BUCKET', 'R2_SECRET_ACCESS_KEY']);
   assert.doesNotMatch(workflow, /run:.*\$\{\{ inputs/);
 });

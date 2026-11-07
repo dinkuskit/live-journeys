@@ -5,7 +5,7 @@
   "source_sha256": {
     ".github/workflows/report-diagnostics.yml": "c19e9e6ad02d728e8ae5ddb402a4bd64270eb53089c0ec189e590b1033f784ad",
     "runner/scripts/report-diagnostics.mjs": "3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80",
-    "runner/unit/report-diagnostics.test.mjs": "cd96509ce2764ae731778cc09ae077dfdae3dffc7069414c85ca076de5924b3f",
+    "runner/unit/report-diagnostics.test.mjs": "b56d302b614d68aa252d85b293bb594f96a95b518be4d0331d25e667fb9e215b",
     "references/report-diagnostics.md": "ad56dffbdd97c826a7760fdbca1161c3e1a617cb15d183d9576c5aedc04f562f",
     "runner/README.md": "fb0b80f4d128a367437d0acc4f40a93704071cb057db5cf9bef7bdbb56e2e074"
   },
@@ -54,9 +54,9 @@
     "failed": 0,
     "skipped": 0,
     "cancelled": 0,
-    "log_path": "/home/bobby-xps/Work/repos/saari-co/x-api/runs/live-journey-performance-runs/20261106/diagnostics/full-unit.log",
     "log_sha256": "781b41073e512f69337a3f7c44f9b33ff3ff57ef3bf54947cacaccd5cb20317f",
-    "verification": "safe log totals inspected and hash computed by worker"
+    "verification": "safe log totals inspected and hash computed by worker",
+    "log_label": "full-unit.log"
   },
   "coordinator_source_privacy_review": {
     "result": "no actionable defect",
@@ -83,5 +83,38 @@
     ],
     "repeat_confirmation_required_within_same_authorization": false,
     "future_reads_authorized": false
+  },
+  "review_repair": {
+    "reviewed_head": "6e095a6bf1a9e6d183750826635356adeb4dc4e5",
+    "native_finding": "https://github.com/dinkuskit/live-journeys/pull/39#issuecomment-6702824000",
+    "private_paths": "removed from current tracked files; history retained",
+    "production_owner_allowed_and_forbidden_cases": "needs-evidence; human_gate; not executed",
+    "workflow_text_test": "static policy regression only; no production boundary attestation",
+    "renewed_ci_and_external_reviews": "required for changed head",
+    "offline_validation": {
+      "node": "v24.22.0",
+      "command": "node --test --test-isolation=none runner/unit/report-diagnostics.test.mjs",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "log_label": "privacy-repair-targeted.log",
+      "log_sha256": "dc71fefb00640b82696038c9c37f218c8d8e3fa707783a724c8a4d11c8e72bf1",
+      "environment": "empty environment; temporary HOME/proof/profile; env file /dev/null",
+      "full_suite": "not rerun for bounded privacy repair; earlier accepted 211-pass evidence applies to prior head"
+    },
+    "private_path_audit": {
+      "scope": "all 10 files changed since base",
+      "matches": 0,
+      "pattern_families": [
+        "home",
+        "Users",
+        "workspace",
+        "workspaces",
+        "mnt",
+        "private",
+        "Volumes"
+      ],
+      "matched_literals_printed": false
+    }
   }
 }
