@@ -1,7 +1,8 @@
 import { test, expect } from "./browser.mjs";
 import { config } from "./env.mjs";
 import { firstLine, forProof } from "./errors.mjs";
-import { attemptVerdict, journeyVerdict, record, shot, startJourney } from "./proof.mjs";
+import { paceSnapshot } from "./pace.mjs";
+import { attemptVerdict, journeyVerdict, noteJourneyTiming, record, shot, startJourney } from "./proof.mjs";
 
 // Errors that stopped a journey inside a step, which recorded them already.
 const recorded = new WeakSet();
@@ -41,14 +42,29 @@ export async function step(page, name, body, { soft = false } = {}) {
 export function journey(body, { profile = true } = {}) {
   const run = async page => {
     const name = test.info().title;
-    startJourney(name, test.info().retry);
+    const retry = test.info().retry;
+    startJourney(name, retry);
+    // The private timing fact measures the body alone, from here to its return or throw, on the
+    // monotonic clock: the fixtures that open and close its browser run outside this function, and
+    // startJourney's write above and the fact's own write below fall outside the measured span.
+    const from = performance.now();
+    const paced = paceSnapshot();
+    let to, ended;
     try {
       await body({ page });
+      to = performance.now();
+      ended = "returned";
     } catch (caught) {
+      to = performance.now();
+      ended = "threw";
       const error = forProof(caught);
       // An error between steps (a page that wouldn't open) still fails the journey in its proof.
       if (!recorded.has(error)) record("The journey finished without an error", "FAIL", firstLine(error));
       throw error;
+    } finally {
+      // Written once per try, whether the body returned or threw; a try cut off before this point
+      // leaves no entry. Timing can never change a journey's outcome, so a write that fails is let go.
+      try { timing(name, retry, ended, to - from, paced); } catch {}
     }
     console.log(`\n${name}: ${journeyVerdict(name)}\n`);
     // A step that failed softly still fails its journey, so "run the test" exits non-zero. Only this
@@ -57,6 +73,26 @@ export function journey(body, { profile = true } = {}) {
   };
   // Playwright starts only the fixtures a test names, so a profile-free journey never opens the saved profile.
   return profile ? async ({ page }) => run(page) : async ({}) => run(undefined);
+}
+
+/**
+ * One try's private timing, in whole milliseconds: how long its body ran, and how many explicit
+ * pace sleeps it took meanwhile, what they asked for, what they measured (more when a timer fired
+ * late), and their wall time (less than the measured sum when sleeps overlapped). Whatever the body
+ * spent beyond the sleeps is unattributed: the store, the network, the browser or the runner itself;
+ * nothing here says which.
+ */
+function timing(name, retry, body, bodyMs, before) {
+  const after = paceSnapshot();
+  noteJourneyTiming(name, retry, {
+    body,
+    verdict: attemptVerdict(name),
+    body_ms: Math.round(bodyMs),
+    pace_sleeps: after.sleeps - before.sleeps,
+    pace_sleep_requested_ms: Math.round(after.requestedMs - before.requestedMs),
+    pace_sleep_ms: Math.round(after.ms - before.ms),
+    pace_sleep_wall_ms: Math.round(after.wallMs - before.wallMs),
+  });
 }
 
 /**

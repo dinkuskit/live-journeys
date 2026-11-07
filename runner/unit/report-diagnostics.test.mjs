@@ -132,6 +132,119 @@ test('malformed, oversized, unknown schema/journey and identity mismatch fail wi
   });
 });
 
+// The private timing fact as the journey wrapper writes it (support/steps.mjs), and a report that carries it.
+const tryOf = (extra = {}) => ({ try: 1, body: 'returned', verdict: 'PASS', body_ms: 61234, pace_sleeps: 3,
+  pace_sleep_requested_ms: 3750, pace_sleep_ms: 3812, pace_sleep_wall_ms: 2600, ...extra });
+const timed = (tries, name = 'Manage products', facts = {}) => {
+  const value = report();
+  value.facts = { [poison]: poison, [`${name} timing`]: { unit: 'ms', tries }, ...facts };
+  return value;
+};
+const unchanged = () => [{ journey: 'Manage products', step_count: 1, failed_step_count: 1,
+  link_problems: { missing_card_or_link: 0, navigation_missing: 0, non_200: 0, heading_mismatch: 0, unknown: 1 } }];
+
+test('a report without timing projects byte for byte as before; every other fact, however named or shaped, is ignored', () => temporary(async root => {
+  const fixture = report();
+  // Near misses of the recognized name, a timing for a journey the report does not list, and private
+  // text in nested facts: none is read, so none can fail the projection or reach its output.
+  fixture.facts = {
+    [poison]: poison, 'Manage products timing ': { unit: poison, tries: poison }, 'manage products timing': poison,
+    'Manage products Timing': [tryOf({ body: poison })], 'Manage products timing\n': null, [`${poison} timing`]: { unit: 'ms', tries: [tryOf()] },
+    'Cart timing': { unit: poison, tries: [{ secret: poison }] }, 'Test run timing': poison,
+    timing: { unit: 'ms', tries: [tryOf()] }, nested: { deeper: [poison, { body_ms: poison }] }, 'products listed': 4,
+  };
+  assert.equal(JSON.stringify(analyze(fixture, selected)), JSON.stringify(unchanged()));
+  assert.ok(!('timing' in analyze(fixture, selected)[0]));
+  assert.equal(JSON.stringify(analyze(report(), selected)), JSON.stringify(unchanged()));
+  prepare(root, JSON.stringify(fixture));
+  const result = await cli(root, ['analyze', selected.run, selected.attempt]);
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr, '');
+  assert.equal(result.stdout, `${JSON.stringify(unchanged())}\n`);
+  assert.doesNotMatch(result.stdout, /timing|body_ms|pace_sleep|PRIVATE|SECRET/);
+}));
+
+test('a timing fact projects each try apart, in the producer\'s exact shape, and a journey without one stays without', () => temporary(async root => {
+  const failed = tryOf({ try: 1, body: 'threw', verdict: 'FAIL', body_ms: 4021, pace_sleeps: 0, pace_sleep_requested_ms: 0, pace_sleep_ms: 0, pace_sleep_wall_ms: 0 });
+  const passed = tryOf({ try: 2, body: 'returned', verdict: 'PASS', body_ms: 58109, pace_sleeps: 2, pace_sleep_requested_ms: 2500, pace_sleep_ms: 2531, pace_sleep_wall_ms: 1300 });
+  const fixture = timed([failed, passed], 'Storefront');
+  fixture.journeys.push({ name: 'Storefront', verdict: 'FLAKY' });
+  fixture.steps.push(step('', { journey: 'Storefront', step: poison, status: 'FAIL', retried: true }), step('', { journey: 'Storefront', step: poison, status: 'PASS' }));
+  const expected = [
+    { journey: 'Storefront', step_count: 2, failed_step_count: 1, link_problems: { missing_card_or_link: 0, navigation_missing: 0, non_200: 0, heading_mismatch: 0, unknown: 0 },
+      timing: { unit: 'ms', tries: [failed, passed] } },
+    ...unchanged(),
+  ];
+  // Key order is the fixed literal's, whatever order the fact's keys came in; nothing is summed or rated.
+  const shuffled = JSON.parse(JSON.stringify(fixture));
+  shuffled.facts['Storefront timing'] = { tries: shuffled.facts['Storefront timing'].tries.map(entry => Object.fromEntries(Object.entries(entry).reverse())), unit: 'ms' };
+  for (const value of [fixture, shuffled]) assert.equal(JSON.stringify(analyze(value, selected)), JSON.stringify(expected));
+  assert.ok(!('timing' in analyze(fixture, selected)[1]));
+  prepare(root, JSON.stringify(shuffled));
+  const result = await cli(root, ['analyze', selected.run, selected.attempt]);
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr, '');
+  assert.equal(result.stdout, `${JSON.stringify(expected)}\n`);
+  assert.doesNotMatch(result.stdout, /PRIVATE|SECRET|example|private-|https:|987654/);
+  // Tries keep the order the report holds them; the bound of eight and the full safe-integer range are open.
+  const eight = Array.from({ length: 8 }, (_, i) => tryOf({ try: 8 - i, body_ms: 0, pace_sleeps: 0, pace_sleep_requested_ms: 0, pace_sleep_ms: 0, pace_sleep_wall_ms: 0 }));
+  assert.deepEqual(analyze(timed(eight), selected)[0].timing.tries.map(entry => entry.try), [8, 7, 6, 5, 4, 3, 2, 1]);
+  const extreme = tryOf({ try: Number.MAX_SAFE_INTEGER, body_ms: Number.MAX_SAFE_INTEGER, pace_sleep_ms: 9007199254740990 });
+  assert.deepEqual(analyze(timed([extreme]), selected)[0].timing, { unit: 'ms', tries: [extreme] });
+  // Overlapping sleeps summed beyond the body are the producer's documented figure, passed through as such.
+  const overlapped = tryOf({ body_ms: 1000, pace_sleeps: 2, pace_sleep_requested_ms: 2500, pace_sleep_ms: 2520, pace_sleep_wall_ms: 1000 });
+  assert.deepEqual(analyze(timed([overlapped]), selected)[0].timing.tries, [overlapped]);
+}));
+
+test('a malformed recognized timing fails the whole projection with the fixed message only, whatever it carries', async () => {
+  const entry = (extra, omit) => { const value = tryOf(extra); if (omit) delete value[omit]; return value; };
+  const facts = [
+    null, poison, 0, true, [], {}, [tryOf()], { unit: 'ms' }, { tries: [tryOf()] }, { unit: 'ms', tries: [tryOf()], extra: poison },
+    { unit: poison, tries: [tryOf()] }, { unit: 'seconds', tries: [tryOf()] }, { unit: 'MS', tries: [tryOf()] }, { unit: ['ms'], tries: [tryOf()] },
+    { unit: 'ms', tries: {} }, { unit: 'ms', tries: tryOf() }, { unit: 'ms', tries: [] }, { unit: 'ms', tries: [null] }, { unit: 'ms', tries: [poison] }, { unit: 'ms', tries: [[]] },
+    { unit: 'ms', tries: Array.from({ length: 9 }, (_, i) => tryOf({ try: i + 1 })) },
+    { unit: 'ms', tries: Array.from({ length: 10001 }, (_, i) => tryOf({ try: i + 1 })) },
+  ];
+  const entries = [
+    [tryOf(), tryOf({ body: 'threw', verdict: 'FAIL' })], [tryOf({ try: 2 }), tryOf({ try: 2 })],
+    ...['try', 'body', 'verdict', 'body_ms', 'pace_sleeps', 'pace_sleep_requested_ms', 'pace_sleep_ms', 'pace_sleep_wall_ms'].map(key => [entry({}, key)]),
+    [entry({ note: poison })], [entry({ error: { message: poison } })], [entry({ url: 'https://private.invalid/?token=SECRET' })],
+    [entry({ body: 'RETURNED' })], [entry({ body: 'ok' })], [entry({ body: '' })], [entry({ body: null })], [entry({ body: poison })], [entry({ body: ['returned'] })],
+    [entry({ verdict: 'FLAKY' })], [entry({ verdict: 'SKIP' })], [entry({ verdict: 'pass' })], [entry({ verdict: poison })], [entry({ verdict: 1 })],
+    [entry({ try: 0 })], [entry({ try: -1 })], [entry({ try: 1.5 })], [entry({ try: '1' })], [entry({ try: 2 ** 53 })], [entry({ try: true })], [entry({ try: null })],
+    ...['body_ms', 'pace_sleeps', 'pace_sleep_requested_ms', 'pace_sleep_ms', 'pace_sleep_wall_ms'].flatMap(key => [
+      [entry({ [key]: 1.5 })], [entry({ [key]: -1 })], [entry({ [key]: '100' })], [entry({ [key]: 2 ** 53 })], [entry({ [key]: null })],
+      [entry({ [key]: true })], [entry({ [key]: [1] })], [entry({ [key]: poison })], [entry({ [key]: Infinity })], [entry({ [key]: NaN })],
+    ]),
+  ];
+  const inputs = [...facts.map(fact => { const value = report(); value.facts = { [`Manage products timing`]: fact }; return value; }),
+    ...entries.map(tries => timed(tries))];
+  for (const value of inputs) assert.throws(() => analyze(value, selected), { message: FAILURE });
+  // A valid fact beside a malformed one for another listed journey fails too: no partial projection.
+  const mixed = timed([tryOf()]);
+  mixed.journeys.push({ name: 'Cart', verdict: 'PASS' });
+  mixed.facts['Cart timing'] = { unit: 'ms', tries: [tryOf({ body: poison })] };
+  assert.throws(() => analyze(mixed, selected), { message: FAILURE });
+  // Through the CLI boundary, including JSON text no object literal can spell: an own "__proto__" key and -0.
+  const texts = [
+    JSON.stringify(timed([tryOf({ body: poison })])), JSON.stringify(timed([tryOf({ note: poison })])), JSON.stringify(mixed),
+    JSON.stringify(timed([tryOf()])).replace('"try":1', '"__proto__":{"secret":"SECRET"},"try":1'),
+    JSON.stringify(timed([tryOf()])).replace('"body_ms":61234', '"body_ms":-0'),
+    JSON.stringify(timed([tryOf()])).replace('"pace_sleeps":3', '"pace_sleeps":1e400'),
+    JSON.stringify(timed([tryOf()])).replace('"unit":"ms"', '"unit":"ms","unit":"ms"'),
+  ];
+  assert.ok(texts[3].includes('"__proto__"') && texts[4].includes(':-0') && texts[5].includes('1e400') && texts[6].includes('"unit":"ms","unit":"ms"'));
+  // 1e400 parses to Infinity, which no count accepts. A duplicate JSON key keeps its last value and is
+  // one key, so that text stays valid; every other text fails.
+  for (const [index, text] of texts.entries()) await temporary(async root => {
+    prepare(root, text);
+    const result = await cli(root, ['analyze', selected.run, selected.attempt]);
+    if (index === 6) assert.equal(result.status, 0);
+    else assertFailure(result);
+    assert.doesNotMatch(result.stdout + result.stderr, /PRIVATE|SECRET|example|private-|https:|987654|__proto__/);
+  });
+});
+
 test('analyzer refuses inherited credentials; fetch cannot run without a matching verification receipt', () => temporary(async root => {
   prepare(root, JSON.stringify(report()));
   for (const key of ['AWS_ACCESS_KEY_ID', 'R2_BUCKET', 'GH_TOKEN', 'GITHUB_TOKEN', 'OP_SERVICE_ACCOUNT_TOKEN']) {

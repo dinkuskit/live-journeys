@@ -1,0 +1,19 @@
+{
+  "source_commit": "c0b03386a18f3bd4a367fc696c9463fce0df1d0a",
+  "scope": "runner-relative import closure from immutable Git objects",
+  "sha256": {
+    "scripts/report-diagnostics.mjs": "9f2a2c015b83bd193745d0708470519fc38f0857c3f05196837d9e7d291c8cb5",
+    "scripts/run-summary.mjs": "3fa911c156bbdc447d46717eb7e840f300601a95df2f2bf05283b982dc7e8946",
+    "support/errors.mjs": "1bdf5906604d58b554a716f3e47ae597257531b79d92536bf93f78b20f9da159",
+    "support/verdict-reporter.mjs": "6aa281bd1525382b9c4cf51a1841139bcfdc5581763dcc704c51c573c39cce1a",
+    "support/proof.mjs": "53ee6d77427b711877aa441c07c32e3504aefc5035c4c0d0f59aba0c5b141051",
+    "support/env.mjs": "b8c662a3ce1bf26a7ae9efc5d0252e906ca143f5f123702defbcac5954866ffa",
+    "support/settings-file.mjs": "fa6fc5280b09d54193e45c38932a16b2986dc255d86112122a6df748a65b5952",
+    "support/mail-patterns.mjs": "ca787195ef5ec7e49b84ce6c4d749e66ffdbb63bdf0be0590d511f344c0eb4bd",
+    "support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
+    "support/request-policy.mjs": "4b5874c0d64779528f393576af7c9e9d5cd26beca922bbc469c0998ad37a16c2",
+    "support/steps.mjs": "8570b784b2ef9beef9c2bbd7a98860ed61be722b950c5609f0e2afaea69d714c",
+    "support/browser.mjs": "ab80872c888f73bb245d61f356f8bd8c25a67187574d2c932b8e3b963b9e3527",
+    "playwright.config.mjs": "7be7f7cdb971c268ab281d7766ba89afc33959e197c2a801ce0dfab4c03d7c22"
+  }
+}

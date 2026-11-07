@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { config } from "./env.mjs";
 
@@ -44,6 +44,9 @@ export function startJourney(name, retry = 0) {
   steps = retry > 0
     ? steps.map(s => s.journey === name ? { ...s, retried: true } : s)
     : steps.filter(s => s.journey !== name);
+  // A journey run again, not as a retry, starts its private timing over in this same write, so a try
+  // that hasn't finished (or never will) is not shown with an earlier run's entries. A retry keeps them.
+  if (!(retry > 0)) delete facts[`${name} timing`];
   if (!journeys.includes(name)) journeys.push(name);
   write();
 }
@@ -104,6 +107,27 @@ export function note(key, value) {
 }
 
 /**
+ * Keeps one private timing fact per journey, "<name> timing", written once when a try of the journey
+ * finishes (see steps.mjs). Each try keeps its own entry, so a failed try is never erased by the retry
+ * that followed it: a retry (`retry` above 0) adds its entry beside the earlier tries', read back from
+ * the report as the retry's new worker loads it, as startJourney keeps their steps; a journey run again
+ * under the same run id starts its tries over (startJourney already cleared them). A try the run cut
+ * off before its wrapper finished leaves no entry at all, rather than a zero. The README's "Proof"
+ * section describes the shape.
+ *
+ * This write is extra to the journey's own, so it must never cost the report they built: it goes down
+ * whole or not at all (see `replace`), and when it fails this copy reads the files back as they stand,
+ * so the entry it could not publish is not held for a later write either.
+ */
+export function noteJourneyTiming(name, retry, entry) {
+  load();
+  const key = `${name} timing`;
+  const tries = retry > 0 && Array.isArray(facts[key]?.tries) ? facts[key].tries.filter(t => t.try !== retry + 1) : [];
+  facts[key] = { unit: "ms", tries: [...tries, { try: retry + 1, ...entry }] };
+  try { write(true); } catch (error) { load(); throw error; }
+}
+
+/**
  * Saves the page's screenshot for the step about to be recorded. A picture is never worth holding the
  * run for: one that hasn't come within 30 s is skipped, and the step's result stands.
  */
@@ -138,11 +162,13 @@ export function journeyVerdict(name) {
 
 const cell = value => String(value).replaceAll("|", "\\|").replaceAll("\n", " ");
 
-function write() {
+/** Writes the report and PROOF.md; `whole` puts each down whole or not at all (the timing fact's write). */
+function write(whole = false) {
+  const put = whole ? replace : writeFileSync;
   const results = journeys.map(name => ({ name, verdict: journeyVerdict(name) }));
   const verdict = verdictOf(results.map(r => r.verdict));
   const report = { run: config.runId, mode: config.mode, store: config.store, ship: config.ship, verdict, journeys: results, facts, steps };
-  writeFileSync(join(config.runDir, "report.json"), JSON.stringify(report, null, 2));
+  put(join(config.runDir, "report.json"), JSON.stringify(report, null, 2));
   const lines = [
     `# DinkusKit live test: ${verdict}`, "",
     `Run ${config.runId}, mode ${config.mode}, store ${config.store}.`, "",
@@ -154,7 +180,23 @@ function write() {
       ...steps.filter(s => s.journey === r.name).map(s => `| ${cell(s.step)}${s.retried ? " (first try)" : ""} | ${s.status} | ${cell(s.detail)} |`),
     ]),
     "", "## Facts", "",
-    ...Object.entries(facts).map(([key, value]) => `- ${key}: ${value}`),
+    ...Object.entries(facts).map(([key, value]) => `- ${key}: ${Object(value) === value ? JSON.stringify(value) : value}`),
   ];
-  writeFileSync(join(config.runDir, "PROOF.md"), lines.join("\n") + "\n");
+  put(join(config.runDir, "PROOF.md"), lines.join("\n") + "\n");
+}
+
+/**
+ * Writes a file whole or not at all: the text goes to `<file>.tmp` beside it, which is then renamed
+ * over the file, so a disk that fills or a write that stops midway leaves the file as it was. The
+ * temporary file is removed on failure as far as it can be; a worker killed mid-write can leave one.
+ */
+function replace(file, text) {
+  const tmp = `${file}.tmp`;
+  try {
+    writeFileSync(tmp, text);
+    renameSync(tmp, file);
+  } catch (error) {
+    try { unlinkSync(tmp); } catch {}
+    throw error;
+  }
 }

@@ -7,7 +7,10 @@ private read; it grants no further private reads. Conditional merge remains
 subject to clean CI, comprehensive OpenClaw and native ClawSweeper reviews of
 the final source after temporary-route removal. No repeated confirmation is
 required for actions already within that approval. The permanent workflow has
-not been dispatched; no installed runtime is registered.
+not been dispatched; no installed runtime is registered. The later timing
+projection (below) changed the analyzer's output only: it adds no transport,
+credential, selector or workflow step, and does not reopen the consumed read
+or stand in for the owner's approval of any future dispatch.
 
 The permanent consumer is `.github/workflows/report-diagnostics.yml` in
 `dinkuskit/live-journeys`, running `runner/scripts/report-diagnostics.mjs` on
@@ -72,9 +75,55 @@ One JSON array goes to stdout and the job summary. Journey names come from a
 literal allowlist matching the current runner (including `Test run`); an input
 name must equal one exactly. Each has integer `step_count`, `failed_step_count`,
 and fixed `link_problems` counters. Counts include retained retry records, so
-they describe report records, not unique logical steps. No durations are emitted:
-`report.json` has no structured duration field, and arbitrary text/timestamps
-are not interpreted as timing. `playwright.json` is not fetched.
+they describe report records, not unique logical steps. The only durations
+emitted are a journey's own private timing fact, below; arbitrary text and
+timestamps are not interpreted as timing. `playwright.json` is not fetched.
+
+### Timing
+
+A journey whose report carries the private timing fact the runner's wrapper
+writes (`facts["<journey> timing"]`, documented under "Private timing" in
+`runner/README.md`) gets one more field, `timing`, holding that fact in the
+producer's exact shape and nothing else:
+
+```json
+{ "unit": "ms", "tries": [ { "try": 1, "body": "returned", "verdict": "PASS", "body_ms": 61234,
+  "pace_sleeps": 3, "pace_sleep_requested_ms": 3750, "pace_sleep_ms": 3812, "pace_sleep_wall_ms": 2600 } ] }
+```
+
+The field is sourced from that one fact alone, by exact name; every other fact,
+including near misses of the name, a timing for a journey the report does not
+list, and anything nested, is never read. A journey without the fact has no
+`timing` key at all, so a report from before the fact existed, or from a run
+that cut a journey off, projects byte for byte as before: nothing is written as
+zero in its place. The analyzer accepts only:
+
+- exactly the keys `unit` and `tries`, `unit` equal to `ms`, and `tries` a
+  non-empty array of at most 8 entries. The runner retries a journey at most
+  once, so the producer writes at most two; 8 is a generous bound, not a
+  promise of more;
+- in each entry, exactly the eight producer keys above, with `try` a positive
+  safe integer unique within the array, `body` one of `returned` or `threw`,
+  `verdict` one of `PASS`, `FAIL` or `INCOMPLETE` (a try's verdict; `FLAKY` is
+  a journey's), and the five counts and durations finite non-negative safe
+  integers (no fractions, strings, negatives, `-0` or exponents that overflow).
+
+Any departure, in any listed journey's timing, fails the whole projection with
+the fixed `Diagnostics unavailable.` and exit 1, as every other malformed
+report does; there is no partial output. The output is built from fresh
+literals in a fixed key order, never by spreading the fact, so an extra key
+cannot ride through and the fact's own key order does not matter.
+
+The tries are passed through apart, in the order the report holds them: the
+analyzer adds nothing up, computes no speed-up and attributes no residual time
+to CPU or anything else. What the numbers mean, and their limits, are the
+producer's, as the README states: `body_ms` is the journey body alone, without
+fixture startup and teardown; `pace_sleep_ms` sums per-call sleeps and can
+exceed `body_ms` when sleeps overlapped, while `pace_sleep_wall_ms` cannot;
+requested and measured sleep differ by timer overshoot; time beyond the sleeps
+is unattributed. A failed try stays beside its retry. Offline fixtures prove
+only that the producer's shape and the consumer's reading agree; attributing a
+real run's time needs a future, separately authorized, full run and read.
 
 Only failed `Manage products` records whose step name is exactly
 `The product's links open its page` receive link categorization. Anchored patterns
@@ -88,9 +137,10 @@ follow `support/store-check.mjs`'s `linkProblems` messages:
 | `heading_mismatch` | Opened product heading differed from the expected name |
 | `unknown` | Unrecognized/ambiguous link failure, including page-load errors |
 
-Only the code/count survives; HTTP status, product/category paths, headings,
-error text, step names, facts, URLs, emails, page contents, headers, cookies,
-order data and arbitrary names are never emitted. Unknown report schemas or
+Only the code/count survives, plus the timing projection above; HTTP status,
+product/category paths, headings, error text, step names, every other fact,
+URLs, emails, page contents, headers, cookies, order data and arbitrary names
+are never emitted. Unknown report schemas or
 malformed selectors fail with only `Diagnostics unavailable.` on stderr and
 exit 1. Unknown link error text produces only the fixed `unknown` counter.
 This is a bounded diagnostic projection, not an assertion that source error

@@ -323,10 +323,13 @@ It needs these repository secrets:
 | `DINKUS_E2E_GMAIL_CLIENT_ID`, `DINKUS_E2E_GMAIL_CLIENT_SECRET`, `DINKUS_E2E_GMAIL_REFRESH_TOKEN`, `DINKUS_E2E_OWNER_EMAIL` | The test inbox's read-only key. `node scripts/gmail-authorize.mjs <client_secret.json> <inbox>` makes it once, from a Google OAuth client of type "Desktop app", and saves all four with `gh secret set` without printing them |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | A private R2 bucket for the proof, and an R2 API token that can only read and write that bucket |
 
-The proposed [manual report diagnostics](../references/report-diagnostics.md)
-projects only fixed link-failure categories and bounded counts from one selected
-private report. It needs owner approval after PR review before its first use;
-source preparation does not authorize a dispatch or private-proof read.
+The [manual report diagnostics](../references/report-diagnostics.md) project
+only fixed link-failure categories, bounded counts and, for a journey that has
+one, its private timing fact (see "Private timing" below) in the exact shape
+the wrapper writes, from one selected private report. Each dispatch is one
+private read and needs the owner's approval; the one read approved so far has
+been used, and source preparation does not authorize another dispatch or
+private-proof read.
 
 ## Settings
 
@@ -589,6 +592,65 @@ on a failure (`error-context.md`) take no snapshot of the page either. Each
 address on that first line loses its query, where a sign-in link, a connect
 address or Ship's sign-in code carries its secret, and a Ship print link loses
 its token.
+
+### Private timing
+
+Each journey's wrapper also keeps one timing fact in `report.json`'s `facts`,
+named `<journey> timing` (`Full catalog timing`), for reading how a run's time
+went before tuning it. It stays in the private proof: the public run summary
+and the console never show it. The only way out is the owner-approved manual
+[report diagnostics](../references/report-diagnostics.md), which project it, for
+one selected run, in exactly this shape and no other, and refuse the whole
+report when a timing fact departs from it. The value is
+`{ "unit": "ms", "tries": [ ... ] }`, one entry per try of the journey:
+
+| Field | What it is |
+| --- | --- |
+| `try` | 1 for the journey's first try, 2 for its retry (only Storefront and Cart retry). A retry adds its entry beside the failed try's, which is never erased; the last entry is the latest try, and the total is the sum. A journey run again under the same run id, not as a retry, starts over: its start clears the earlier entries, in the write it already makes, before its body runs |
+| `body` | `returned` or `threw`: how the journey's body ended. A soft step failure returns, so read it with `verdict` |
+| `verdict` | The try's verdict from its recorded steps, as the proof has it when the body ended |
+| `body_ms` | The journey BODY's elapsed time, on the monotonic clock, from the wrapper starting the body to its return or throw. It leaves out the fixtures (opening and closing the saved profile or a shopper browser, and Playwright's own setup and teardown), the journey's start in the proof, and this fact's own write. It takes in what the body does for itself: its steps' screenshots and whatever cleanup it runs on its way out. Whole milliseconds |
+| `pace_sleeps` | How many explicit rate-limit sleeps `paceStore` took during the body (see the store's request limit above) |
+| `pace_sleep_requested_ms` | The sum of what those sleeps asked the timer for: each wait as `paceStore` computed it from the request log and the wall clock, as before, plus its 250 ms margin |
+| `pace_sleep_ms` | The sum of those sleeps as measured, on the monotonic clock, from before each timer to after it. More than requested when a timer fired late (a busy event loop); it can read a few milliseconds less, as the timer's own clock is read at the start of its event-loop turn |
+| `pace_sleep_wall_ms` | The wall time during which at least one of them was sleeping. Equal to the measured sum unless sleeps overlapped (two awaited together), when the sum double-counts, and can then exceed `body_ms`, while this does not |
+
+What the body spent beyond its pace sleeps is unattributed: the store, the
+network, the browser or the runner's own work, in some mix the fact can't tell
+apart. It is not CPU time. The wall clock (`Date.now()`) still decides every
+wait, as before; only the measurements use the monotonic clock, so a wall-clock
+jump changes what `paceStore` decides, as it always did, and not what the fact
+reads. The entry is written once, when the try's wrapper finishes, whether the
+body returned or threw. That write is extra to the journey's own, so it puts
+`report.json` and `PROOF.md` down whole or not at all: each goes to a `.tmp`
+file beside it, renamed over it once written, so a disk that fills on this
+write (or any write that stops midway) leaves the report the journey's steps
+built as it was, readable, with its verdict. The half-written temporary file is
+removed where it can be; a worker killed in the middle can leave
+`report.json.tmp` or `PROOF.md.tmp` in the run folder, which nothing reads. A
+write that fails is let go: it changes neither the journey's outcome nor the
+error it threw, and leaves no entry, in the report or in the worker's memory of
+it, so a later write of that worker does not carry it either. The steps' own
+writes are as before. A try the run cut off before that
+(Playwright's timeout, a stopped run, a killed worker) leaves no entry at all;
+nothing writes a zero or a pass in its place, so a journey listed without its
+timing, or a retried journey with one entry, was cut off. Listing the journeys
+(`--list`) runs none and writes nothing.
+
+The counters behind `pace_*` belong to one worker process, and a journey's
+entry is the difference between two snapshots taken in its own worker, so what
+they held before the journey began never reaches its entry. A retry, which
+Playwright runs in a new worker, reads the failed try's entry back from the
+report and adds its own beside it, as every other fact survives a worker
+restart. Each sleep counts, whole, in the journey whose body is running when
+the sleep ends, and a stretch of overlapping sleeps counts in the wall figure
+when the last of them ends; so the `pace_*` figures are exact for a body that
+awaits every sleep it starts, as every journey's does. A sleep still running
+when a body ends (a step that threw while a sleep it started, and did not
+await, was waiting) is left out of that try's entry, and counts in the next
+journey of the same worker, whose `pace_sleep_ms` can then exceed its own
+`body_ms` with no overlap to explain it, or nowhere when none follows. The
+fact does not split such a sleep across the two.
 
 On Linux, label rendering requires Poppler's `pdftoppm`; macOS uses Quick Look.
 A missing renderer, failed render or invalid picture fails the label-PDF step
