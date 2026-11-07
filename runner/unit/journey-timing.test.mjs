@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after } from "node:test";
 import { setImmediate } from "node:timers/promises";
 import { Script, createContext } from "node:vm";
-import { loadJourney, playwrightStubs } from "./fixtures/journey-wrapper.mjs";
+import { loadJourney, loadProof, playwrightStubs } from "./fixtures/journey-wrapper.mjs";
 
 // Each test file runs in its own process, so this file's proof folder, run id and pace counters stay
 // its own. The store is named so pace logs and the request budget are live, as in a run.
@@ -378,6 +378,67 @@ test("a retry in a new worker reads the failed try's entry back from the report 
   assert.deepEqual(nextPace.paceSnapshot(), { sleeps: 0, requestedMs: 0, ms: 0, wallMs: 0 });
 });
 
+test("a timing write that stops midway, part of its bytes down, leaves the report whole: its steps, verdict and other facts as the journey left them", async t => {
+  quiet(t);
+  const name = "Commerce settings";
+  const folder = join(dir, "timed");
+  // A disk that fills at the write carrying this journey's timing fact: half the bytes land, then
+  // ENOSPC, as a full disk leaves a file. Every other write goes through, as the journey's own do.
+  const disk = {
+    readFileSync, renameSync, unlinkSync,
+    writeFileSync(file, text) {
+      if (!text.includes(`${name} timing`)) return writeFileSync(file, text);
+      writeFileSync(file, text.slice(0, text.length >> 1));
+      throw Object.assign(new Error("ENOSPC: no space left on device, write"), { code: "ENOSPC", syscall: "write" });
+    },
+  };
+  // Such a write, aimed at the report itself, leaves it unreadable, and a later load would read {}.
+  const scratch = join(dir, "scratch.json");
+  assert.throws(() => disk.writeFileSync(scratch, JSON.stringify({ facts: { [`${name} timing`]: { unit: "ms", tries: [] } } })), { code: "ENOSPC" });
+  assert.throws(() => JSON.parse(readFileSync(scratch, "utf8")), SyntaxError);
+  // The actual proof module, writing through that disk: a fresh copy, as a worker's, that loads the
+  // report so far from disk.
+  const copy = loadProof({ ...disk, join, config });
+  copy.note("label", "test mode, no postage bought");
+  const bound = { attemptVerdict: copy.attemptVerdict, journeyVerdict: copy.journeyVerdict, noteJourneyTiming: copy.noteJourneyTiming, record: copy.record, startJourney: copy.startJourney };
+  const listing = () => readdirSync(folder).sort();
+  const files = listing();
+  let left;
+  await wrapper(name, 0, bound).run(async () => {
+    copy.record("Commerce settings show the connected store", "PASS");
+    left = { report: readFileSync(reportFile, "utf8"), markdown: markdown() };
+  });
+  // The journey passed, as its steps say, and both files are byte for byte what its last step left:
+  // nothing half written, no temporary file beside them, no entry.
+  assert.equal(readFileSync(reportFile, "utf8"), left.report);
+  assert.equal(markdown(), left.markdown);
+  assert.deepEqual(listing(), files);
+  assert.equal(timingOf(name), undefined);
+  assert.equal(copy.verdicts().journeys.find(entry => entry.name === name)?.verdict, "PASS");
+  assert.equal(report().facts.label, "test mode, no postage bought");
+  // The retry, in the same copy, throws: its own error comes back, its failure is recorded, and the
+  // report reads with every try's steps and the verdict they give. The entry that could not be
+  // published was not held back in memory either: the retry's start writes without loading the
+  // report first, and had it carried the fact, the disk would have failed that write midway too.
+  const thrown = new Error("Commerce settings did not open");
+  const caught = await wrapper(name, 1, bound).run(async () => {
+    copy.record("Commerce settings show the connected store", "PASS");
+    throw thrown;
+  }).catch(error => error);
+  assert.equal(caught, thrown);
+  const saved = report();
+  assert.deepEqual(saved.steps.filter(s => s.journey === name).map(s => [s.step, s.status, s.retried ?? false]), [
+    ["Commerce settings show the connected store", "PASS", true],
+    ["Commerce settings show the connected store", "PASS", false],
+    ["The journey finished without an error", "FAIL", false],
+  ]);
+  assert.deepEqual(saved.journeys.find(entry => entry.name === name), { name, verdict: "FAIL" });
+  assert.equal(saved.verdict, "FAIL");
+  assert.equal(timingOf(name), undefined);
+  assert.doesNotMatch(markdown(), /Commerce settings timing/);
+  assert.deepEqual(listing(), files);
+});
+
 test("a later worker keeps every journey's timing and the run's other facts, and the public summary shows none of it", async t => {
   quiet(t);
   proof.note("products listed", 4);
@@ -398,8 +459,8 @@ test("a later worker keeps every journey's timing and the run's other facts, and
   assert.equal(saved.facts.plugins, "dinkus-commerce-beta 0.8.0-beta.1");
   assert.deepEqual(Object.keys(saved), ["run", "mode", "store", "ship", "verdict", "journeys", "facts", "steps"]);
   // The diagnostics reader takes the report as the run leaves it and projects each journey's timing in
-  // the producer's exact shape, byte for byte: every try apart, and no key at all for the journey whose
-  // write failed (Ship settings), rather than a zero.
+  // the producer's exact shape, byte for byte: every try apart, and no key at all for the journeys whose
+  // writes failed (Ship settings, before any write; Commerce settings, midway), rather than a zero.
   const { analyze } = await import("../scripts/report-diagnostics.mjs");
   const projected = analyze({ ...saved, run: "github-42337050608-1" }, { run: "42337050608", attempt: "1" });
   assert.equal(projected.length, saved.journeys.length);
@@ -408,8 +469,10 @@ test("a later worker keeps every journey's timing and the run's other facts, and
     if (fact) assert.equal(JSON.stringify(entry.timing), JSON.stringify(fact), `${entry.journey} timing projected as written`);
     else assert.ok(!("timing" in entry), `${entry.journey} has no timing to project`);
   }
-  assert.ok(saved.journeys.some(entry => entry.name === "Ship settings"));
-  assert.ok(!("timing" in projected.find(entry => entry.journey === "Ship settings")));
+  for (const failed of ["Ship settings", "Commerce settings"]) {
+    assert.ok(saved.journeys.some(entry => entry.name === failed), `${failed} listed`);
+    assert.ok(!("timing" in projected.find(entry => entry.journey === failed)), `${failed} has no timing to project`);
+  }
   assert.equal(projected.find(entry => entry.journey === "Free shipping over an amount").timing.tries.length, 2);
   assert.doesNotMatch(JSON.stringify(projected), /products listed|dinkus-commerce-beta/);
   // The default public run summary names no timing: it reads only the facts it knows.

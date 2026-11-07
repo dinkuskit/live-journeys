@@ -621,8 +621,17 @@ apart. It is not CPU time. The wall clock (`Date.now()`) still decides every
 wait, as before; only the measurements use the monotonic clock, so a wall-clock
 jump changes what `paceStore` decides, as it always did, and not what the fact
 reads. The entry is written once, when the try's wrapper finishes, whether the
-body returned or threw; a write that fails is let go, and changes neither the
-journey's outcome nor the error it threw. A try the run cut off before that
+body returned or threw. That write is extra to the journey's own, so it puts
+`report.json` and `PROOF.md` down whole or not at all: each goes to a `.tmp`
+file beside it, renamed over it once written, so a disk that fills on this
+write (or any write that stops midway) leaves the report the journey's steps
+built as it was, readable, with its verdict. The half-written temporary file is
+removed where it can be; a worker killed in the middle can leave
+`report.json.tmp` or `PROOF.md.tmp` in the run folder, which nothing reads. A
+write that fails is let go: it changes neither the journey's outcome nor the
+error it threw, and leaves no entry, in the report or in the worker's memory of
+it, so a later write of that worker does not carry it either. The steps' own
+writes are as before. A try the run cut off before that
 (Playwright's timeout, a stopped run, a killed worker) leaves no entry at all;
 nothing writes a zero or a pass in its place, so a journey listed without its
 timing, or a retried journey with one entry, was cut off. Listing the journeys

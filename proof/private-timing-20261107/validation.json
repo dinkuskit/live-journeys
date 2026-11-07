@@ -5,23 +5,25 @@
   "turn_2_commit": "d637573d4f92c607e91fdafd1ceaf9ddae4b7e0e",
   "turn_3_commit": "71bb42ef8206e9a3c9faf7a45b65388a50e1dd46",
   "turn_4_commit": "3a7f913a7dffb8ff526c3f4aac1368ccf391d6ef",
-  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turns 3, 4 and 5 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted, retried or delegated",
+  "turn_5_commit": "7bd7379e5d58b7b8c0ab35a573e87df4b6583a16",
+  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turns 3 to 6 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted, retried or delegated",
   "platform": "Linux aarch64",
   "source_sha256": {
     "runner/support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
-    "runner/support/proof.mjs": "741fe99d73538c8778681c6ae533055d2b8691d89a817e9cbe21da050e2a9359",
+    "runner/support/proof.mjs": "53ee6d77427b711877aa441c07c32e3504aefc5035c4c0d0f59aba0c5b141051",
     "runner/support/steps.mjs": "8570b784b2ef9beef9c2bbd7a98860ed61be722b950c5609f0e2afaea69d714c",
     "runner/scripts/report-diagnostics.mjs": "9f2a2c015b83bd193745d0708470519fc38f0857c3f05196837d9e7d291c8cb5",
-    "runner/unit/journey-timing.test.mjs": "d2f592516c1fe17e881a633b3b5036aa773240ad8a192423f05739438750a7e1",
+    "runner/unit/journey-timing.test.mjs": "d6c1d948791ad9fcc7a9e10d89a5925d3773409d26daf55f6b0e55f88d3b68d0",
     "runner/unit/report-diagnostics.test.mjs": "181b0961f25904e91abf306d50c12ea440c9d5dc85fd6d5c119e1d7f0c5708e9",
-    "runner/unit/fixtures/journey-wrapper.mjs": "70e4061b524356a49b77c70dd09606014f1b1413f2b2b6a4b6a9a9a463b68bae",
-    "proof/private-timing-20261107/benchmark.mjs": "8f0db8ac2601765df3eb726d45abd195805e17907b98d15f0b2a1bbd121b9e37",
-    "runner/README.md": "b021b3337345b8da704bce04a7fd40a09d5acb6c0e808858af0c0f570353cb7e",
+    "runner/unit/fixtures/journey-wrapper.mjs": "e6fd31b851fc663ed7c802bd2dea4bdb2575d17660b0d3b443c46b2e2c990f4f",
+    "proof/private-timing-20261107/benchmark.mjs": "8a51651400f3369df018c1f83f76f070354abdb33944539682b36219123978a5",
+    "runner/README.md": "beaa1c33e715141232ebf045493c15f22084c691fb7aeff8ba12b281e2223c6a",
     "references/report-diagnostics.md": "882e7e945ba604bc7f9fe502938bf46d3a1e3d65335a7e5afa853a960c0ab968"
   },
   "turn_3_source_changes": "pace.mjs: comment only (attribution of a sleep at its end); journey-timing.test.mjs: one new case and a fresh pace module copy in the new-worker case; README: no fresh-worker reset claim, cross-boundary sleep limit stated",
   "turn_4_source_changes": "report-diagnostics.mjs: analyze projects an optional timing field per listed journey from facts[\"<journey> timing\"] in the producer's exact shape, fresh literals, whole-projection failure on a malformed fact, other facts ignored, old shape byte-equal without the fact; report-diagnostics.test.mjs: three adversarial cases; journey-timing.test.mjs: two titles renamed to allowlisted journeys and the later-worker case asserts the analyzer's projection of each saved timing and the absence of a key for a failed write; README and references/report-diagnostics.md: contract, limits, consumed approval; producer source (pace.mjs, proof.mjs, steps.mjs) unchanged, hashes equal to turn 3",
   "turn_5_source_changes": "journey-timing.test.mjs only: the synthetic title \"Free shipping\" (the one turn 4 left outside the analyzer's allowlist) renamed to the real journey \"Free shipping over an amount\" in the new-worker and later-worker cases; step names unchanged; analyzer, producer source, fixtures, benchmark and docs unchanged, hashes equal to turn 4",
+  "turn_6_source_changes": "proof.mjs: noteJourneyTiming writes through write(true), which puts report.json and PROOF.md down via a .tmp beside each, renamed over it (replace helper), removes the .tmp best-effort on failure and reloads the files as they stand before rethrowing; step and startJourney writes unchanged; renameSync and unlinkSync imported. journey-wrapper.mjs fixture: loadProof evaluates the actual proof.mjs over bound fs functions. journey-timing.test.mjs: fourteenth case, a half-writing ENOSPC disk under the real proof.mjs, passing try and throwing retry, report and PROOF.md byte-equal, no .tmp, no entry; later-worker case asserts no timing key for Commerce settings. benchmark.mjs: renameSync and unlinkSync bound and counted. README: whole-or-nothing write, reload on failure, possible .tmp left by a killed worker. steps.mjs, pace.mjs, analyzer, diagnostics tests and reference unchanged, hashes equal to turn 5",
   "coordinator_producer_acceptance": {
     "at_commit": "d637573d4f92c607e91fdafd1ceaf9ddae4b7e0e",
     "node": "24.22.0 pinned, stable-source hashes captured by the coordinator",
@@ -29,7 +31,7 @@
     "benchmark": { "pairs": 30, "status": "passed", "timers_and_delays": "equal per variant in every workload", "per_call_delta_candidate_minus_base_us": { "no_wait": 0.002, "forced_sleep": -0.56, "completed_wrapper": 175 }, "improvement_claimed": false },
     "real_playwright_probe": { "status": "passed", "flaky_new_worker_retention": true, "live_io": false },
     "coordinator_files": ["producer-unit.log", "producer-unit.json", "producer-benchmark-results.json", "capture-producer/", "real-playwright/PROOF.md", "real-playwright/source-manifest.json"],
-    "covers_current_head": "producer only: proof.mjs and steps.mjs byte-identical since d637573, pace.mjs comment-only change in turn 3; the analyzer change, its adversarial tests, the title renames and the docs are later and need the coordinator's rerun"
+    "covers_current_head": "partly: steps.mjs byte-identical since d637573 and pace.mjs a comment-only change in turn 3, but proof.mjs changed in turn 6 (whole-or-nothing timing write: two more writes and two renames per published entry), so the +175 us wrapper figure is historical; the analyzer change, its adversarial tests, the title renames, the midway-write case and the docs are later and need the coordinator's rerun"
   },
   "checks": {
     "git_diff_check": { "exit": 0 },
@@ -42,7 +44,8 @@
     "live_performance": false,
     "overhead_measured": false,
     "attribution_from_a_real_run": "none: offline fixtures prove producer and consumer agree on the shape; a future, separately authorized full run and read is needed, and the one approved diagnostics read is consumed",
-    "additional_network_calls": "none by construction: pace.mjs, proof.mjs and steps.mjs import only node:fs, node:path and runner modules; the benchmark asserts this statically and binds no network API; the analyzer change adds no import",
+    "additional_network_calls": "none by construction: pace.mjs, proof.mjs and steps.mjs import only node:fs, node:path and runner modules (turn 6 adds renameSync and unlinkSync from node:fs); the benchmark asserts this statically and binds no network API; the analyzer change adds no import",
+    "report_survives_failed_publication": "by construction since turn 6: the fact's files are written to a .tmp and renamed over, so a write that stops midway leaves report.json and PROOF.md as the journey's steps left them; pinned offline by the midway-write case, which the coordinator runs",
     "additional_scheduled_waits": "none by construction: the only timer in paceStore is unchanged and its delay is now also recorded as requested time; the benchmark counts timers and delays per variant",
     "pacing_decisions": "unchanged: Date.now() and the request log decide every wait; performance.now() only measures",
     "consumer_boundary": "unchanged: verify, fetch, clean, the workflow file, selectors, credential refusal and run-summary.mjs are untouched; the existing workflow tests still pin them"

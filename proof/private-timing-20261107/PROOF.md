@@ -2,15 +2,17 @@
 
 Base: `da61f2206486504eb4784571e6b15680328c5fc3` (the expected fresh base; no drift,
 worktree clean at start). Branch: `ridge/live-journey-timing-20261107`.
-Source hashes are in [validation.json](validation.json). Five turns of source
+Source hashes are in [validation.json](validation.json). Six turns of source
 work: the first commit (`c315f28`) added the fact; the second (`d637573`)
 answers the read-only design audit below; the third (`71bb42e`) answers the
 independent review of `c315f28` (two proof limits, below), with no further
 source change to the metric itself; the fourth (`3a7f913`) extends the manual
 diagnostics analyzer to project the fact (below), touching no producer source;
-the fifth renames the one fixture title the fourth left outside the analyzer's
-allowlist, the single failure in the coordinator's full suite at `d637573`
-(below), and records that acceptance as source-specific historical evidence.
+the fifth (`7bd7379`) renames the one fixture title the fourth left outside the
+analyzer's allowlist, the single failure in the coordinator's full suite at
+`d637573` (below), and records that acceptance as source-specific historical
+evidence; the sixth makes the fact's write whole-or-nothing, the required
+correctness fix the coordinator raised before final review (below).
 
 ## What changed
 
@@ -36,7 +38,12 @@ workflow, runner or platform. Three owners changed, each by a few lines:
   so a journey run again under the same run id never shows an earlier run's
   entries for a try that hasn't finished; `startJourney(name, 1)` keeps them.
   `PROOF.md`'s Facts list renders object facts as JSON instead of
-  `[object Object]`. Existing arbitrary facts and the load-from-disk path that
+  `[object Object]`. Since turn 6 the fact's write puts `report.json` and
+  `PROOF.md` down whole or not at all (a `.tmp` beside each, renamed over it)
+  and, when it fails, reloads the files as they stand, so the report the
+  journey's steps built survives and the unpublished entry is not held for a
+  later write; see "Required correctness fix (turn 6)". Existing arbitrary
+  facts, the steps' own direct writes and the load-from-disk path that
   survives Playwright's worker restarts are unchanged.
 - `runner/support/steps.mjs`: the wrapper takes `performance.now()` and a pace
   snapshot after `startJourney` and before the body, the time right after the
@@ -124,7 +131,7 @@ approved read (the qualification recorded there) is consumed. The README's
 
 | Audit point | Source | Offline check |
 | --- | --- | --- |
-| A timing write failure never fails a passing body or replaces the thrown error | `steps.mjs` `finally` wraps the write in its own `try` | "a timing write that fails…" |
+| A timing write failure never fails a passing body or replaces the thrown error | `steps.mjs` `finally` wraps the write in its own `try`; since turn 6 the write is also whole-or-nothing, so the report survives it | "a timing write that fails…" (stub that throws before writing); "a timing write that stops midway…" (real `proof.mjs`, half the bytes down) |
 | `startJourney` at retry 0 under the same run id clears stale timing in its existing write | `proof.mjs` `startJourney` deletes `<name> timing` when `retry` is 0 | "…a rerun clears the earlier entry as it starts…" |
 | Retry tries keep distinct identities across a process restart | `noteJourneyTiming` loads the report before adding `try: retry + 1` | "a retry in a new worker…" (fresh proof module) |
 | A killed worker leaves a missing metric, never a fabricated 0 or pass | Nothing is written before `finally`; the reporter's unrecorded-failure paths touch no timing | "…a cut-off try leaves none" |
@@ -148,14 +155,59 @@ Splitting a sleep across two journeys would need the snapshot to read in-flight
 sleeps and count sleeps at their start; it was not added, as no journey has an
 un-awaited sleep and the turn's scope was the two limits.
 
+## Required correctness fix (turn 6)
+
+The coordinator found, before final review, that the guard around
+`noteJourneyTiming` protected the journey's outcome but not the report: the
+fact's write went straight to `report.json` with `writeFileSync`, so a disk that
+filled partway through it (ENOSPC or any write that stops midway) left the
+previously valid report truncated, the error was swallowed, and the reporter
+would later load `{}` and change the run's verdict. This extra, telemetry-only
+write could corrupt what the journey's own steps had built.
+
+| Change | Where |
+| --- | --- |
+| `write(true)`, used only by `noteJourneyTiming`, puts each of `report.json` and `PROOF.md` down whole or not at all: the text goes to `<file>.tmp` beside it, then `renameSync` over the file. The steps' and `startJourney`'s writes keep their direct path, as before | `proof.mjs` `write`, `replace` |
+| On failure the temporary file is removed as far as it can be (`unlinkSync`, errors ignored), and the error is rethrown to the wrapper's existing guard. A worker killed mid-write can leave `report.json.tmp` or `PROOF.md.tmp` in the run folder; nothing reads them | `replace` |
+| On failure `noteJourneyTiming` reloads the files as they stand before rethrowing, so the entry it could not publish is not held in memory for a later direct write (`startJourney` and `record` write without loading first) | `noteJourneyTiming` |
+| No generic storage change: one 11-line helper, one argument on `write`, two `node:fs` imports; `steps.mjs` is byte-identical | `validation.json` |
+
+The offline check is the fourteenth case, "a timing write that stops midway…".
+It evaluates the actual `proof.mjs` source (via `loadProof` in the wrapper
+fixture) over a file system whose `writeFileSync` puts down half the bytes and
+throws `ENOSPC` for any text carrying `Commerce settings timing`, and passes
+every other write through, so the journey's own writes succeed and only the
+fact's publication fails, in whichever design: a direct write would have hit
+the report itself. The case first shows that write leaves a scratch file
+unparsable (what the report would have become), then runs the real wrapper
+bound to that copy: a passing try, whose `report.json` and `PROOF.md` are
+asserted byte-equal to what its last step left, with the run folder's listing
+unchanged (no `.tmp` left), no entry, the journey `PASS` by `verdicts()` and
+the other fact kept; then a retry in the same copy whose body throws, whose
+error comes back identical, whose steps (the retried try's and its own PASS
+and "finished without an error" FAIL) and `FAIL` verdict read back from a whole
+report, with no entry and no temporary file. The retry's start writes without
+loading, so had the failed entry been held in memory that write would have
+carried the fact and the same disk would have failed it midway, which the
+error-identity assertion would catch. The later-worker case then hands that
+report to the real analyzer and asserts no `timing` key for the journey.
+
+`benchmark.mjs` now binds counted `renameSync` and `unlinkSync` to both
+variants' proof modules (the base uses neither) and reports renames and
+unlinks beside writes and reads. The candidate's wrapper workload is expected
+to show two more writes and two renames per journey than before and no unlink;
+its per-journey figure will therefore differ from the `+175 µs` the coordinator
+measured at `d637573`, and that figure is historical. No sample exists from
+this worker.
+
 ## Offline checks written
 
 `runner/unit/journey-timing.test.mjs` runs the actual wrapper source from
 `steps.mjs` (via `runner/unit/fixtures/journey-wrapper.mjs`, a `vm` fixture in
 the style of the observer-dwell one) against the real `proof.mjs`, `pace.mjs`
 and `errors.mjs`, with stand-ins only for Playwright's `test`/`expect`. It
-needs no `npm ci`, as `tests.yml` runs the suite without one. Thirteen cases
-(twelve before turn 3; the earlier count of thirteen here was off by one):
+needs no `npm ci`, as `tests.yml` runs the suite without one. Fourteen cases
+(twelve before turn 3, thirteen before turn 6):
 
 | Case | Boundary exercised |
 | --- | --- |
@@ -171,23 +223,25 @@ needs no `npm ci`, as `tests.yml` runs the suite without one. Thirteen cases
 | Cut off and rerun | A finished entry, then module reload and snapshot write nothing; a rerun's start clears the entry; nothing appears while the body is held, however many steps it records; one entry after |
 | Timing write fails | Outcome and error identity unchanged, no entry |
 | Retry in a new worker | Fresh proof and pace module copies: the proof copy loads the failed try's entry from disk and adds try 2 beside it, byte-equal try 1; the pace copy reads all zeros while this copy has slept at least four times, the retry's entry reads zero sleeps from it, and it stays at zero |
-| Later worker and public surfaces | Fresh proof module keeps every earlier timing (both Free shipping over an amount tries) and arbitrary facts, exact report key set; diagnostics `analyze` projects each saved fact byte for byte and no key for Ship settings; the real `run-summary.mjs` output names no timing |
+| Timing write stops midway | The actual `proof.mjs` over a disk that writes half the bytes then throws ENOSPC for the text carrying the fact: a passing try leaves `report.json` and `PROOF.md` byte-equal to what its last step wrote, no `.tmp`, no entry, `PASS`; a throwing retry in the same copy returns the same error, its steps and `FAIL` verdict read from a whole report, no entry, no `.tmp` |
+| Later worker and public surfaces | Fresh proof module keeps every earlier timing (both Free shipping over an amount tries) and arbitrary facts, exact report key set; diagnostics `analyze` projects each saved fact byte for byte and no key for Ship settings or Commerce settings; the real `run-summary.mjs` output names no timing |
 
 `benchmark.mjs` here evaluates base and candidate `pace.mjs`, `proof.mjs` and
 `steps.mjs` from source with identical stand-ins, interleaves samples, counts
-every timer (with delay) and file read/write, provides no network binding and
-statically refuses any network or child-process import. Workloads: 10,000
-`paceStore` calls with room; 200 forced single sleeps over a fake clock; 25
-wrapped journeys. It reports raw per-sample microseconds, min/median/p90/max/
-mean, per-call figures, and the per-sample work for each variant. It is
-unchanged by turn 2 and reads the candidate from the working tree.
+every timer (with delay) and file read, write, rename and unlink, provides no
+network binding and statically refuses any network or child-process import.
+Workloads: 10,000 `paceStore` calls with room; 200 forced single sleeps over a
+fake clock; 25 wrapped journeys. It reports raw per-sample microseconds,
+min/median/p90/max/mean, per-call figures, and the per-sample work for each
+variant. It reads the candidate from the working tree; turn 6 added the rename
+and unlink bindings and counts.
 
 ## Not run by this worker
 
 In turns 1 and 2, every form of Node execution was denied by this session's
 permission policy: the pinned Node 24.22.0 (`--version`, `--check`, `--test`,
 with and without an isolated `env -i` environment), the PATH Node, `npm ci`,
-inline `node -e`, and in turn 1 a delegated subagent. In turns 3, 4 and 5 the
+inline `node -e`, and in turn 1 a delegated subagent. In turns 3 to 6 the
 coordinator stated Node is intentionally unavailable on this worker's tool
 surface, so nothing was attempted, retried or delegated. So **no unit result,
 no full-suite result and no benchmark sample exists from this worker.** None
@@ -210,18 +264,21 @@ the raw samples are in those files, not here.
 | Benchmark, 30 interleaved pairs | Passed with equal timer and delay counts per variant in every workload. Per-call deltas, candidate less base: no-wait `paceStore` +0.002 µs; forced single sleep −0.56 µs (within noise, no improvement is claimed); completed wrapper per journey +175 µs, which carries the entry's report load and write |
 | Real Playwright producer probe | Passed, with a `FLAKY` journey whose failed try's entry was retained across the retry's new worker; no live I/O |
 
-This evidence is specific to `d637573`. Between it and the current head, the
-producer source `proof.mjs` and `steps.mjs` are byte-identical and `pace.mjs`
-differs by a comment only (turn 3; see `validation.json`), so the measured
-figures describe the same producer code; the analyzer change (turn 4), the
-analyzer's adversarial tests, the renamed fixture titles and the docs are
-later than it and are not covered by it. The one failed case is expected to
-pass on the current head once "Free shipping over an amount" is an allowlisted
-name, but that is an expectation, not a result: the coordinator reruns every
-check on the final source and supplies the final results for a proof-only
-update. Primary acceptance (correct private metrics with behavior unchanged,
-negligible measured overhead, and the consumer reading the producer's shape)
-rests on that rerun:
+This evidence is specific to `d637573`. Between it and the current head,
+`steps.mjs` is byte-identical and `pace.mjs` differs by a comment only (turn
+3; see `validation.json`), but `proof.mjs` changed in turn 6 (the fact's write
+is now whole-or-nothing, with two more writes and two renames per published
+entry), so the wrapper workload's `+175 µs` figure describes the earlier
+write path and not the current one; the analyzer change (turn 4), the
+analyzer's adversarial tests, the renamed fixture titles, the midway-write
+case and the docs are also later than it and not covered by it. The one
+failed case is expected to pass on the current head once "Free shipping over
+an amount" is an allowlisted name, and the new case is expected to pass, but
+those are expectations, not results: the coordinator reruns every check on the
+final source and supplies the final results for a proof-only update. Primary
+acceptance (correct private metrics with behavior unchanged, a report that
+survives a failed publication, negligible measured overhead, and the consumer
+reading the producer's shape) rests on that rerun:
 
 ```sh
 # from live-journeys/, with the pinned Node 24.22.0 as NODE, isolated HOME/proof/profile
@@ -239,19 +296,22 @@ env -i HOME="$TMP_HOME" PATH="$PATH" DINKUS_E2E_ENV_FILE=/dev/null \
 The diagnostics test's new cases run about 110 `analyze` calls and 13 CLI
 passes against temporary folders, with no timers. The timing test takes about
 six seconds of real timers (five seeded sleeps of about 1.25 s each) and holds
-the thread for 0.4 s in the boundary case. Its
+the thread for 0.4 s in the boundary case; the midway-write case adds no timer
+and a few file writes. Its
 time bounds leave 50 to 180 ms of headroom for a loaded machine; a bound that
 trips under heavy load is a test-tolerance matter, not a metric defect, and
 the assertion message prints the figure that tripped it.
 
 Expected shape, unmeasured: per pace sleep, two `performance.now()` reads and
 four additions against a sleep of 250 ms or more; per journey, one counter
-copy, two clock reads, one step filter and one report load and write, the same
-class of work as one existing `note()`, against journeys of one to fifteen
+copy, two clock reads, one step filter, one report load and one write of each
+of the two files to a temporary file plus its rename, the same class of work
+as one existing `note()` plus two renames, against journeys of one to fifteen
 minutes; per `startJourney`, one property delete. The benchmark's work counts
 must show equal timers and delays for base and candidate in every workload,
-zero timers in the no-wait and wrapper workloads, and more file writes only in
-the candidate's wrapper workload. If the full suite shows sandbox subprocess
+zero timers in the no-wait and wrapper workloads, more file writes and the
+only renames in the candidate's wrapper workload, and zero unlinks in both. If
+the full suite shows sandbox subprocess
 failures in the unchanged `gmail` and `proof` tests, that is the known
 environment limit, not this change.
 

@@ -11,7 +11,7 @@
 // Without --candidate the working tree's files are the candidate. Reports raw per-sample wall times
 // (microseconds) and work counts, then min / median / p90 / max / mean per variant and per call.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Script, createContext } from "node:vm";
@@ -54,10 +54,12 @@ function build(variant, time) {
   const files = sources[variant];
   const config = { runId: variant, runDir: join(work, variant), mode: "full", store: "https://store.example", ship: "https://ship.example" };
   mkdirSync(config.runDir, { recursive: true });
-  const counted = { writes: 0, reads: 0 };
+  const counted = { writes: 0, reads: 0, renames: 0, unlinks: 0 };
   const fs = {
     readFileSync: (...a) => { counted.reads += 1; return readFileSync(...a); },
     writeFileSync: (...a) => { counted.writes += 1; return writeFileSync(...a); },
+    renameSync: (...a) => { counted.renames += 1; return renameSync(...a); },
+    unlinkSync: (...a) => { counted.unlinks += 1; return unlinkSync(...a); },
   };
   const proof = evaluate(files["runner/support/proof.mjs"], { ...fs, join, config, Date, console },
     "startJourney, record, note, attemptVerdict, journeyVerdict, noteJourneyTiming: typeof noteJourneyTiming === 'function' ? noteJourneyTiming : null");
@@ -114,7 +116,7 @@ async function workload(name, calls, body, counts) {
 }
 
 const timerCounts = variant => ({ timers: time[variant].state.timers, delay_ms: time[variant].state.delayMs });
-const fileCounts = variant => ({ ...timerCounts(variant), writes: built[variant].counted.writes, reads: built[variant].counted.reads });
+const fileCounts = variant => ({ ...timerCounts(variant), ...built[variant].counted });
 
 // 1. paceStore with room under the budget: the common case, which must schedule nothing.
 await workload("pace-no-wait", 10_000, async variant => {
@@ -134,7 +136,8 @@ await workload("pace-one-sleep", 200, async variant => {
 }, timerCounts);
 
 // 3. The journey wrapper around a body that records one passing step: the base writes the report at
-// startJourney and at record; the candidate also writes its timing fact once at the end.
+// startJourney and at record; the candidate also writes its timing fact once at the end, each file to
+// a temporary one renamed over it (two more writes and two renames per journey, no unlink).
 await workload("journey-wrapper", 25, async variant => {
   const { journey, current, proof } = built[variant];
   for (let i = 0; i < 25; i++) {
