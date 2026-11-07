@@ -127,7 +127,8 @@ test("DinkusKit.com account and connect the store", { tag: "@running" }, journey
         ready: consent => consent.getByRole("heading", { name: COMMERCE_CONNECT.section, exact: true }),
       });
       if (result.siteId !== config.siteId) throw new Error(`Commerce is connected to DinkusKit.com store ${result.siteId}, not this store's ${config.siteId}.`);
-      await pause(page);
+      // The exact store is confirmed; this last pause is only for a viewer.
+      if (!config.headless || config.video) await pause(page);
       note("commerce connect", result.connected ? "connected this run" : "already connected");
       return result.connected
         ? `The owner approved commerce on DinkusKit.com, and Commerce is connected to store ${result.siteId}.`
