@@ -18,6 +18,8 @@ export const storeCheckSource = readFileSync(new URL("../../support/store-check.
 export const STORE = "https://store.example";
 export const PAGE_ROOM = 40;
 export const HOME = `${STORE}/`;
+/** How far the world's clock moves for one page load, so a scenario can say "answered the open, then went down". */
+export const LOAD_MS = 400;
 
 const strip = source => source.replace(/^import .*$/gm, "").replace(/^export /gm, "");
 /** The local names a module's `import { ... } from` lines bind, which its evaluation must be given. */
@@ -135,7 +137,7 @@ export class FakePage extends EventEmitter {
  * One scenario's world: a clock, a store whose pages are a function of the clock (`pages(path, now)`
  * gives `{ status, dom, url, responseUrl, error, noResponse }`), and the counts of what the helpers did.
  */
-export function world({ pages, loadMs = 400 } = {}) {
+export function world({ pages, loadMs = LOAD_MS } = {}) {
   const w = { store: STORE, clock: 1_700_000_000_000, loadMs, pages, navigations: [], responses: [], paces: [], waits: [], gets: [] };
   w.page = () => new FakePage(w);
   return w;
@@ -159,10 +161,18 @@ const readCard = async (card, { withPhoto = true } = {}) => {
 export const photoHash = src => createHash("sha256").update(Buffer.from(new URL(src, STORE).pathname)).digest("hex");
 
 /**
+ * A check's `{ problems, seconds }` as this realm's own objects: the modules run in a vm context whose
+ * arrays and objects have another realm's prototypes, which deepStrictEqual tells apart from this one's
+ * literals. A JSON round-trip (as the orders-poll fixture does) keeps every value and its order.
+ */
+const plain = async result => JSON.parse(JSON.stringify(await result));
+
+/**
  * Both modules, wired to `w` as the runner wires them: the pacing counts rooms, `openStorePage` paces
  * and navigates as the real one does (its Access sign-in left out, so a page that lands on Access stays
  * there, as when nobody can sign in), and `get` serves each photo as its own path. Another revision's
- * sources may be given.
+ * sources may be given. The store checks' results come back as plain objects of this realm (see `plain`);
+ * openShopperPage's handoff is returned as is, since its identity and `take` are what the checks use.
  */
 export function loadHelpers(w, sources = {}) {
   const config = { store: w.store };
@@ -175,7 +185,8 @@ export function loadHelpers(w, sources = {}) {
     createHash, get, categoryHides, config, firstLine, PAGE_ROOM, paceStore, photo, photoProblem, readCard, text, dollars, money,
     Date: { now: () => w.clock },
   }, "catchUp, storeShows, storeHides, findCard, shopCards, categoryCards, unreadableShop, imageHash, after, places");
-  return { ...shopper, ...storeCheck };
+  const checks = Object.fromEntries(["catchUp", "storeShows", "storeHides"].map(name => [name, (...args) => plain(storeCheck[name](...args))]));
+  return { ...shopper, ...storeCheck, ...checks };
 }
 
 // ---- The store's pages, as the storefront draws them ----
@@ -217,7 +228,11 @@ export const archived = () => ({
 /** The store once the clean-up trashed the product's page and its own category: both addresses gone. */
 export const trashed = () => ({ "/": { dom: homepage({ cards: [card(other)] }) }, [product.href]: { status: 404, dom: emptyPage() }, [product.category]: { status: 404, dom: emptyPage() } });
 
-/** A store whose pages are `at(now)`'s, with every other address answering 404; `now` is relative to the world's first instant. */
+/**
+ * A store whose pages are `at(t)`'s, with every other address answering 404; `t` is relative to the first
+ * load asked of it (the open's, once the clock has moved for it), so the open sees t = 0 and the load
+ * after it sees t = LOAD_MS.
+ */
 export const storeOf = at => {
   let origin;
   return (path, now) => { origin ??= now; return at(now - origin)[path] ?? { status: 404, dom: emptyPage() }; };
@@ -297,7 +312,8 @@ export const scenarios = [
   { name: "homepage answers 503 at the open", pattern: "draft-hides", state: "hides", at: () => ({ ...archived(), "/": { status: 503, dom: emptyPage() } }), expect: "throws", reuse: false },
   { name: "page moved between the open and the check", pattern: "draft-hides", state: "hides", at: () => archived(), expect: "pass", reuse: false, between: async page => { page.emit("framenavigated", page.mainFrame()); } },
   { name: "a child frame moved between the open and the check", pattern: "draft-hides", state: "hides", at: () => archived(), expect: "pass", reuse: true, between: async page => { page.emit("framenavigated", { name: "child frame" }); } },
-  { name: "store unreachable once the homepage opened", pattern: "draft-hides", state: "hides", at: t => t < 500 ? archived() : { "/": { error: "net::ERR_CONNECTION_REFUSED" }, [product.href]: archived()[product.href], [product.category]: archived()[product.category] }, expect: "pass", reuse: true,
+  // The store's clock starts at the open's load (t = 0); the next load, a reload or the product page, is at t = LOAD_MS.
+  { name: "store unreachable once the homepage opened", pattern: "draft-hides", state: "hides", at: t => t < LOAD_MS ? archived() : { "/": { error: "net::ERR_CONNECTION_REFUSED" }, [product.href]: archived()[product.href], [product.category]: archived()[product.category] }, expect: "pass", reuse: true,
     divergent: "the base reloads the homepage and can't; the candidate's first look is the page it opened, a true observation made after the change" },
 ];
 

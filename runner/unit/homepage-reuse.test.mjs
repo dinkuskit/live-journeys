@@ -18,16 +18,16 @@ const named = name => scenarios.find(scenario => scenario.name === name) ?? asse
 
 test("openShopperPage keeps its origin and status checks, and hands on only the response it validated", async () => {
   const lands = at => world({ pages: storeOf(() => ({ "/": at })) });
-  // assert.rejects matches a RegExp against the error's string form, "Error: ..." included.
+  // The whole message, compared as the error's own `message` (a RegExp would see "Error: ..." instead).
   for (const [at, message] of [
-    [{ url: "https://team.cloudflareaccess.com/cdn-cgi/access/login/store.example", dom: emptyPage() }, /^Error: \/ sent the shopper to a Cloudflare Access sign-in instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox\.$/],
-    [{ url: "https://other.example/", dom: emptyPage() }, /^Error: \/ sent the shopper to other\.example instead of the store\.$/],
-    [{ status: 404, dom: emptyPage() }, /^Error: \/ answered HTTP 404\.$/],
-    [{ noResponse: true, dom: emptyPage() }, /^Error: \/ answered HTTP nothing\.$/],
+    [{ url: "https://team.cloudflareaccess.com/cdn-cgi/access/login/store.example", dom: emptyPage() }, "/ sent the shopper to a Cloudflare Access sign-in instead of the store; the test gets past Access only with a one-time PIN it reads from the test inbox."],
+    [{ url: "https://other.example/", dom: emptyPage() }, "/ sent the shopper to other.example instead of the store."],
+    [{ status: 404, dom: emptyPage() }, "/ answered HTTP 404."],
+    [{ noResponse: true, dom: emptyPage() }, "/ answered HTTP nothing."],
   ]) {
     const w = lands(at);
     const page = w.page();
-    await assert.rejects(helpers(w).openShopperPage(page, "/"), message);
+    await assert.rejects(helpers(w).openShopperPage(page, "/"), { message });
     // The open paced and navigated as before, and a page that failed the checks hands nothing on.
     assert.deepEqual(w.paces, [PAGE_ROOM, PAGE_ROOM]);
     assert.deepEqual(w.navigations, ["/"]);
@@ -228,15 +228,22 @@ test("a handoff for another page, another address, a moved page, one already tak
     assert.deepEqual(w.navigations.slice(4), ["/", product.href, product.category]);
   }
   {
-    const { w, h } = fresh();
-    const page = w.page();
-    const opened = await h.openShopperPage(page, "/");
-    await page.close();
-    const { problems } = await h.storeHides(page, state, { opened });
-    assert.equal(problems[0], "/ didn't answer (Target page, context or browser has been closed)");
-    // The open's load, then the homepage loop's 19 tries to the minute, none of them spared.
-    assert.equal(w.navigations[1], "/");
-    assert.equal(w.navigations.filter(path => path === "/").length, 20);
+    // A page closed after the open: with the handoff and without, the same loads, waits and findings.
+    const [after, before] = await Promise.all([true, false].map(async hint => {
+      const { w, h } = fresh();
+      const page = w.page();
+      const opened = await h.openShopperPage(page, "/");
+      await page.close();
+      const { problems, seconds } = await h.storeHides(page, state, hint ? { opened } : {});
+      return { problems, seconds, navigations: w.navigations, waits: w.waits.length };
+    }));
+    assert.deepEqual(after, before, "a closed page is loaded (and fails) exactly as without the handoff");
+    assert.equal(after.problems[0], "/ didn't answer (Target page, context or browser has been closed)");
+    // The open's load, then every try of the homepage loop to the minute (a closed page refuses each one
+    // at once, so a try every 3 s), none of them spared.
+    assert.equal(after.navigations[1], "/");
+    assert.ok(after.navigations.filter(path => path === "/").length >= 21, "the open and at least twenty tries");
+    assert.ok(after.waits >= 60, "three loops, each to the minute");
   }
 });
 
@@ -328,7 +335,7 @@ test("the adopted call sites hand the homepage they opened to their first store 
         assert.deepEqual(failed.problems, ["the test couldn't open the store as a shopper to check it: / answered HTTP 503."], `${name} line ${site.line}`);
       } else {
         assert.equal(calls.length, 2, `${name} line ${site.line}`);
-        await assert.rejects(wire(site, { opens: false }), /^Error: \/ answered HTTP 503\.$/, `${name} line ${site.line}: the step fails as before`);
+        await assert.rejects(wire(site, { opens: false }), { message: "/ answered HTTP 503." }, `${name} line ${site.line}: the step fails as before`);
       }
     }
   }
