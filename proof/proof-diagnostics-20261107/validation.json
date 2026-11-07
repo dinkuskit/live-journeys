@@ -1,7 +1,7 @@
 {
   "base": "9d0302c4264412d5c782a44d976ab56c681f0532",
   "source_parent": "cb741d85c8d1c7d44c1b2b4b7ba82f3df4fe1a0e",
-  "status": "qualification succeeded; temporary route removed; final-head checks and reviews pending",
+  "status": "qualification succeeded; temporary route removed; coordinator full offline suite passed; final CI and reviews pending",
   "qualification": {
     "qualification_run": 42381597122,
     "attempt": 1,
@@ -20,7 +20,7 @@
     "projection_file": "qualification-safe-projection.json",
     "scope": "one owner-authorized qualification; no further private reads authorized"
   },
-  "recorded_at": "2026-11-07T14:28:34.828085+00:00",
+  "recorded_at": "2026-11-07T14:29:53.947525+00:00",
   "qualification_evidence": {
     "provenance": "coordinator-provided sanitized receipt, GitHub job metadata and allowlisted projection; worker read only these files",
     "files_sha256": {
@@ -82,17 +82,6 @@
       "log_label": "diagnostics-final-targeted.log",
       "log_sha256": "beea62592920a3627ba2a87802671a27ea67db8676943e4e603a46c2aa0d3b86"
     },
-    "full_suite": {
-      "command": "node --test runner/unit/*.test.mjs",
-      "exit": 1,
-      "failed_files": [
-        "gmail.test.mjs",
-        "proof.test.mjs"
-      ],
-      "limitation": "sandbox subprocess failures in unchanged files; no final-head full-suite pass claimed",
-      "log_label": "diagnostics-final-full.log",
-      "log_sha256": "a979ede14f5dddad3877c1be03b73942557488e42925679f9f1c9c28462e89d2"
-    },
     "subprocess_diagnosis": {
       "command": "node --test --test-isolation=none runner/unit/gmail.test.mjs runner/unit/proof.test.mjs",
       "passed": 14,
@@ -106,7 +95,35 @@
       "matches": 0,
       "matched_literals_printed": false
     },
-    "diff_check": "passed"
+    "diff_check": "passed",
+    "historical_worker_full_suite": {
+      "command": "node --test runner/unit/*.test.mjs",
+      "exit": 1,
+      "failed_files": [
+        "gmail.test.mjs",
+        "proof.test.mjs"
+      ],
+      "limitation": "sandbox subprocess failures in unchanged files; no final-head full-suite pass claimed",
+      "log_label": "diagnostics-final-full.log",
+      "log_sha256": "a979ede14f5dddad3877c1be03b73942557488e42925679f9f1c9c28462e89d2",
+      "attribution": "worker sandbox attempt before independent coordinator acceptance; retained as history"
+    },
+    "full_suite": {
+      "status": "passed",
+      "reported_by": "coordinator",
+      "source_head": "7a12283064c6e7824acb7f3b21961b643529f831",
+      "node": "v24.22.0",
+      "command": "node --test runner/unit/*.test.mjs",
+      "isolation": "empty allowlisted environment; isolated temporary HOME/profile/proof; DINKUS_E2E_ENV_FILE=/dev/null",
+      "passed": 212,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "duration_ms": 822.750216,
+      "log_label": "final-unit.log",
+      "log_sha256": "1ebd073856a52c93569ddb0983defe4565864bb40d12f770afdc6680d2e2f512",
+      "verification": "coordinator-reported exact Node version, source and isolation; worker independently inspected fixed log totals and computed SHA-256"
+    }
   },
   "worker_scope": {
     "additional_private_io": false,
@@ -115,7 +132,7 @@
     "push": false,
     "merge": false
   },
-  "next": "coordinator independent Node24 validation, push and final-head CI/comprehensive/native reviews before conditional merge",
+  "next": "coordinator push and final-head CI/comprehensive/native reviews before conditional merge",
   "source_sha256": {
     ".github/workflows/live-journeys.yml": "aef1f6109cf01669ec25af8c1ac17a2dc1d55603c210be2ad7121948fe72d9df",
     ".github/workflows/report-diagnostics.yml": "7b434602eac79508b4e4e742acea57e0cc8921b94761a01e0bb19c93b3e1452f",

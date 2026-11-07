@@ -53,10 +53,14 @@ Sanitized evidence (SHA-256 hashes in [validation.json](validation.json)):
   malformed/oversized input, unknown schema/journey, malicious selectors,
   synthetic secrets/PII/URL redaction, fixed AWS invocation and output suppression,
   main-only/manual policy and exact environment allowlist coverage.
-- The full unit suite was attempted; the same unchanged `gmail.test.mjs` and
-  `proof.test.mjs` subprocess files failed in this sandbox. No final-head full
-  pass is claimed. Historical coordinator evidence of 211 passing tests belongs
-  to the earlier source; prior evidence is explicitly archived in validation.
+- The coordinator independently ran the full offline suite on
+  `7a12283064c6e7824acb7f3b21961b643529f831` using exact Node **v24.22.0**,
+  an empty allowlisted environment, isolated temporary HOME/profile/proof and
+  `DINKUS_E2E_ENV_FILE=/dev/null`: **212 passed, 0 failed, 0 skipped**, in
+  **822.75 ms**. The worker inspected the fixed totals and hashed `final-unit.log`;
+  its SHA-256 and source attribution are recorded in `validation.json`.
+  Earlier worker sandbox subprocess failures remain historical evidence;
+  the earlier coordinator 211-test result applies only to its prior source.
 - Source/evidence identities, byte equality, sanitized counts, job outcomes and
   private-path audit (13 retained task files, zero matches) are verified in
   `validation.json`. Static workflow tests
