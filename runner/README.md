@@ -323,10 +323,13 @@ It needs these repository secrets:
 | `DINKUS_E2E_GMAIL_CLIENT_ID`, `DINKUS_E2E_GMAIL_CLIENT_SECRET`, `DINKUS_E2E_GMAIL_REFRESH_TOKEN`, `DINKUS_E2E_OWNER_EMAIL` | The test inbox's read-only key. `node scripts/gmail-authorize.mjs <client_secret.json> <inbox>` makes it once, from a Google OAuth client of type "Desktop app", and saves all four with `gh secret set` without printing them |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | A private R2 bucket for the proof, and an R2 API token that can only read and write that bucket |
 
-The proposed [manual report diagnostics](../references/report-diagnostics.md)
-projects only fixed link-failure categories and bounded counts from one selected
-private report. It needs owner approval after PR review before its first use;
-source preparation does not authorize a dispatch or private-proof read.
+The [manual report diagnostics](../references/report-diagnostics.md) project
+only fixed link-failure categories, bounded counts and, for a journey that has
+one, its private timing fact (see "Private timing" below) in the exact shape
+the wrapper writes, from one selected private report. Each dispatch is one
+private read and needs the owner's approval; the one read approved so far has
+been used, and source preparation does not authorize another dispatch or
+private-proof read.
 
 ## Settings
 
@@ -595,8 +598,11 @@ its token.
 Each journey's wrapper also keeps one timing fact in `report.json`'s `facts`,
 named `<journey> timing` (`Full catalog timing`), for reading how a run's time
 went before tuning it. It stays in the private proof: the public run summary
-and the console never show it, and the diagnostics consumer leaves it out. The
-value is `{ "unit": "ms", "tries": [ ... ] }`, one entry per try of the journey:
+and the console never show it. The only way out is the owner-approved manual
+[report diagnostics](../references/report-diagnostics.md), which project it, for
+one selected run, in exactly this shape and no other, and refuse the whole
+report when a timing fact departs from it. The value is
+`{ "unit": "ms", "tries": [ ... ] }`, one entry per try of the journey:
 
 | Field | What it is |
 | --- | --- |

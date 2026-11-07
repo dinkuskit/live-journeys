@@ -2,11 +2,12 @@
 
 Base: `da61f2206486504eb4784571e6b15680328c5fc3` (the expected fresh base; no drift,
 worktree clean at start). Branch: `ridge/live-journey-timing-20261107`.
-Source hashes are in [validation.json](validation.json). Three turns of source
+Source hashes are in [validation.json](validation.json). Four turns of source
 work: the first commit (`c315f28`) added the fact; the second (`d637573`)
-answers the read-only design audit below; the third answers the independent
-review of `c315f28` (two proof limits, below), with no further source change
-to the metric itself.
+answers the read-only design audit below; the third (`71bb42e`) answers the
+independent review of `c315f28` (two proof limits, below), with no further
+source change to the metric itself; the fourth extends the manual diagnostics
+analyzer to project the fact (below), touching no producer source.
 
 ## What changed
 
@@ -62,8 +63,52 @@ out of that try and lands in the worker's next journey, or nowhere.
 
 The public `scripts/run-summary.mjs` prints only the facts it names
 (`plugins`, `update stopped`, `held`, `store refusals`) and is unchanged; the
-console prints nothing new; the diagnostics reader (`report-diagnostics.mjs`)
-accepts the report and projects fixed counters only. It was not extended or run.
+console prints nothing new. In turn 4 the manual diagnostics reader
+(`runner/scripts/report-diagnostics.mjs`) was extended, in its `analyze` step
+only, to project the fact; see below. It was not run, and nothing was dispatched.
+
+## Consumer projection (turn 4)
+
+The coordinator extended the assignment so the private metric is readable
+through the consumer the repository already owns, with no new harness.
+`analyze` now adds one optional field, `timing`, to a listed journey's
+projection, sourced only from `facts["<journey> timing"]` by exact name, and
+built from fresh literals in a fixed key order (never a spread of the fact):
+
+| Rule | Where it lands |
+| --- | --- |
+| Exact keys `unit` and `tries`; `unit` is `ms`; `tries` holds 1 to 8 entries. The runner retries a journey at most once, so the producer writes at most two; 8 is a generous bound | `MAX_TRIES`, `exact()` |
+| Each entry has exactly the eight producer keys; `try` is a positive safe integer, unique in the array; `body` is `returned` or `threw`; `verdict` is `PASS`, `FAIL` or `INCOMPLETE` (a try's verdict, never `FLAKY`); the five counts and durations are finite non-negative safe integers (`-0`, fractions, strings, `Infinity`, `NaN` and unsafe integers refused) | `TRY_KEYS`, `BODIES`, `TRY_VERDICTS`, `count()` |
+| A malformed recognized fact fails the whole projection with the existing fixed `Diagnostics unavailable.`; no partial output | `timing()` calls `fail()` |
+| Every other fact is ignored: near misses of the name, a timing for a journey the report does not list, nested objects | Only `Object.hasOwn(report.facts, "<name> timing")` is read |
+| A journey without the fact has no `timing` key, so an older report projects byte for byte as before; nothing is written as zero | Conditional property on the fixed literal |
+| Tries are passed through apart, in the report's order; nothing is summed, no speed-up or residual CPU is computed; an overlap sum above `body_ms` passes through as the producer's documented figure | `timing()` maps entries one to one |
+| No transport, credential, selector, workflow or default public summary change; no new private read or dispatch | Only `analyze` and its helpers changed; the workflow file and `run-summary.mjs` are untouched, and the existing workflow tests still pin them |
+
+The timing unit test's two journey titles outside the analyzer's allowlist
+("Buy a label", "Order details") were renamed to allowlisted ones ("Buy a label
+in the store admin", "One product with a category"), so its later-worker case,
+which already handed the run's report to `analyze`, is a real producer-to-
+consumer check: it now asserts the projection carries each saved timing fact
+byte for byte and no `timing` key for the journey whose write failed (Ship
+settings). Before this rename that call would have refused the report for the
+unlisted titles.
+
+Three adversarial cases were added to `runner/unit/report-diagnostics.test.mjs`,
+running the actual analyzer and its in-process CLI boundary:
+
+| Case | What it pins |
+| --- | --- |
+| Report without timing | Output byte-equal to the earlier literal, through `analyze` and the CLI; facts named `Manage products timing ` (trailing space), `manage products timing`, `Manage products Timing`, `<poison> timing`, `Cart timing` (Cart unlisted), `Test run timing`, `timing` and nested private text are all ignored; no `timing`, `body_ms`, `pace_sleep` or canary on stdout, nothing on stderr |
+| Valid retry projection | A failed try 1 beside a passed try 2 for a `FLAKY` Storefront, projected in the fixed key order whether the fact's keys came reversed or not; Manage products beside it has no `timing` key; eight tries in the report's own order; `Number.MAX_SAFE_INTEGER` accepted; overlap sum above `body_ms` passed through |
+| Malformed recognized timing | 22 fact shapes (null, string, number, boolean, array, missing or extra key, wrong unit including `seconds`, `MS` and an array, non-array or empty tries, 9 and 10001 entries) and 81 entry shapes (duplicate tries, each key missing, extra keys carrying the canary, a nested error and a tokened URL, wrong `body` and `verdict` enums including `FLAKY` and `SKIP`, and for `try` and each count: 0 or negative, fractional, string, `2 ** 53`, null, boolean, array, canary, `Infinity`, `NaN`) each throw the fixed message; a valid fact beside a malformed one for another listed journey fails too; through the CLI, JSON text with an own `__proto__` key, `-0` and `1e400` (Infinity) fail with the fixed stderr line only, while a duplicate JSON key (one key after parsing) still projects; the canary, the URL and `__proto__` never appear on stdout or stderr |
+
+The reference `references/report-diagnostics.md` now states the timing
+contract and its limits in its public output section, that offline fixtures
+prove only producer-consumer agreement, that attributing a real run's time
+needs a future separately authorized full run and read, and that the one
+approved read (the qualification recorded there) is consumed. The README's
+"Private timing" section and its diagnostics paragraph say the same.
 
 ## Design audit (turn 2) and where each point lands
 
@@ -132,29 +177,31 @@ unchanged by turn 2 and reads the candidate from the working tree.
 In turns 1 and 2, every form of Node execution was denied by this session's
 permission policy: the pinned Node 24.22.0 (`--version`, `--check`, `--test`,
 with and without an isolated `env -i` environment), the PATH Node, `npm ci`,
-inline `node -e`, and in turn 1 a delegated subagent. In turn 3 the
+inline `node -e`, and in turn 1 a delegated subagent. In turns 3 and 4 the
 coordinator stated Node is intentionally unavailable on this worker's tool
-surface, so nothing was attempted. So **no unit result, no full-suite result
-and no benchmark sample exists from this worker.** None is claimed, and the
-test file has not been syntax-checked by a parser in any turn; it was
-proof-read only. `git diff --check` passed in every turn.
+surface, so nothing was attempted, retried or delegated. So **no unit result,
+no full-suite result and no benchmark sample exists from this worker.** None
+is claimed, and neither test file has been syntax-checked by a parser in any
+turn; both were proof-read only. `git diff --check` passed in every turn.
 
 The coordinator reported draft evidence for the earlier source (before turn 3):
 a preliminary full unit suite of 221 passed on the pinned Node 24.22.0 with
 unchanged-source hashes, and a 30-pair benchmark that passed with equal timer
 and delay counts per variant, kept in the coordinator's own run folder
 (`live-journey-performance-runs/20261106/timing`). That is previous draft
-evidence only: it predates this turn's test file and README, and the
-coordinator reruns every check on the final source and supplies the final
-results for a proof-only update. Nothing here restates those drafts as final.
-Primary acceptance (correct private metrics with behavior unchanged, and
-negligible measured overhead) rests on the coordinator's independent run:
+evidence only: it predates turns 3 and 4 (their test cases, the analyzer
+change, the title renames and the docs), and the coordinator reruns every
+check on the final source and supplies the final results for a proof-only
+update. Nothing here restates those drafts as final. Primary acceptance
+(correct private metrics with behavior unchanged, negligible measured
+overhead, and the consumer reading the producer's shape) rests on the
+coordinator's independent run:
 
 ```sh
 # from live-journeys/, with the pinned Node 24.22.0 as NODE, isolated HOME/proof/profile
 env -i HOME="$TMP_HOME" PATH="$PATH" DINKUS_E2E_ENV_FILE=/dev/null \
   DINKUS_E2E_PROOF="$TMP_HOME/proof" DINKUS_E2E_PROFILE="$TMP_HOME/profile" \
-  "$NODE" --test runner/unit/journey-timing.test.mjs
+  "$NODE" --test runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs
 env -i HOME="$TMP_HOME" PATH="$PATH" DINKUS_E2E_ENV_FILE=/dev/null \
   DINKUS_E2E_PROOF="$TMP_HOME/proof" DINKUS_E2E_PROFILE="$TMP_HOME/profile" \
   "$NODE" --test runner/unit/*.test.mjs
@@ -163,8 +210,10 @@ env -i HOME="$TMP_HOME" PATH="$PATH" DINKUS_E2E_ENV_FILE=/dev/null \
   --out proof/private-timing-20261107/benchmark-results.json
 ```
 
-The timing test takes about six seconds of real timers (five seeded sleeps of
-about 1.25 s each) and holds the thread for 0.4 s in the boundary case. Its
+The diagnostics test's new cases run about 110 `analyze` calls and 13 CLI
+passes against temporary folders, with no timers. The timing test takes about
+six seconds of real timers (five seeded sleeps of about 1.25 s each) and holds
+the thread for 0.4 s in the boundary case. Its
 time bounds leave 50 to 180 ms of headroom for a loaded machine; a bound that
 trips under heavy load is a test-tolerance matter, not a metric defect, and
 the assertion message prints the figure that tripped it.

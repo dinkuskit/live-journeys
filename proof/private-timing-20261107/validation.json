@@ -3,30 +3,37 @@
   "branch": "ridge/live-journey-timing-20261107",
   "turn_1_commit": "c315f28e764e7a8c4f5e6839cc395e805e93e64b",
   "turn_2_commit": "d637573d4f92c607e91fdafd1ceaf9ddae4b7e0e",
-  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turn 3 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted",
+  "turn_3_commit": "71bb42ef8206e9a3c9faf7a45b65388a50e1dd46",
+  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turns 3 and 4 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted, retried or delegated",
   "platform": "Linux aarch64",
   "source_sha256": {
     "runner/support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
     "runner/support/proof.mjs": "741fe99d73538c8778681c6ae533055d2b8691d89a817e9cbe21da050e2a9359",
     "runner/support/steps.mjs": "8570b784b2ef9beef9c2bbd7a98860ed61be722b950c5609f0e2afaea69d714c",
-    "runner/unit/journey-timing.test.mjs": "14cf4ff6c841ca7fc85d3b8cc9fc397d4869fdc6cb9b79f359012d161a68eb7c",
+    "runner/scripts/report-diagnostics.mjs": "9f2a2c015b83bd193745d0708470519fc38f0857c3f05196837d9e7d291c8cb5",
+    "runner/unit/journey-timing.test.mjs": "e2cbd4980c5f8dfbe79ea79ac863abcec5ccd6a5ba5d8f10b5ac0b4e1e0ae3b1",
+    "runner/unit/report-diagnostics.test.mjs": "181b0961f25904e91abf306d50c12ea440c9d5dc85fd6d5c119e1d7f0c5708e9",
     "runner/unit/fixtures/journey-wrapper.mjs": "70e4061b524356a49b77c70dd09606014f1b1413f2b2b6a4b6a9a9a463b68bae",
     "proof/private-timing-20261107/benchmark.mjs": "8f0db8ac2601765df3eb726d45abd195805e17907b98d15f0b2a1bbd121b9e37",
-    "runner/README.md": "0b1b4c0effead83e04c7eb40f0e763450291ba8c2f37c81b420e37f50e7f2840"
+    "runner/README.md": "b021b3337345b8da704bce04a7fd40a09d5acb6c0e808858af0c0f570353cb7e",
+    "references/report-diagnostics.md": "882e7e945ba604bc7f9fe502938bf46d3a1e3d65335a7e5afa853a960c0ab968"
   },
   "turn_3_source_changes": "pace.mjs: comment only (attribution of a sleep at its end); journey-timing.test.mjs: one new case and a fresh pace module copy in the new-worker case; README: no fresh-worker reset claim, cross-boundary sleep limit stated",
+  "turn_4_source_changes": "report-diagnostics.mjs: analyze projects an optional timing field per listed journey from facts[\"<journey> timing\"] in the producer's exact shape, fresh literals, whole-projection failure on a malformed fact, other facts ignored, old shape byte-equal without the fact; report-diagnostics.test.mjs: three adversarial cases; journey-timing.test.mjs: two titles renamed to allowlisted journeys and the later-worker case asserts the analyzer's projection of each saved timing and the absence of a key for a failed write; README and references/report-diagnostics.md: contract, limits, consumed approval; producer source (pace.mjs, proof.mjs, steps.mjs) unchanged, hashes equal to turn 3",
   "checks": {
     "git_diff_check": { "exit": 0 },
-    "syntax_check": { "command": "node --check runner/unit/journey-timing.test.mjs", "run": false, "reason": "no Node on this worker; proof-read only" },
-    "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs", "run": false, "reason": "no Node on this worker" },
-    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "no Node on this worker", "coordinator_draft_before_turn_3": "221 passed on pinned Node 24.22.0; draft only, to be rerun on the final source" },
+    "syntax_check": { "command": "node --check runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs runner/scripts/report-diagnostics.mjs", "run": false, "reason": "no Node on this worker; proof-read only" },
+    "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs", "run": false, "reason": "no Node on this worker" },
+    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "no Node on this worker", "coordinator_draft_before_turn_3": "221 passed on pinned Node 24.22.0; draft only, predates turns 3 and 4, to be rerun on the final source" },
     "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "no Node on this worker", "coordinator_draft_before_turn_3": "30 pairs, equal timers and delays per variant; draft only, to be rerun on the final source" }
   },
   "claims": {
     "live_performance": false,
     "overhead_measured": false,
-    "additional_network_calls": "none by construction: pace.mjs, proof.mjs and steps.mjs import only node:fs, node:path and runner modules; the benchmark asserts this statically and binds no network API",
+    "attribution_from_a_real_run": "none: offline fixtures prove producer and consumer agree on the shape; a future, separately authorized full run and read is needed, and the one approved diagnostics read is consumed",
+    "additional_network_calls": "none by construction: pace.mjs, proof.mjs and steps.mjs import only node:fs, node:path and runner modules; the benchmark asserts this statically and binds no network API; the analyzer change adds no import",
     "additional_scheduled_waits": "none by construction: the only timer in paceStore is unchanged and its delay is now also recorded as requested time; the benchmark counts timers and delays per variant",
-    "pacing_decisions": "unchanged: Date.now() and the request log decide every wait; performance.now() only measures"
+    "pacing_decisions": "unchanged: Date.now() and the request log decide every wait; performance.now() only measures",
+    "consumer_boundary": "unchanged: verify, fetch, clean, the workflow file, selectors, credential refusal and run-summary.mjs are untouched; the existing workflow tests still pin them"
   }
 }

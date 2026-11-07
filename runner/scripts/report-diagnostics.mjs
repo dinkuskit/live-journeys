@@ -17,9 +17,19 @@ const NAMES = Object.freeze([
   'Manage products', 'Full catalog', 'Mark as completed', 'Problems', 'Buy a label in the store admin',
   'One product with a category', 'An agent manages a product', 'Free shipping over an amount', 'Test run',
 ]);
+// The private timing fact each journey's wrapper keeps, "<journey> timing" (support/steps.mjs; README
+// "Private timing"), read only in the producer's exact shape. The runner retries a journey at most once,
+// so the producer writes at most two tries; eight is a generous bound, not a promise of more.
+const MAX_TRIES = 8;
+const TRY_KEYS = Object.freeze(['try', 'body', 'verdict', 'body_ms', 'pace_sleeps', 'pace_sleep_requested_ms', 'pace_sleep_ms', 'pace_sleep_wall_ms']);
+const TRY_COUNTS = Object.freeze(['body_ms', 'pace_sleeps', 'pace_sleep_requested_ms', 'pace_sleep_ms', 'pace_sleep_wall_ms']);
+const BODIES = Object.freeze(['returned', 'threw']);
+const TRY_VERDICTS = Object.freeze(['PASS', 'FAIL', 'INCOMPLETE']);
 const fail = () => { throw new Error(FAILURE); };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const keys = (value, allowed) => object(value) && Object.keys(value).every(key => allowed.includes(key));
+const exact = (value, names) => keys(value, names) && names.every(name => Object.hasOwn(value, name));
+const count = value => Number.isSafeInteger(value) && value >= 0 && !Object.is(value, -0);
 
 export function selection(run, attempt) {
   if (typeof run !== 'string' || !/^[1-9][0-9]{0,14}$/.test(run)
@@ -104,6 +114,23 @@ function category(detail) {
   return patterns.find(([, pattern]) => new RegExp(`^${pattern}$`).test(detail))?.[0] ?? 'unknown';
 }
 
+// One journey's timing fact, projected try by try as the producer wrote it: whole-millisecond counts and
+// durations, each try kept apart, nothing summed, rated or attributed. Any departure from the exact
+// shape fails the whole projection; a fact that isn't there stays missing, never a zero.
+function timing(fact) {
+  if (!exact(fact, ['unit', 'tries']) || fact.unit !== 'ms' || !Array.isArray(fact.tries)
+      || !fact.tries.length || fact.tries.length > MAX_TRIES) fail();
+  const tries = fact.tries.map(entry => {
+    if (!exact(entry, TRY_KEYS) || !Number.isSafeInteger(entry.try) || entry.try < 1
+        || !BODIES.includes(entry.body) || !TRY_VERDICTS.includes(entry.verdict)
+        || !TRY_COUNTS.every(key => count(entry[key]))) fail();
+    return { try: entry.try, body: entry.body, verdict: entry.verdict, body_ms: entry.body_ms, pace_sleeps: entry.pace_sleeps,
+      pace_sleep_requested_ms: entry.pace_sleep_requested_ms, pace_sleep_ms: entry.pace_sleep_ms, pace_sleep_wall_ms: entry.pace_sleep_wall_ms };
+  });
+  if (new Set(tries.map(entry => entry.try)).size !== tries.length) fail();
+  return { unit: 'ms', tries };
+}
+
 export function analyze(report, selected) {
   if (!keys(report, ['run', 'mode', 'store', 'ship', 'verdict', 'journeys', 'facts', 'steps'])
       || report.run !== `github-${selected.run}-${selected.attempt}`
@@ -133,7 +160,12 @@ export function analyze(report, selected) {
       if (!details.length || details.length > 2) counts.unknown++;
       else for (const detail of details) counts[category(detail)]++;
     }
-    return { journey: name, step_count: steps.length, failed_step_count: steps.filter(step => step.status === 'FAIL').length, link_problems: counts };
+    const projection = { journey: name, step_count: steps.length, failed_step_count: steps.filter(step => step.status === 'FAIL').length, link_problems: counts };
+    // Only the journey's own timing fact is read; every other fact is left alone. Without one, the
+    // projection keeps its earlier shape exactly.
+    const key = `${name} timing`;
+    if (Object.hasOwn(report.facts, key)) projection.timing = timing(report.facts[key]);
+    return projection;
   });
 }
 

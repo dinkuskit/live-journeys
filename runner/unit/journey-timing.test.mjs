@@ -188,7 +188,7 @@ test("a sleep still running when the body ends is left out of that try's entry, 
   // it ends, so it lands in the next journey of this worker, not split across the two.
   const scheduled = fillBudget();
   const before = pace.paceSnapshot();
-  const { run } = wrapper("Buy a label");
+  const { run } = wrapper("Buy a label in the store admin");
   const thrown = new Error("the label dialog closed");
   let sleeping;
   const caught = await run(async () => {
@@ -198,7 +198,7 @@ test("a sleep still running when the body ends is left out of that try's entry, 
     throw thrown;
   }).catch(error => error);
   assert.equal(caught, thrown);
-  const [first] = timingOf("Buy a label").tries;
+  const [first] = timingOf("Buy a label in the store admin").tries;
   assert.equal(first.body, "threw");
   assert.equal(first.pace_sleeps, 0);
   assert.equal(first.pace_sleep_requested_ms, 0);
@@ -209,11 +209,11 @@ test("a sleep still running when the body ends is left out of that try's entry, 
   assert.deepEqual(pace.paceSnapshot(), before);
   // The next journey of this worker (here, the retry) is running when the sleep ends, so its entry
   // takes in the whole sleep, beside a body that ran for less than it: the figure the README warns of.
-  await wrapper("Buy a label", 1).run(async () => {
+  await wrapper("Buy a label in the store admin", 1).run(async () => {
     proof.record("Buy a label opens the label dialog", "PASS");
     await sleeping;
   });
-  const [, retry] = timingOf("Buy a label").tries;
+  const [, retry] = timingOf("Buy a label in the store admin").tries;
   assert.equal(retry.try, 2);
   assert.equal(retry.pace_sleeps, 1);
   assert.ok(retry.pace_sleep_ms >= scheduled - 100, `${retry.pace_sleep_ms} ms counted once it ended, scheduled ${scheduled} ms`);
@@ -259,7 +259,7 @@ test("the body's span leaves out the journey's start and the fact's write, and t
   quiet(t);
   // Holds the thread, as a slow report write would, for the two writes on either side of the body.
   const stall = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-  const { journey, step } = wrapper("Order details", 0, {
+  const { journey, step } = wrapper("One product with a category", 0, {
     startJourney: (...args) => { stall(200); return proof.startJourney(...args); },
     noteJourneyTiming: (...args) => { stall(200); return proof.noteJourneyTiming(...args); },
     shot: async () => { await wait(30); return ""; },
@@ -276,7 +276,7 @@ test("the body's span leaves out the journey's start and the fact's write, and t
     }
   })({ page: "the page" }).catch(error => error);
   assert.equal(caught, thrown);
-  const [first] = timingOf("Order details").tries;
+  const [first] = timingOf("One product with a category").tries;
   assert.equal(first.body, "threw");
   assert.equal(first.verdict, "FAIL");
   assert.ok(first.body_ms >= 60, `${first.body_ms} ms takes in the screenshot and the cleanup`);
@@ -391,17 +391,27 @@ test("a later worker keeps every journey's timing and the run's other facts, and
   });
   await journey(async () => { later.record("The owner can open Commerce Orders", "PASS"); })({ page: undefined });
   const saved = report();
-  const names = ["Full catalog", "Storefront", "Cart", "Payments status", "Problems", "Manage products", "Order details", "Buy and ship", "Free shipping", "Mark as completed"];
+  const names = ["Full catalog", "Storefront", "Cart", "Payments status", "Problems", "Manage products", "One product with a category", "Buy and ship", "Free shipping", "Mark as completed"];
   for (const name of names) assert.ok(Array.isArray(saved.facts[`${name} timing`]?.tries), `${name} timing kept`);
   assert.equal(saved.facts["Free shipping timing"].tries.length, 2);
   assert.equal(saved.facts["products listed"], 4);
   assert.equal(saved.facts.plugins, "dinkus-commerce-beta 0.8.0-beta.1");
   assert.deepEqual(Object.keys(saved), ["run", "mode", "store", "ship", "verdict", "journeys", "facts", "steps"]);
-  // The diagnostics reader still takes a report whose facts hold these objects, and projects none of them.
+  // The diagnostics reader takes the report as the run leaves it and projects each journey's timing in
+  // the producer's exact shape, byte for byte: every try apart, and no key at all for the journey whose
+  // write failed (Ship settings), rather than a zero.
   const { analyze } = await import("../scripts/report-diagnostics.mjs");
   const projected = analyze({ ...saved, run: "github-42337050608-1" }, { run: "42337050608", attempt: "1" });
   assert.equal(projected.length, saved.journeys.length);
-  assert.doesNotMatch(JSON.stringify(projected), /timing|body_ms|pace_sleep/);
+  for (const entry of projected) {
+    const fact = saved.facts[`${entry.journey} timing`];
+    if (fact) assert.equal(JSON.stringify(entry.timing), JSON.stringify(fact), `${entry.journey} timing projected as written`);
+    else assert.ok(!("timing" in entry), `${entry.journey} has no timing to project`);
+  }
+  assert.ok(saved.journeys.some(entry => entry.name === "Ship settings"));
+  assert.ok(!("timing" in projected.find(entry => entry.journey === "Ship settings")));
+  assert.equal(projected.find(entry => entry.journey === "Free shipping").timing.tries.length, 2);
+  assert.doesNotMatch(JSON.stringify(projected), /products listed|dinkus-commerce-beta/);
   // The default public run summary names no timing: it reads only the facts it knows.
   const summary = publicSummary(join(dir, "timed"));
   assert.doesNotMatch(summary, /timing|body_ms|pace_sleep/);
