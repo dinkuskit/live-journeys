@@ -20,6 +20,14 @@ schedule, live journey, store, inbox or browser operation is added.
 
 ## Fixed binding and process boundary
 
+Both workflows launch each Node mode with `env -i`, carrying only `PATH` and
+`RUNNER_TEMP`, plus `GH_TOKEN` for verify or the four existing R2/AWS binding
+values for fetch. Analyze and cleanup receive only those two runtime variables.
+Selectors remain quoted positional arguments. Ambient hosted-runner variables,
+including credentials with unrecognized names, do not enter these Node
+processes. The shell alone uses `GITHUB_STEP_SUMMARY` for the sanitized output.
+
+
 1. `verify` validates both selectors before network access. With the job's
    `actions: read` token, it requests only
    `https://api.github.com/repos/dinkuskit/live-journeys/actions/runs/<run_id>/attempts/<attempt>`.
@@ -41,8 +49,8 @@ schedule, live journey, store, inbox or browser operation is added.
    fixed endpoint/region, bounded time/output, no session token or ambient proxy.
    Both AWS output streams are captured and discarded on success and failure.
    No bucket listing, write, alternate key, bucket, URL or path input is supported.
-3. `analyze` receives no credentials and refuses recognized credential environment
-   variables. It reads only the fixed temporary report, refusing symlinks,
+3. `analyze` starts from the fresh credential-free environment above and also
+   refuses recognized credential environment variables as defense in depth. It reads only the fixed temporary report, refusing symlinks,
    nonregular files, reports over 1 MiB, bad JSON, unknown schema or journey,
    mismatched report run ID, duplicate journeys and malformed step records.
    It constructs output from fixed literals; it never serializes source records.
@@ -138,8 +146,9 @@ successful negative verification cannot reach `fetch`: only the literal
 case reports only fixed failure text and fixed step outcomes, never API bodies
 or logs. `continue-on-error` is limited to verification so expected rejections
 can be asserted; it cannot make the final qualification assertion pass.
-The fetch step alone receives the existing R2 references. The analyzer and
-cleanup receive none. No credentials or account permissions change.
+The fetch step alone receives the existing R2 references. Every production CLI
+call uses the same fresh environment allowlist as the permanent workflow; the
+analyzer and cleanup receive only `PATH` and `RUNNER_TEMP`. No credentials or account permissions change.
 
 ### Permission packet and exact command
 

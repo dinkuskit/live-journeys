@@ -133,3 +133,29 @@ private read, credential access, push or merge occurred. Production qualificatio
 remains **needs-evidence**. The temporary route and its tests must be removed
 before final-head CI and both required reviews; the permanent main-only gate
 must remain intact. Coordinator owns review, approval, dispatch and closeout.
+
+## Fresh Node environment boundary
+
+Prepared on qualification source parent `67c7df3c826bbc5fa3464eec21aaf04960acced7`.
+Both permanent and temporary workflows now launch all four production reader
+modes through `env -i`. Only `PATH` and `RUNNER_TEMP` are common; verify adds
+`GH_TOKEN`, fetch adds the four existing R2/AWS binding values, and analyze/
+cleanup add nothing. The unchanged AWS child allowlist remains narrower.
+The reader, normal journey job, branch/actor/expected-head/script-pin gates and
+fixed cases are unchanged. The permission command resolves the checkout's
+current HEAD, so it remains bound to the newly reviewed and approved commit.
+
+Node v24.22.0: **12 targeted tests passed**, none failed or skipped.
+**Eight actual Node launch probes** used the workflow command prefixes with an
+offline environment/argument probe in place of the reader. They proved exact
+environment keys and arguments with synthetic ambient credentials, including
+an unrecognized credential name, hosted runtime token and `NODE_OPTIONS`;
+none crossed the allowlist. These probes made no GitHub/AWS calls and do not
+claim hosted-runner or real-owner qualification. Full suite still fails in
+the two unchanged subprocess files with sandbox `EPERM`; prior accepted
+full-suite evidence remains historical. Hashes and portable log labels are in
+`validation.json`. All 12 changed task files have zero private-path matches.
+
+No private I/O, credential access, activation, dispatch, push or merge.
+Renewed CI and both external reviews are required. Real-owner qualification
+remains **needs-evidence**, subject to explicit approval for the exact head.

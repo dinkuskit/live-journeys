@@ -3,13 +3,13 @@
   "branch": "ridge/live-journey-diagnostics-20261107",
   "node": "v24.22.0",
   "source_sha256": {
-    ".github/workflows/report-diagnostics.yml": "c19e9e6ad02d728e8ae5ddb402a4bd64270eb53089c0ec189e590b1033f784ad",
+    ".github/workflows/report-diagnostics.yml": "7b434602eac79508b4e4e742acea57e0cc8921b94761a01e0bb19c93b3e1452f",
     "runner/scripts/report-diagnostics.mjs": "3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80",
-    "runner/unit/report-diagnostics.test.mjs": "b56d302b614d68aa252d85b293bb594f96a95b518be4d0331d25e667fb9e215b",
-    "references/report-diagnostics.md": "606bd81a5eaa2bec9bc9ac10dfeed0629e0e1ceb3e54c801c55da7f5d0ea60b6",
+    "runner/unit/report-diagnostics.test.mjs": "185d6ef4f7f528f3d1686c06cbc853a8127d5916c98cf6b258925b5680e64a40",
+    "references/report-diagnostics.md": "960e7bae35c7fccb9237c2577e4c25fcc680b76a8bba33e27de79fe7ee1c49a0",
     "runner/README.md": "fb0b80f4d128a367437d0acc4f40a93704071cb057db5cf9bef7bdbb56e2e074",
-    ".github/workflows/live-journeys.yml": "d112b3b33d0f3dda0afdcd49ece18823ee92bac49ddb01fdf34d595c73e404d0",
-    "runner/unit/report-qualification.test.mjs": "66d977d44703b1ac7423b02ab02d58deb74f34b165b2bf6942784db9bc54724a"
+    ".github/workflows/live-journeys.yml": "25b6061017e1059515d0f20bfe7e4d278fa80622f070ad1a4283251935692c5a",
+    "runner/unit/report-qualification.test.mjs": "2d3c05f67a2a93dd065d08ed5fa706dd5e957e0383a9196933982319a4c70a17"
   },
   "local_validation_sha256": {
     "targeted.log": "1aeaed32b7c06584a85611e509475aa4e65a96d174455485fa395af523025b7d",
@@ -188,6 +188,60 @@
       "audited_files": 12,
       "matches": 0,
       "matched_literals_printed": false
+    }
+  },
+  "fresh_environment_repair": {
+    "source_parent": "67c7df3c826bbc5fa3464eec21aaf04960acced7",
+    "boundary": "env -i; PATH and RUNNER_TEMP for every mode; GH_TOKEN only for verify; four existing R2/AWS values only for fetch",
+    "reader_and_aws_child_allowlist_unchanged": true,
+    "normal_journey_job_and_gates_unchanged": true,
+    "targeted": {
+      "command": "node --test --test-isolation=none runner/unit/report-diagnostics.test.mjs runner/unit/report-qualification.test.mjs",
+      "node": "v24.22.0",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "log_label": "fresh-environment-targeted.log",
+      "log_sha256": "3e0fa58dfb42f45699fbf845497bf370d36077907c2535b8f7575d8897d9cb05"
+    },
+    "node_environment_probes": {
+      "cases": 8,
+      "passed": 8,
+      "method": "actual workflow launch prefixes with an offline Node environment/argument probe replacing the reader; synthetic values only",
+      "assertion": "exact environment key allowlists and positional arguments; unrecognized credential, hosted runtime token and NODE_OPTIONS excluded",
+      "log_label": "fresh-environment.json",
+      "log_sha256": "a9f1b98b98f81ba2145426b21227a2993b98982361725efb097b1fd39a2fc0ff"
+    },
+    "full_suite": {
+      "command": "node --test runner/unit/*.test.mjs",
+      "exit": 1,
+      "failed_files": [
+        "gmail.test.mjs",
+        "proof.test.mjs"
+      ],
+      "limitation": "unchanged subprocess tests hit sandbox EPERM; not a current-head full-suite pass",
+      "log_label": "fresh-environment-full-suite.log",
+      "log_sha256": "c33b7d7ea6e3f8bc9435fcb9dc8b494a2f7dc7d3e1d800dfa474c32ed1f70b6a"
+    },
+    "isolation": "empty environment; temporary HOME/proof/profile; env file /dev/null",
+    "private_io": false,
+    "credential_access": false,
+    "dispatch": false,
+    "push": false,
+    "merge": false,
+    "reviews": "renewed CI, comprehensive and native review required; prior reviews historical",
+    "permission_command": "resolves current checkout HEAD; approved and pushed head must match; no fixed old head in dispatch command",
+    "private_path_audit": {
+      "audited_files": 12,
+      "matches": 0,
+      "matched_literals_printed": false
+    },
+    "subprocess_diagnosis": {
+      "command": "node --test --test-isolation=none runner/unit/gmail.test.mjs runner/unit/proof.test.mjs",
+      "exit": 1,
+      "EPERM_observed": true,
+      "log_label": "fresh-environment-subprocess-diagnosis.log",
+      "log_sha256": "d19245bb25cfbaed06600cb3a00827671c392b26487780120215904d2175c7b1"
     }
   }
 }

@@ -39,17 +39,17 @@ jobs:
       - name: Verify selected run before any R2 read
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/report-diagnostics.mjs verify "$SELECTED_RUN" "$SELECTED_ATTEMPT"
+        run: env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" GH_TOKEN="$GH_TOKEN" node scripts/report-diagnostics.mjs verify "$SELECTED_RUN" "$SELECTED_ATTEMPT"
       - name: Read only the bounded selected report
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: node scripts/report-diagnostics.mjs fetch "$SELECTED_RUN" "$SELECTED_ATTEMPT"
+        run: env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" R2_ACCOUNT_ID="$R2_ACCOUNT_ID" R2_BUCKET="$R2_BUCKET" node scripts/report-diagnostics.mjs fetch "$SELECTED_RUN" "$SELECTED_ATTEMPT"
       - name: Publish allowlisted diagnostics without credentials
         run: |
-          node scripts/report-diagnostics.mjs analyze "$SELECTED_RUN" "$SELECTED_ATTEMPT" | tee -a "$GITHUB_STEP_SUMMARY"
+          env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" node scripts/report-diagnostics.mjs analyze "$SELECTED_RUN" "$SELECTED_ATTEMPT" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Remove private temporary files
         if: always()
-        run: node scripts/report-diagnostics.mjs clean "$SELECTED_RUN" "$SELECTED_ATTEMPT"
+        run: env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" node scripts/report-diagnostics.mjs clean "$SELECTED_RUN" "$SELECTED_ATTEMPT"
