@@ -2,8 +2,13 @@
 
 Source only. This capability is not activated or registered as an installed
 runtime. The coordinator must obtain the owner's explicit approval **after the
-PR is reviewed**, before the first dispatch/private-proof read. Merging source
-alone does not grant that approval. Do not dispatch it as a test of this PR.
+PR is reviewed**, before the first dispatch/private-proof read. That approval
+may explicitly cover both the reviewed merge and the first read of run
+`42337050608`, attempt `1`; no second confirmation is required within that same
+authorization. Approval limited to merging does not authorize a private read,
+and the named first-read approval grants no authority for future reads.
+The coordinator will request this combined approval after review. Do not
+dispatch it as a test of this PR.
 
 The proposed consumer is `.github/workflows/report-diagnostics.yml` in
 `dinkuskit/live-journeys`, running `runner/scripts/report-diagnostics.mjs` on

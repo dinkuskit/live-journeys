@@ -3,12 +3,13 @@
 - Owner: Blaze; one writer; assigned Ridge mount only.
 - Branch: `ridge/live-journey-diagnostics-20261107`.
 - Verified starting base: `9d0302c4264412d5c782a44d976ab56c681f0532`.
-- Source identity: hashes in `validation.json`, commit resolved in final handoff.
+- Implementation source: `6b350ed0080838eb9ff80c81b996cf1f9e13a24d`; current file hashes in `validation.json`.
 - Prepared: manual workflow, builtin-only script, offline tests and binding/privacy reference.
 - Targeted checks: 8/8 passed; standalone synthetic CLI output checks passed.
-- Full canonical suite: incomplete acceptance, 24 files passed / 2 failed;
-  unchanged gmail/proof subprocess checks hit sandbox EPERM. Qualified rerun required.
-- No actual credentials, private report, remote request, live dispatch, installed runtime,
-  push, PR or review submission. Live sources and existing unit tests unchanged.
-- Next owner: coordinator for full unit run, push/PR, CI and required reviews.
-- Approval gate: owner approval after reviewed PR before dispatch/private read.
+- Accepted canonical suite: coordinator's Node v24.22.0 run, 211 passed, 0 failed/skipped.
+- Earlier local gmail/proof subprocess EPERM failures retained as history, superseded for acceptance.
+- Coordinator source/privacy review: no actionable defect; external reviews pending.
+- Coordinator public metadata check: named run/attempt, completed state, workflow path and repo confirmed.
+- No actual credentials or private report read, live dispatch or installed runtime. AWS path/R2 readability untested.
+- Next owner: coordinator for push/PR, CI and required external reviews.
+- Approval gate: after review, request combined owner approval for reviewed merge and first read of run `42337050608`, attempt `1`. No second confirmation within that authorization; no future-read authority.

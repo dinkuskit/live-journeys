@@ -6,7 +6,7 @@
     ".github/workflows/report-diagnostics.yml": "c19e9e6ad02d728e8ae5ddb402a4bd64270eb53089c0ec189e590b1033f784ad",
     "runner/scripts/report-diagnostics.mjs": "3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80",
     "runner/unit/report-diagnostics.test.mjs": "cd96509ce2764ae731778cc09ae077dfdae3dffc7069414c85ca076de5924b3f",
-    "references/report-diagnostics.md": "33938644fd0f767e527bd16d93ad228540ebc35f225671967613b33233f8a1fc",
+    "references/report-diagnostics.md": "ad56dffbdd97c826a7760fdbca1161c3e1a617cb15d183d9576c5aedc04f562f",
     "runner/README.md": "fb0b80f4d128a367437d0acc4f40a93704071cb057db5cf9bef7bdbb56e2e074"
   },
   "local_validation_sha256": {
@@ -27,7 +27,16 @@
     "skipped": 0,
     "isolation": "none; same CLI main boundary in-process"
   },
-  "canonical_suite": {
+  "standalone_cli": {
+    "synthetic_redaction": "passed",
+    "malicious_selector": "passed",
+    "stdout_stderr": "exactly checked"
+  },
+  "live_access": false,
+  "private_proof_read": false,
+  "credentials_read_or_changed": false,
+  "implementation_commit": "6b350ed0080838eb9ff80c81b996cf1f9e13a24d",
+  "historical_local_canonical_suite": {
     "passed_files": 24,
     "failed_files": [
       "gmail.test.mjs",
@@ -36,12 +45,43 @@
     "exit": 1,
     "limitation": "Existing subprocess checks encounter spawnSync node EPERM in this workspace sandbox. Not a full-suite pass."
   },
-  "standalone_cli": {
-    "synthetic_redaction": "passed",
-    "malicious_selector": "passed",
-    "stdout_stderr": "exactly checked"
+  "canonical_suite": {
+    "status": "accepted",
+    "reported_by": "coordinator",
+    "node": "v24.22.0",
+    "command": "node --test runner/unit/*.test.mjs",
+    "passed": 211,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "log_path": "/home/bobby-xps/Work/repos/saari-co/x-api/runs/live-journey-performance-runs/20261106/diagnostics/full-unit.log",
+    "log_sha256": "781b41073e512f69337a3f7c44f9b33ff3ff57ef3bf54947cacaccd5cb20317f",
+    "verification": "safe log totals inspected and hash computed by worker"
   },
-  "live_access": false,
-  "private_proof_read": false,
-  "credentials_read_or_changed": false
+  "coordinator_source_privacy_review": {
+    "result": "no actionable defect",
+    "external_review_pending": true
+  },
+  "coordinator_public_metadata_check": {
+    "id": 42337050608,
+    "run_attempt": 1,
+    "status": "completed",
+    "path": ".github/workflows/live-journeys.yml",
+    "repository": "dinkuskit/live-journeys",
+    "verification": "coordinator-reported public GitHub API read; no private R2 read"
+  },
+  "untested": [
+    "hosted runner AWS path/availability",
+    "R2 binding/readability",
+    "actual selected report"
+  ],
+  "approval_scope": {
+    "state": "pending after external review",
+    "proposed": [
+      "reviewed merge",
+      "first read of run 42337050608 attempt 1"
+    ],
+    "repeat_confirmation_required_within_same_authorization": false,
+    "future_reads_authorized": false
+  }
 }
