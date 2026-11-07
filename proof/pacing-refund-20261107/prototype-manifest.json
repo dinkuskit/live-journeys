@@ -1,0 +1,18 @@
+{
+  "note": "The coordinator's manifest.json for the disposable prototype, copied as read (it names no machine path). The hashes are the coordinator's own; this writer could not hash files outside its workspace. original_pace_sha256 equals the hash of runner/support/pace.mjs at the base commit, checked in this workspace.",
+  "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+  "original_pace_sha256": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
+  "candidate_pace_sha256": "9e32d2f159f341f5c83c0360d5a8931c42be2646d4088999468d57d549a998a4",
+  "files": {
+    "schedule.mjs": "367d38494527082f5341fb6085b5be773eeeac71f306af9988eddae236157429",
+    "schedule-results.json": "22cd42e6d7f902380203ce5fbe4c2c8da34bcabdabcd597a372cdb92bb635ee1",
+    "refund-patch.mjs": "1496dc27ae79662720b03d269fe9be1a3dbccad0669d97776b1693ad6105dfd5",
+    "refund-model.mjs": "ef69957dd1fe83406726e10ec6353085cb0e2c85557419f365d3703180cb8d13",
+    "refund-model-results.json": "7e123af8443a68bcdf03b07accded55ec4e1421f650e2db43cc7071f0cfa5334",
+    "refund-browser.mjs": "10df79a4391af50f7a0a1f4be4d37181110594d49b50298e60c877ec1c264fe8",
+    "browser-summary.json": "1262ff47000212c66a9361fba447ce9c254d3005f91ca36938ef7de2aaa6e164",
+    "baseline-pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
+    "candidate-pace.mjs": "9e32d2f159f341f5c83c0360d5a8931c42be2646d4088999468d57d549a998a4",
+    "candidate.patch": "977186e9735cfb65e746b087c046e7d1f84cc6d84a84c38beadca6ccf9e8ddc4"
+  }
+}

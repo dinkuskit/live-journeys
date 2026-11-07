@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after } from "node:test";
+import { setImmediate } from "node:timers/promises";
 
 // Each test file runs in its own process, so this file's settings and request counts stay its own.
 const dir = mkdtempSync(join(tmpdir(), "dinkus-pace-"));
@@ -14,7 +15,7 @@ Object.assign(process.env, {
   DINKUS_E2E_PROFILE: join(dir, "profile"),
   DINKUS_E2E_STORE: "https://store.example",
 });
-const { STORE_BUDGET, countStoreRequest, countStoreResponse, paceStore, storeRefusals, waitFor, watchStoreRequests } = await import("../support/pace.mjs");
+const { PAGE_ROOM, STORE_BUDGET, countStoreRequest, countStoreResponse, paceSnapshot, paceStore, storeRefusals, waitFor, watchStoreRequests } = await import("../support/pace.mjs");
 const { filterPage } = await import("../support/request-policy.mjs");
 
 const now = 1_000_000;
@@ -226,4 +227,195 @@ test("ETag conditional fallbacks consume pacing budget for both network attempts
   await waiting;
   assert.equal(ready, true);
   assert.match(storeRefusals(), /^3x HTTP 503 \(store image\),/);
+});
+
+// The tests below share the module's request count with the ones above, so each starts at a mocked time
+// at least a minute after the last one ended, when nothing earlier still counts.
+
+/** A browser the pacing watches, whose requests end as the test says: finished, failed, or answered from its own copy. */
+function watchedBrowser() {
+  const context = new EventEmitter();
+  const replays = new WeakSet();
+  watchStoreRequests(context, { replayed: request => replays.has(request) });
+  const send = (url = "https://store.example/_astro/chunk.js") => {
+    const request = { url: () => url };
+    context.emit("request", request);
+    return request;
+  };
+  const done = (request, { replay = false, failed = false } = {}) => {
+    if (replay) replays.add(request);
+    context.emit(failed ? "requestfailed" : "requestfinished", request);
+  };
+  return { send, done, sendMany: count => Array.from({ length: count }, () => send()) };
+}
+/** Lets every promise settle, without moving the mocked clock. */
+const settle = () => setImmediate();
+const delta = (after, before) => Object.fromEntries(Object.keys(after).map(key => [key, after[key] - before[key]]));
+
+test("a step waiting for room goes as soon as the browser answers a counted request from its own copy", { timeout: 10_000 }, async t => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 20_000_000 });
+  const { send, done, sendMany } = watchedBrowser();
+  // Sixty-one on their way: forty more don't fit under the budget, so the step sleeps for the minute.
+  const chunks = sendMany(STORE_BUDGET - PAGE_ROOM + 1);
+  const before = paceSnapshot();
+  let ready = false;
+  const waiting = paceStore(PAGE_ROOM).then(() => { ready = true; });
+  await settle();
+  assert.equal(ready, false);
+  // One that reached the store frees nothing when it finishes, nor when it fails; nor does one to another site.
+  done(chunks[0]);
+  done(chunks[1], { failed: true });
+  done(send("https://dinkuskit.com/account"));
+  await settle();
+  assert.equal(ready, false);
+  // One the browser answers from its own copy stops counting, sixty fit forty more, and the step goes
+  // without the clock moving, where before it slept on until its timer fired.
+  done(chunks[2], { replay: true });
+  await settle();
+  assert.equal(ready, true);
+  await waiting;
+  // One sleep, which asked for the minute (plus the margin) and measured next to nothing.
+  const slept = delta(paceSnapshot(), before);
+  assert.equal(slept.sleeps, 1);
+  assert.equal(slept.requestedMs, 60_250);
+  assert.ok(slept.ms >= 0 && slept.ms < 1_000, `measured ${slept.ms} ms`);
+  assert.equal(slept.wallMs, slept.ms);
+  // A new identical call goes at once, as it always did with sixty counted.
+  await paceStore(PAGE_ROOM);
+  // The time it asked for passing changes nothing: the sleep is over, and it isn't counted again.
+  const after = paceSnapshot();
+  t.mock.timers.tick(60_250);
+  await settle();
+  assert.deepEqual(paceSnapshot(), after);
+});
+
+test("a request taken back that leaves the budget full wakes the step only to wait on, for what is still owed", { timeout: 10_000 }, async t => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 30_000_000 });
+  const { done, sendMany } = watchedBrowser();
+  // One request fifty seconds ago and a hundred thirty seconds ago: one more fits once the oldest of the
+  // hundred is a minute old, thirty seconds from now.
+  const [oldest] = sendMany(1);
+  t.mock.timers.tick(20_000);
+  const hundred = sendMany(STORE_BUDGET);
+  t.mock.timers.tick(30_000);
+  const before = paceSnapshot();
+  let ready = false;
+  const waiting = paceStore(1).then(() => { ready = true; });
+  await settle();
+  assert.equal(ready, false);
+  // Taking back one of the hundred leaves a hundred counted, still one too many; the step wakes, finds so,
+  // and sleeps again, now only until the oldest one is a minute old, ten seconds from now.
+  done(hundred[0], { replay: true });
+  await settle();
+  assert.equal(ready, false);
+  t.mock.timers.tick(9_000);
+  await settle();
+  assert.equal(ready, false);
+  t.mock.timers.tick(1_500);
+  await waiting;
+  assert.equal(ready, true);
+  // Two sleeps: the one the refund ended, which asked for thirty seconds, and the one that fired, which
+  // asked for the ten still owed from the same clock.
+  const slept = delta(paceSnapshot(), before);
+  assert.equal(slept.sleeps, 2);
+  assert.equal(slept.requestedMs, 30_250 + 10_250);
+  // Taking back the one the step waited for, after it has gone, wakes no one and counts nothing.
+  const after = paceSnapshot();
+  done(oldest, { replay: true });
+  await settle();
+  assert.deepEqual(paceSnapshot(), after);
+});
+
+test("steps waiting together each go when their own room fits, and the rest wait on", { timeout: 10_000 }, async t => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 40_000_000 });
+  const { done, sendMany } = watchedBrowser();
+  const hundred = sendMany(STORE_BUDGET);
+  const before = paceSnapshot();
+  const ready = { one: false, two: false, page: false };
+  const waiting = {
+    one: paceStore(1).then(() => { ready.one = true; }),
+    two: paceStore(2).then(() => { ready.two = true; }),
+    page: paceStore(PAGE_ROOM).then(() => { ready.page = true; }),
+  };
+  await settle();
+  assert.deepEqual(ready, { one: false, two: false, page: false });
+  // Ninety-nine counted: one more fits, two don't.
+  done(hundred[0], { replay: true });
+  await settle();
+  assert.deepEqual(ready, { one: true, two: false, page: false });
+  // Ninety-eight: two fit, forty don't.
+  done(hundred[1], { replay: true });
+  await settle();
+  assert.deepEqual(ready, { one: true, two: true, page: false });
+  // Ninety-seven: forty still don't, however often the step is woken.
+  done(hundred[2], { replay: true });
+  await settle();
+  assert.equal(ready.page, false);
+  // So it waits on until the rest are a minute old, as before.
+  t.mock.timers.tick(59_000);
+  await settle();
+  assert.equal(ready.page, false);
+  t.mock.timers.tick(1_500);
+  await Promise.all(Object.values(waiting));
+  assert.equal(ready.page, true);
+  // One sleep for the first, two for the second, four for the third (three the refunds ended, one that
+  // fired), each asking for the minute from the same clock; their overlap is counted once in the wall time.
+  const slept = delta(paceSnapshot(), before);
+  assert.equal(slept.sleeps, 7);
+  assert.equal(slept.requestedMs, 7 * 60_250);
+  assert.ok(slept.wallMs <= slept.ms, `wall ${slept.wallMs} ms, sum ${slept.ms} ms`);
+});
+
+test("a step nothing takes back waits the full time it asked for, as before", { timeout: 10_000 }, async t => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 50_000_000 });
+  const { done, sendMany } = watchedBrowser();
+  const chunks = sendMany(STORE_BUDGET - PAGE_ROOM + 1);
+  const before = paceSnapshot();
+  let ready = false;
+  const waiting = paceStore(PAGE_ROOM).then(() => { ready = true; });
+  // Everything on its way finishes or fails having reached the store, so it all counts for the minute.
+  for (const [i, chunk] of chunks.entries()) done(chunk, { failed: i % 2 === 1 });
+  t.mock.timers.tick(59_000);
+  await settle();
+  assert.equal(ready, false);
+  t.mock.timers.tick(1_500);
+  await waiting;
+  assert.equal(ready, true);
+  const slept = delta(paceSnapshot(), before);
+  assert.equal(slept.sleeps, 1);
+  assert.equal(slept.requestedMs, 60_250);
+});
+
+test("the timer behind a sleep goes when a request taken back wakes it, as when it fires", { timeout: 10_000 }, async t => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 60_000_000 });
+  // Spies over the mocked timers: what paceStore sets, and what it clears.
+  const setTimer = t.mock.method(globalThis, "setTimeout");
+  const clearTimer = t.mock.method(globalThis, "clearTimeout");
+  const { send, done, sendMany } = watchedBrowser();
+  const chunks = sendMany(STORE_BUDGET - PAGE_ROOM + 1);
+  const woken = paceStore(PAGE_ROOM);
+  assert.equal(setTimer.mock.callCount(), 1);
+  const [first] = setTimer.mock.calls;
+  assert.equal(first.arguments[1], 60_250);
+  // Woken by a refund: the timer it set is cleared, and nothing of it remains to fire.
+  done(chunks[0], { replay: true });
+  await woken;
+  assert.equal(clearTimer.mock.callCount(), 1);
+  assert.equal(clearTimer.mock.calls[0].arguments[0], first.result);
+  // Sixty-one again: a sleep that runs its course clears its timer too, once it has fired.
+  sendMany(1);
+  const fired = paceStore(PAGE_ROOM);
+  assert.equal(setTimer.mock.callCount(), 2);
+  const [, second] = setTimer.mock.calls;
+  t.mock.timers.tick(60_250);
+  await fired;
+  assert.equal(clearTimer.mock.callCount(), 2);
+  assert.equal(clearTimer.mock.calls[1].arguments[0], second.result);
+  // With no one asleep, a request taken back has no timer to clear and sets none.
+  done(send(), { replay: true });
+  await settle();
+  assert.equal(setTimer.mock.callCount(), 2);
+  assert.equal(clearTimer.mock.callCount(), 2);
+  setTimer.mock.restore();
+  clearTimer.mock.restore();
 });

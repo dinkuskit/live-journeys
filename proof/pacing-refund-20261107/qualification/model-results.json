@@ -1,0 +1,730 @@
+{
+  "node": "v24.22.0",
+  "base": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+  "candidate": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+  "scope": "actual pace module bodies; virtual clock, event context and filesystem stand-ins",
+  "source_sha256": {
+    "base": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
+    "candidate": "962226ba29c83cbf255bffbc104be7d7d3c11f7ceb9f9968cbfca5234b977196"
+  },
+  "rows": [
+    {
+      "name": "no refund",
+      "waiters": 1,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 60250,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 60250,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "no refund",
+      "waiters": 3,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          },
+          {
+            "id": 1,
+            "at": 60250
+          },
+          {
+            "id": 2,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 180750,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          },
+          {
+            "id": 1,
+            "at": 60250
+          },
+          {
+            "id": 2,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 180750,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "one refund",
+      "waiters": 1,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 60,
+            "released": 0,
+            "activeTimers": 1
+          }
+        ],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 60250,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 100
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 60,
+            "released": 1,
+            "activeTimers": 0
+          }
+        ],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 100,
+          "wallMs": 100
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "one refund",
+      "waiters": 3,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          },
+          {
+            "id": 1,
+            "at": 60250
+          },
+          {
+            "id": 2,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 60,
+            "released": 0,
+            "activeTimers": 3
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 180750,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 100
+          },
+          {
+            "id": 1,
+            "at": 100
+          },
+          {
+            "id": 2,
+            "at": 100
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 60,
+            "released": 3,
+            "activeTimers": 0
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 300,
+          "wallMs": 100
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "many refunds",
+      "waiters": 1,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 51,
+            "released": 0,
+            "activeTimers": 1
+          }
+        ],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 60250,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 100
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 51,
+            "released": 1,
+            "activeTimers": 0
+          }
+        ],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 100,
+          "wallMs": 100
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "many refunds",
+      "waiters": 3,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          },
+          {
+            "id": 1,
+            "at": 60250
+          },
+          {
+            "id": 2,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 51,
+            "released": 0,
+            "activeTimers": 3
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 180750,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 100
+          },
+          {
+            "id": 1,
+            "at": 100
+          },
+          {
+            "id": 2,
+            "at": 100
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 51,
+            "released": 3,
+            "activeTimers": 0
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 300,
+          "wallMs": 100
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "insufficient refund",
+      "waiters": 1,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 61,
+            "released": 0,
+            "activeTimers": 1
+          }
+        ],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 60250,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 61,
+            "released": 0,
+            "activeTimers": 1
+          }
+        ],
+        "counters": {
+          "sleeps": 2,
+          "requestedMs": 120400,
+          "ms": 60250,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "insufficient refund",
+      "waiters": 3,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          },
+          {
+            "id": 1,
+            "at": 60250
+          },
+          {
+            "id": 2,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 61,
+            "released": 0,
+            "activeTimers": 3
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 180750,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          },
+          {
+            "id": 1,
+            "at": 60250
+          },
+          {
+            "id": 2,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 61,
+            "released": 0,
+            "activeTimers": 3
+          }
+        ],
+        "counters": {
+          "sleeps": 6,
+          "requestedMs": 361200,
+          "ms": 180750,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "refunded failed request",
+      "waiters": 1,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 60,
+            "released": 0,
+            "activeTimers": 1
+          }
+        ],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 60250,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 100
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 60,
+            "released": 1,
+            "activeTimers": 0
+          }
+        ],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 100,
+          "wallMs": 100
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "refunded failed request",
+      "waiters": 3,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          },
+          {
+            "id": 1,
+            "at": 60250
+          },
+          {
+            "id": 2,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 60,
+            "released": 0,
+            "activeTimers": 3
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 180750,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 100
+          },
+          {
+            "id": 1,
+            "at": 100
+          },
+          {
+            "id": 2,
+            "at": 100
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 60,
+            "released": 3,
+            "activeTimers": 0
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 300,
+          "wallMs": 100
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "staggered refunds",
+      "waiters": 1,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 62,
+            "released": 0,
+            "activeTimers": 1
+          },
+          {
+            "at": 200,
+            "count": 61,
+            "released": 0,
+            "activeTimers": 1
+          },
+          {
+            "at": 300,
+            "count": 60,
+            "released": 0,
+            "activeTimers": 1
+          }
+        ],
+        "counters": {
+          "sleeps": 1,
+          "requestedMs": 60250,
+          "ms": 60250,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 300
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 62,
+            "released": 0,
+            "activeTimers": 1
+          },
+          {
+            "at": 200,
+            "count": 61,
+            "released": 0,
+            "activeTimers": 1
+          },
+          {
+            "at": 300,
+            "count": 60,
+            "released": 1,
+            "activeTimers": 0
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180450,
+          "ms": 300,
+          "wallMs": 300
+        },
+        "activeTimersFinal": 0
+      }
+    },
+    {
+      "name": "staggered refunds",
+      "waiters": 3,
+      "base": {
+        "released": [
+          {
+            "id": 0,
+            "at": 60250
+          },
+          {
+            "id": 1,
+            "at": 60250
+          },
+          {
+            "id": 2,
+            "at": 60250
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 62,
+            "released": 0,
+            "activeTimers": 3
+          },
+          {
+            "at": 200,
+            "count": 61,
+            "released": 0,
+            "activeTimers": 3
+          },
+          {
+            "at": 300,
+            "count": 60,
+            "released": 0,
+            "activeTimers": 3
+          }
+        ],
+        "counters": {
+          "sleeps": 3,
+          "requestedMs": 180750,
+          "ms": 180750,
+          "wallMs": 60250
+        },
+        "activeTimersFinal": 0
+      },
+      "candidate": {
+        "released": [
+          {
+            "id": 0,
+            "at": 300
+          },
+          {
+            "id": 1,
+            "at": 300
+          },
+          {
+            "id": 2,
+            "at": 300
+          }
+        ],
+        "afterRefunds": [
+          {
+            "at": 100,
+            "count": 62,
+            "released": 0,
+            "activeTimers": 3
+          },
+          {
+            "at": 200,
+            "count": 61,
+            "released": 0,
+            "activeTimers": 3
+          },
+          {
+            "at": 300,
+            "count": 60,
+            "released": 3,
+            "activeTimers": 0
+          }
+        ],
+        "counters": {
+          "sleeps": 9,
+          "requestedMs": 541350,
+          "ms": 900,
+          "wallMs": 300
+        },
+        "activeTimersFinal": 0
+      }
+    }
+  ],
+  "raw_sha256": "419296eb2d6e07eb9b2183e0fb3c57bfe989914dda0c52204575c79a49d37bf1",
+  "assertions": "12 paired scenarios passed, including timer cleanup and counters"
+}

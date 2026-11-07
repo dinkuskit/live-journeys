@@ -1,0 +1,313 @@
+{
+  "base": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+  "candidate": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+  "pairs": 3,
+  "stats": {
+    "base": {
+      "n": 3,
+      "median_ms": 4635.981412,
+      "min_ms": 4592.389816,
+      "max_ms": 4642.678094000001
+    },
+    "candidate": {
+      "n": 3,
+      "median_ms": 10.21132399999999,
+      "min_ms": 9.148888000000056,
+      "max_ms": 10.39618900000005
+    }
+  },
+  "rows": [
+    {
+      "mode": "base",
+      "cache": "immutable",
+      "index": 1,
+      "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "chromium": "153.0.8010.36",
+      "page_room": 40,
+      "seed": {
+        "requests": 50,
+        "age_ms_at_creation": 55000
+      },
+      "warm_count": 52,
+      "count_before_replay": 60,
+      "count_after_replay": 60,
+      "request_paths": [
+        "/",
+        "/asset.js"
+      ],
+      "replayed_observed": true,
+      "released_within_75ms": false,
+      "pace_elapsed_ms": 4642.678094000001,
+      "pace": {
+        "sleeps": 1,
+        "requestedMs": 4638,
+        "ms": 4641.928842,
+        "wallMs": 4641.928842
+      },
+      "limits": [
+        "synthetic near-expiry history and controlled call interleaving",
+        "real Playwright context/filter/cache",
+        "not live frequency or end-to-end speedup"
+      ]
+    },
+    {
+      "mode": "candidate",
+      "cache": "immutable",
+      "index": 1,
+      "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "chromium": "153.0.8010.36",
+      "page_room": 40,
+      "seed": {
+        "requests": 50,
+        "age_ms_at_creation": 55000
+      },
+      "warm_count": 52,
+      "count_before_replay": 60,
+      "count_after_replay": 60,
+      "request_paths": [
+        "/",
+        "/asset.js"
+      ],
+      "replayed_observed": true,
+      "released_within_75ms": true,
+      "pace_elapsed_ms": 9.148888000000056,
+      "pace": {
+        "sleeps": 1,
+        "requestedMs": 4613,
+        "ms": 8.915317999999957,
+        "wallMs": 8.915317999999957
+      },
+      "limits": [
+        "synthetic near-expiry history and controlled call interleaving",
+        "real Playwright context/filter/cache",
+        "not live frequency or end-to-end speedup"
+      ]
+    },
+    {
+      "mode": "candidate",
+      "cache": "immutable",
+      "index": 2,
+      "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "chromium": "153.0.8010.36",
+      "page_room": 40,
+      "seed": {
+        "requests": 50,
+        "age_ms_at_creation": 55000
+      },
+      "warm_count": 52,
+      "count_before_replay": 60,
+      "count_after_replay": 60,
+      "request_paths": [
+        "/",
+        "/asset.js"
+      ],
+      "replayed_observed": true,
+      "released_within_75ms": true,
+      "pace_elapsed_ms": 10.21132399999999,
+      "pace": {
+        "sleeps": 1,
+        "requestedMs": 4551,
+        "ms": 9.768298000000073,
+        "wallMs": 9.768298000000073
+      },
+      "limits": [
+        "synthetic near-expiry history and controlled call interleaving",
+        "real Playwright context/filter/cache",
+        "not live frequency or end-to-end speedup"
+      ]
+    },
+    {
+      "mode": "base",
+      "cache": "immutable",
+      "index": 2,
+      "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "chromium": "153.0.8010.36",
+      "page_room": 40,
+      "seed": {
+        "requests": 50,
+        "age_ms_at_creation": 55000
+      },
+      "warm_count": 52,
+      "count_before_replay": 60,
+      "count_after_replay": 60,
+      "request_paths": [
+        "/",
+        "/asset.js"
+      ],
+      "replayed_observed": true,
+      "released_within_75ms": false,
+      "pace_elapsed_ms": 4592.389816,
+      "pace": {
+        "sleeps": 1,
+        "requestedMs": 4588,
+        "ms": 4591.1234589999995,
+        "wallMs": 4591.1234589999995
+      },
+      "limits": [
+        "synthetic near-expiry history and controlled call interleaving",
+        "real Playwright context/filter/cache",
+        "not live frequency or end-to-end speedup"
+      ]
+    },
+    {
+      "mode": "base",
+      "cache": "immutable",
+      "index": 3,
+      "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "chromium": "153.0.8010.36",
+      "page_room": 40,
+      "seed": {
+        "requests": 50,
+        "age_ms_at_creation": 55000
+      },
+      "warm_count": 52,
+      "count_before_replay": 60,
+      "count_after_replay": 60,
+      "request_paths": [
+        "/",
+        "/asset.js"
+      ],
+      "replayed_observed": true,
+      "released_within_75ms": false,
+      "pace_elapsed_ms": 4635.981412,
+      "pace": {
+        "sleeps": 1,
+        "requestedMs": 4632,
+        "ms": 4635.115089,
+        "wallMs": 4635.115089
+      },
+      "limits": [
+        "synthetic near-expiry history and controlled call interleaving",
+        "real Playwright context/filter/cache",
+        "not live frequency or end-to-end speedup"
+      ]
+    },
+    {
+      "mode": "candidate",
+      "cache": "immutable",
+      "index": 3,
+      "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "chromium": "153.0.8010.36",
+      "page_room": 40,
+      "seed": {
+        "requests": 50,
+        "age_ms_at_creation": 55000
+      },
+      "warm_count": 52,
+      "count_before_replay": 60,
+      "count_after_replay": 60,
+      "request_paths": [
+        "/",
+        "/asset.js"
+      ],
+      "replayed_observed": true,
+      "released_within_75ms": true,
+      "pace_elapsed_ms": 10.39618900000005,
+      "pace": {
+        "sleeps": 1,
+        "requestedMs": 4632,
+        "ms": 9.905130999999983,
+        "wallMs": 9.905130999999983
+      },
+      "limits": [
+        "synthetic near-expiry history and controlled call interleaving",
+        "real Playwright context/filter/cache",
+        "not live frequency or end-to-end speedup"
+      ]
+    },
+    {
+      "mode": "base",
+      "cache": "no-store",
+      "index": 1,
+      "source": "dbf2512864947be2fea87ec58f34866d359cc7d8",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "chromium": "153.0.8010.36",
+      "page_room": 40,
+      "seed": {
+        "requests": 50,
+        "age_ms_at_creation": 55000
+      },
+      "warm_count": 52,
+      "count_before_replay": 60,
+      "count_after_replay": 61,
+      "request_paths": [
+        "/",
+        "/asset.js",
+        "/asset.js"
+      ],
+      "replayed_observed": false,
+      "released_within_75ms": false,
+      "pace_elapsed_ms": 4620.434793,
+      "pace": {
+        "sleeps": 1,
+        "requestedMs": 4616,
+        "ms": 4619.7394939999995,
+        "wallMs": 4619.7394939999995
+      },
+      "limits": [
+        "synthetic near-expiry history and controlled call interleaving",
+        "real Playwright context/filter/cache",
+        "not live frequency or end-to-end speedup"
+      ]
+    },
+    {
+      "mode": "candidate",
+      "cache": "no-store",
+      "index": 1,
+      "source": "970c4ad4453358d6bb84e08b18f0d4d8a46b4dda",
+      "node": "v24.22.0",
+      "playwright": "1.61.1",
+      "chromium": "153.0.8010.36",
+      "page_room": 40,
+      "seed": {
+        "requests": 50,
+        "age_ms_at_creation": 55000
+      },
+      "warm_count": 52,
+      "count_before_replay": 60,
+      "count_after_replay": 61,
+      "request_paths": [
+        "/",
+        "/asset.js",
+        "/asset.js"
+      ],
+      "replayed_observed": false,
+      "released_within_75ms": false,
+      "pace_elapsed_ms": 4575.303029000001,
+      "pace": {
+        "sleeps": 1,
+        "requestedMs": 4572,
+        "ms": 4574.7356660000005,
+        "wallMs": 4574.7356660000005
+      },
+      "limits": [
+        "synthetic near-expiry history and controlled call interleaving",
+        "real Playwright context/filter/cache",
+        "not live frequency or end-to-end speedup"
+      ]
+    }
+  ],
+  "scripts_sha256": {
+    "compare.mjs": "d436200fd784b043a1a882040ceb693e19819c4205ea0a99d6e6a95cb610944e",
+    "model.mjs": "67636271207b156b45ede26d5cb39d8e0032c8551642c97fb8779f2b9ade4ca6",
+    "browser-sample.mjs": "c2eb0a7a4653aa4d6874293d9c8b07b98c82fe22d9a7af0774e3606d86c38963"
+  },
+  "limits": [
+    "synthetic near-expiry request history",
+    "controlled replay/caller interleaving",
+    "not live incidence or end-to-end speedup"
+  ]
+}
