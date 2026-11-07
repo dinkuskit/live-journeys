@@ -1,1 +1,1 @@
-2026-11-07T14:53:15Z source prepared and committed; no Node execution permitted to this worker, so unit, full suite and benchmark await the coordinator; push/PR/reviews pending
+2026-11-07T15:03:08Z turn 2: design-audit points answered in source and tests (requested vs measured sleep, startJourney clears a rerun's stale timing, wall-clock jump, body boundary, retry across worker restart); still no Node execution permitted, so unit, full suite and benchmark await the coordinator; push/PR/reviews pending

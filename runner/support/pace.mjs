@@ -186,11 +186,12 @@ export function waitFor(times, room, now = Date.now()) {
 }
 
 // The explicit sleeps paceStore has taken since this worker started, for the private timing fact each
-// journey keeps (see steps.mjs): how many, the sum of their measured lengths, and the wall time during
-// which at least one was sleeping, which is less than the sum when sleeps overlap. Measured on the
-// monotonic clock, as they happened, not as they were scheduled. Each worker starts from zero, so only
-// the difference between two snapshots of one worker means anything.
-const paced = { sleeps: 0, ms: 0, wallMs: 0 };
+// journey keeps (see steps.mjs): how many, the sum of what they asked the timer for, the sum of their
+// measured lengths (longer when the timer fired late), and the wall time during which at least one was
+// sleeping, which is less than the sum when sleeps overlap. Measured on the monotonic clock; the wait
+// itself is still decided from Date.now() and the request log, as before. Each worker starts from
+// zero, so only the difference between two snapshots of one worker means anything.
+const paced = { sleeps: 0, requestedMs: 0, ms: 0, wallMs: 0 };
 let sleeping = 0;
 let sleepingFrom = 0;
 
@@ -208,6 +209,7 @@ export async function paceStore(room = 1) {
     await new Promise(resolve => setTimeout(resolve, wait + 250));
     const to = performance.now();
     paced.sleeps += 1;
+    paced.requestedMs += wait + 250;
     paced.ms += to - from;
     if (!--sleeping) paced.wallMs += to - sleepingFrom;
   }

@@ -600,24 +600,31 @@ value is `{ "unit": "ms", "tries": [ ... ] }`, one entry per try of the journey:
 
 | Field | What it is |
 | --- | --- |
-| `try` | 1 for the journey's first try, 2 for its retry (only Storefront and Cart retry). A retry adds its entry beside the failed try's, which is never erased; the last entry is the latest try, and the total is the sum. A journey run again under the same run id, not as a retry, starts over |
+| `try` | 1 for the journey's first try, 2 for its retry (only Storefront and Cart retry). A retry adds its entry beside the failed try's, which is never erased; the last entry is the latest try, and the total is the sum. A journey run again under the same run id, not as a retry, starts over: its start clears the earlier entries, in the write it already makes, before its body runs |
 | `body` | `returned` or `threw`: how the journey's body ended. A soft step failure returns, so read it with `verdict` |
 | `verdict` | The try's verdict from its recorded steps, as the proof has it when the body ended |
-| `body_ms` | The journey BODY's elapsed time, on the monotonic clock, from the wrapper starting the body to its return or throw. It leaves out the fixtures: opening and closing the saved profile or a shopper browser, and Playwright's own setup and teardown. Whole milliseconds |
+| `body_ms` | The journey BODY's elapsed time, on the monotonic clock, from the wrapper starting the body to its return or throw. It leaves out the fixtures (opening and closing the saved profile or a shopper browser, and Playwright's own setup and teardown), the journey's start in the proof, and this fact's own write. It takes in what the body does for itself: its steps' screenshots and whatever cleanup it runs on its way out. Whole milliseconds |
 | `pace_sleeps` | How many explicit rate-limit sleeps `paceStore` took during the body (see the store's request limit above) |
-| `pace_sleep_ms` | The sum of those sleeps, as measured, not as scheduled: each sleep is timed from before its timer to after it |
-| `pace_sleep_wall_ms` | The wall time during which at least one of them was sleeping. Equal to the sum unless sleeps overlapped (two awaited together), when the sum double-counts and this does not |
+| `pace_sleep_requested_ms` | The sum of what those sleeps asked the timer for: each wait as `paceStore` computed it from the request log and the wall clock, as before, plus its 250 ms margin |
+| `pace_sleep_ms` | The sum of those sleeps as measured, on the monotonic clock, from before each timer to after it. More than requested when a timer fired late (a busy event loop); it can read a few milliseconds less, as the timer's own clock is read at the start of its event-loop turn |
+| `pace_sleep_wall_ms` | The wall time during which at least one of them was sleeping. Equal to the measured sum unless sleeps overlapped (two awaited together), when the sum double-counts, and can then exceed `body_ms`, while this does not |
 
 What the body spent beyond its pace sleeps is unattributed: the store, the
 network, the browser or the runner's own work, in some mix the fact can't tell
-apart. It is not CPU time. The entry is written once, when the try's wrapper
-finishes, whether the body returned or threw. A try the run cut off before that
-(Playwright's timeout, a stopped run) leaves no entry at all; nothing writes a
-zero in its place, so a journey listed without its timing, or a retried journey
-with one entry, was cut off. The counters behind `pace_*` belong to one worker
-process and start at zero in each, so a journey's entry is the difference
-between two snapshots in its own worker, and the fact survives a worker Playwright
-starts after a failed journey, as every other fact does.
+apart. It is not CPU time. The wall clock (`Date.now()`) still decides every
+wait, as before; only the measurements use the monotonic clock, so a wall-clock
+jump changes what `paceStore` decides, as it always did, and not what the fact
+reads. The entry is written once, when the try's wrapper finishes, whether the
+body returned or threw; a write that fails is let go, and changes neither the
+journey's outcome nor the error it threw. A try the run cut off before that
+(Playwright's timeout, a stopped run, a killed worker) leaves no entry at all;
+nothing writes a zero or a pass in its place, so a journey listed without its
+timing, or a retried journey with one entry, was cut off. Listing the journeys
+(`--list`) runs none and writes nothing. The counters behind `pace_*` belong to
+one worker process and start at zero in each, so a journey's entry is the
+difference between two snapshots in its own worker; a retry, which Playwright
+runs in a new worker, reads the failed try's entry back from the report and
+adds its own beside it, as every other fact survives a worker restart.
 
 On Linux, label rendering requires Poppler's `pdftoppm`; macOS uses Quick Look.
 A missing renderer, failed render or invalid picture fails the label-PDF step

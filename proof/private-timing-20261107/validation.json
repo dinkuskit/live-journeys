@@ -1,19 +1,21 @@
 {
   "base": "da61f2206486504eb4784571e6b15680328c5fc3",
   "branch": "ridge/live-journey-timing-20261107",
-  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy (pinned Node 24.22.0, PATH Node v26.13.0 beyond --version, npm ci, delegated subagent)",
+  "turn_1_commit": "c315f28e764e7a8c4f5e6839cc395e805e93e64b",
+  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in both turns (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent)",
   "platform": "Linux aarch64",
   "source_sha256": {
-    "runner/support/pace.mjs": "ec065caf0b01c3465f68b2051213a72881603679273d99b9186c5d86ab7273ba",
-    "runner/support/proof.mjs": "332f2507691bbb3edff87fa02be3f50269e6dcfebd111167dc2b72cf1cd22821",
-    "runner/support/steps.mjs": "30acadf4026d5ba33b68ed4ae990bc0e6e935fcd0e728cfb213bb5291c9ba18e",
-    "runner/unit/journey-timing.test.mjs": "8915568da4f7e3c5f01ed576bf893d746ec555c152259fb26c306888d2ab969b",
+    "runner/support/pace.mjs": "5ec6e9d522f3f03aefcf9798fb9f22154a4d14e770335e8d655648d19b06926b",
+    "runner/support/proof.mjs": "741fe99d73538c8778681c6ae533055d2b8691d89a817e9cbe21da050e2a9359",
+    "runner/support/steps.mjs": "8570b784b2ef9beef9c2bbd7a98860ed61be722b950c5609f0e2afaea69d714c",
+    "runner/unit/journey-timing.test.mjs": "e383721fd936844c19d924e6e2f3f0c1047797e5c59dbe6d58b0125b718674c2",
     "runner/unit/fixtures/journey-wrapper.mjs": "70e4061b524356a49b77c70dd09606014f1b1413f2b2b6a4b6a9a9a463b68bae",
     "proof/private-timing-20261107/benchmark.mjs": "8f0db8ac2601765df3eb726d45abd195805e17907b98d15f0b2a1bbd121b9e37",
-    "runner/README.md": "7a9cfcb39eb9b63161097e57fa55a955829fa8cc10fe08729e8e0430c0c136a9"
+    "runner/README.md": "97923e7fbcc4723d9c487fc5d6fab456e2e6835581fd7725a30e144d3acb0f0f"
   },
   "checks": {
     "git_diff_check": { "exit": 0 },
+    "syntax_check": { "command": "node --check runner/unit/journey-timing.test.mjs", "run": false, "reason": "execution denied; proof-read only" },
     "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs", "run": false, "reason": "execution denied" },
     "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "execution denied" },
     "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "execution denied" }
@@ -22,6 +24,7 @@
     "live_performance": false,
     "overhead_measured": false,
     "additional_network_calls": "none by construction: pace.mjs, proof.mjs and steps.mjs import only node:fs, node:path and runner modules; the benchmark asserts this statically and binds no network API",
-    "additional_scheduled_waits": "none by construction: the only timer in paceStore is unchanged; the benchmark counts timers and delays per variant"
+    "additional_scheduled_waits": "none by construction: the only timer in paceStore is unchanged and its delay is now also recorded as requested time; the benchmark counts timers and delays per variant",
+    "pacing_decisions": "unchanged: Date.now() and the request log decide every wait; performance.now() only measures"
   }
 }

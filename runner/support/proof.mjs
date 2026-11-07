@@ -44,6 +44,9 @@ export function startJourney(name, retry = 0) {
   steps = retry > 0
     ? steps.map(s => s.journey === name ? { ...s, retried: true } : s)
     : steps.filter(s => s.journey !== name);
+  // A journey run again, not as a retry, starts its private timing over in this same write, so a try
+  // that hasn't finished (or never will) is not shown with an earlier run's entries. A retry keeps them.
+  if (!(retry > 0)) delete facts[`${name} timing`];
   if (!journeys.includes(name)) journeys.push(name);
   write();
 }
@@ -106,10 +109,11 @@ export function note(key, value) {
 /**
  * Keeps one private timing fact per journey, "<name> timing", written once when a try of the journey
  * finishes (see steps.mjs). Each try keeps its own entry, so a failed try is never erased by the retry
- * that followed it: a retry (`retry` above 0) adds its entry beside the earlier tries', as startJourney
- * keeps their steps, and a journey run again under the same run id starts its tries over. A try the
- * run cut off before its wrapper finished leaves no entry at all, rather than a zero. The README's
- * "Proof" section describes the shape.
+ * that followed it: a retry (`retry` above 0) adds its entry beside the earlier tries', read back from
+ * the report as the retry's new worker loads it, as startJourney keeps their steps; a journey run again
+ * under the same run id starts its tries over (startJourney already cleared them). A try the run cut
+ * off before its wrapper finished leaves no entry at all, rather than a zero. The README's "Proof"
+ * section describes the shape.
  */
 export function noteJourneyTiming(name, retry, entry) {
   load();
