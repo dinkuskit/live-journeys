@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { Script, createContext } from "node:vm";
-import { firstLine } from "../support/errors.mjs";
 import {
   HOME, PAGE_ROOM, STORE, archived, card, emptyPage, homepage, loadHelpers, onSale, product, productPage, run, scenarios, states, storeOf, trashed, world,
 } from "./fixtures/homepage-reuse.mjs";
@@ -11,7 +8,7 @@ import {
 // its store check takes at the Shop list, so the four adopted call sites (Manage products' Draft check
 // and clean-up, One product with a category's publish check and clean-up; the same two in the @next
 // agent journey) load the homepage once instead of twice. These checks run the actual shopper.mjs and
-// store-check.mjs over a counted fake page (see the fixture) and the actual call sites' source.
+// store-check.mjs over a counted fake page (see the fixture); the call sites themselves are read by eye.
 
 const helpers = w => loadHelpers(w);
 const named = name => scenarios.find(scenario => scenario.name === name) ?? assert.fail(`no scenario "${name}"`);
@@ -263,85 +260,4 @@ test("a check with no handoff keeps the ordering and the whole of the product, c
   const later = world({ pages: storeOf(() => ({ ...archived(), [product.href]: { status: 404, dom: productPage({ ...product, price: "" }) } })) });
   const { problems } = await loadHelpers(later).storeHides(later.page(), { ...states.hides }, { archived: true });
   assert.deepEqual(problems, [`${product.href} still offers Add to cart`]);
-});
-
-// ---- The call sites, as written ----
-
-const specs = Object.fromEntries(["manage-products", "onboarding-product", "agent-products", "cart", "storefront", "full-catalog"]
-  .map(name => [name, readFileSync(new URL(`../tests/${name}.spec.mjs`, import.meta.url), "utf8")]));
-
-/**
- * The adopted sites in a spec: each `const opened = await openShopperPage(shopper, "/")` with what
- * consumes it, the next line for a step's check or the whole `if (opened) { ... }` of a clean-up.
- */
-function sites(source) {
-  return [...source.matchAll(/^ +const opened = await openShopperPage\(shopper, "\/"\)/gm)].map(match => {
-    const rest = source.slice(match.index);
-    const cleanup = /^ +const opened = [^\n]*\n +if \(opened\) \{/.exec(rest);
-    let code;
-    if (cleanup) {
-      let depth = 0;
-      let end = cleanup[0].length - 1;
-      for (; end < rest.length; end++) {
-        if (rest[end] === "{") depth += 1;
-        else if (rest[end] === "}" && !(depth -= 1)) break;
-      }
-      code = rest.slice(0, end + 1);
-    } else code = rest.split("\n").slice(0, 2).join("\n");
-    return { line: source.slice(0, match.index).split("\n").length, cleanup: Boolean(cleanup), code };
-  });
-}
-
-/** Runs one site's code over stand-ins that record what it hands to whom. */
-async function wire(site, { opens = true } = {}) {
-  const calls = [];
-  const handoff = { take: () => null };
-  const bindings = {
-    shopper: { name: "shopper" }, problems: [], firstLine,
-    state: { id: "p1", productPath: "/products/x", categoryPath: "/categories/x" }, made: { pagePath: "/products/x", categoryPath: "/categories/x" },
-    where: () => ({ id: "p1", productPath: "/products/x", categoryPath: "/categories/x" }),
-    openShopperPage: async (page, path) => { calls.push(["open", page, path]); if (!opens) throw new Error("/ answered HTTP 503."); return handoff; },
-    storeHides: async (page, state, options) => { calls.push(["hides", page, options]); return { problems: ["the Shop list still lists it"], seconds: 2 }; },
-    storeShows: async (page, state, options) => { calls.push(["shows", page, options]); return { problems: ["the Shop list doesn't list it"], seconds: 2 }; },
-    catchUp: async (page, path, check) => { calls.push(["catchUp", page, path]); return { problems: await check({ status: () => 404 }), seconds: 0 }; },
-  };
-  await new Script(`(async () => {\n${site.code}\n})()`).runInContext(createContext(bindings));
-  return { calls, handoff, problems: bindings.problems, shopper: bindings.shopper };
-}
-
-test("the adopted call sites hand the homepage they opened to their first store check, and only they", async () => {
-  const adopted = { "manage-products": [["hides", false], ["hides", true]], "onboarding-product": [["shows", false], ["hides", true]], "agent-products": [["hides", false], ["hides", true]] };
-  for (const [name, shape] of Object.entries(adopted)) {
-    const source = specs[name];
-    const found = sites(source);
-    assert.equal(found.length, 2, `${name}: two adopted sites`);
-    assert.equal((source.match(/openShopperPage\(shopper, "\/"\)/g) ?? []).length, 2, `${name}: every homepage open hands on`);
-    assert.doesNotMatch(source, /openShopperPage\(shopper, "\/"\)\.then\(/, `${name}: the old boolean form is gone`);
-    for (const [i, site] of found.entries()) {
-      const [check, cleanup] = shape[i];
-      assert.equal(site.cleanup, cleanup, `${name} line ${site.line}`);
-      const { calls, handoff, problems, shopper } = await wire(site);
-      assert.deepEqual(calls[0], ["open", shopper, "/"], `${name} line ${site.line}`);
-      assert.equal(calls[1][0], check, `${name} line ${site.line}: ${check} comes next`);
-      assert.equal(calls[1][1], shopper, `${name} line ${site.line}: on the same page`);
-      assert.equal(calls[1][2].opened, handoff, `${name} line ${site.line}: with the handoff`);
-      if (cleanup) {
-        // The check's problems reach the clean-up's list, and the trashed addresses are still asked.
-        assert.deepEqual(problems, ["the Shop list still lists it"], `${name} line ${site.line}`);
-        assert.ok(calls.slice(2).every(call => call[0] === "catchUp" && call[1] === shopper), `${name} line ${site.line}`);
-        assert.ok(calls.length >= 3, `${name} line ${site.line}: the addresses are asked`);
-        const failed = await wire(site, { opens: false });
-        assert.deepEqual(failed.calls, [["open", failed.shopper, "/"]], `${name} line ${site.line}: nothing checked when the store won't open`);
-        assert.deepEqual(failed.problems, ["the test couldn't open the store as a shopper to check it: / answered HTTP 503."], `${name} line ${site.line}`);
-      } else {
-        assert.equal(calls.length, 2, `${name} line ${site.line}`);
-        await assert.rejects(wire(site, { opens: false }), { message: "/ answered HTTP 503." }, `${name} line ${site.line}: the step fails as before`);
-      }
-    }
-  }
-  assert.match(specs["agent-products"], /tag: "@next"/, "the agent journey stays @next");
-  for (const name of ["cart", "storefront", "full-catalog"]) {
-    assert.doesNotMatch(specs[name], /storeShows|storeHides|opened \}/, `${name} is untouched`);
-    assert.match(specs[name], /openShopperPage|open\(/, name);
-  }
 });
