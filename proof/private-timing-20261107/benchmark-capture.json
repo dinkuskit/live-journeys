@@ -1,0 +1,25 @@
+{
+  "what": "sanitized summary of the coordinator's capture receipt for the final 30-pair benchmark run (benchmark-results.json); the receipt's argv, which names the coordinator's workstation paths, is left out on purpose",
+  "schema": "smoky-ci-performance.capture.v1",
+  "classification": "complete",
+  "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --candidate c0b03386a18f3bd4a367fc696c9463fce0df1d0a --samples 30 --out <results.json>",
+  "node": "pinned Node 24.22.0 (linux arm64)",
+  "exit": {
+    "raw": 0,
+    "normalized": 0,
+    "signal": null
+  },
+  "wall_seconds": 2.210107900999901,
+  "resources": {
+    "user_seconds": 2.470472,
+    "system_seconds": 0.138732,
+    "max_rss": 86960,
+    "max_rss_unit": "KiB",
+    "aggregation": "waited-children"
+  },
+  "metrics_supported": true,
+  "cost": "unknown",
+  "error": null,
+  "raw_receipt_sha256": null,
+  "raw_receipt_sha256_note": "the raw receipt (capture.json) stays in the coordinator's task folder; this worker's tool surface could not hash files outside its workspace, so the receipt's SHA-256 is not recorded here and the coordinator can add it"
+}

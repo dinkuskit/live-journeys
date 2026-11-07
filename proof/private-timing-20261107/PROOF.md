@@ -1,4 +1,4 @@
-# Private journey timing: source prepared, final offline checks owned by the coordinator
+# Private journey timing: source frozen at `c0b0338`, coordinator checks passed, proof-only closeout
 
 Base: `da61f2206486504eb4784571e6b15680328c5fc3` (the expected fresh base; no drift,
 worktree clean at start). Branch: `ridge/live-journey-timing-20261107`.
@@ -13,9 +13,20 @@ analyzer's allowlist, the single failure in the coordinator's full suite at
 `d637573` (below), and records that acceptance as source-specific historical
 evidence; the sixth (`c0b0338`) makes the fact's write whole-or-nothing, the
 required correctness fix the coordinator raised before final review (below);
-the seventh makes the benchmark fail, rather than look fast, when the
-candidate's wrapper did not publish every entry (below). No producer, analyzer
-or test source changed after `c0b0338`.
+the seventh (`d28057b`) makes the benchmark fail, rather than look fast, when
+the candidate's wrapper did not publish every entry (below).
+
+**Production code and tests are frozen at
+`c0b03386a18f3bd4a367fc696c9463fce0df1d0a`.** `d28057b` differs from it only
+under `proof/private-timing-20261107/` (`git diff --stat c0b0338 d28057b --
+runner references` is empty, checked in turn 8), so every result below that
+names `c0b0338` holds for the runner source on the current head; the one file
+that changed in `d28057b` and matters to a result is `benchmark.mjs`, and the
+final benchmark ran that version (its SHA-256 is in
+[benchmark-manifest.json](benchmark-manifest.json) and equals the script's
+hash at `d28057b`, `d0a5f86d…9d53f`). Turn 8 is proof-only: no source, test
+or benchmark change, no experiment. The coordinator's final results are in
+"Final coordinator acceptance at `c0b0338` (turn 8)".
 
 ## What changed
 
@@ -197,11 +208,12 @@ report to the real analyzer and asserts no `timing` key for the journey.
 
 `benchmark.mjs` now binds counted `renameSync` and `unlinkSync` to both
 variants' proof modules (the base uses neither) and reports renames and
-unlinks beside writes and reads. The candidate's wrapper workload is expected
-to show two more writes and two renames per journey than before and no unlink;
-its per-journey figure will therefore differ from the `+175 µs` the coordinator
-measured at `d637573`, and that figure is historical. No sample exists from
-this worker.
+unlinks beside writes and reads. The candidate's wrapper workload was expected
+to show two more writes and two renames per journey than before and no unlink,
+and the final benchmark shows exactly that (150 writes, 25 reads, 50 renames,
+0 unlinks per 25 journeys against the base's 100 writes); its per-journey
+median moved from the `+175 µs` the coordinator measured at `d637573` to
+`+181.6 µs` at `c0b0338` (below). No sample exists from this worker.
 
 ## Benchmark consistency (turn 7)
 
@@ -234,8 +246,8 @@ amount", the real journey (the analyzer's allowlist, `NAMES` in
 uses (Full catalog, Storefront, Cart, Payments status, Buy a label in the store
 admin, Problems, Manage products, One product with a category, Buy and ship,
 Ship settings, Commerce settings, Mark as completed) is on that list. That
-result is evidence specific to `3a7f913`; the coordinator reruns the suite on
-the final head.
+result is evidence specific to `3a7f913`; the coordinator's rerun on the frozen
+source `c0b0338` passed every test (below).
 
 ## Offline checks written
 
@@ -274,18 +286,27 @@ variant. It reads the candidate from the working tree; turn 6 added the rename
 and unlink bindings and counts; turn 7 added the import-coverage refusal and
 the per-sample publication check (see "Benchmark consistency (turn 7)").
 
-## Not run by this worker
+## Execution on this worker, by turn
 
 In turns 1 and 2, every form of Node execution was denied by this session's
 permission policy: the pinned Node 24.22.0 (`--version`, `--check`, `--test`,
 with and without an isolated `env -i` environment), the PATH Node, `npm ci`,
-inline `node -e`, and in turn 1 a delegated subagent. In turns 3 to 7 the
+inline `node -e`, and in turn 1 a delegated subagent. In turns 3 to 8 the
 coordinator stated Node is intentionally unavailable on this worker's tool
 surface, so nothing was attempted, retried or delegated. So **no unit result,
-no full-suite result and no benchmark sample exists from this worker.** None
-is claimed, and neither test file nor `benchmark.mjs` has been syntax-checked
-by a parser in any turn; all were proof-read only. `git diff --check` passed
-in every turn.
+no full-suite result and no benchmark sample was produced by this worker in
+any turn**; every result in this proof was produced by the coordinator on its
+own tool surface and is recorded here from its files. Neither test file nor
+`benchmark.mjs` was syntax-checked by this worker; the coordinator's runs of
+them (the suite at `c0b0338`, the benchmark at `d0a5f86d…9d53f`) are the
+evidence that they parse and pass. `git diff --check` passed in every turn.
+
+Three coordinator checkpoints preceded the final one, each specific to its
+commit: a draft full suite before turn 3 (221 passed) with a 30-pair benchmark;
+the producer acceptance at `d637573` (next section); and the combined suite at
+`3a7f913` (228 tests, 227 passed, the one "Free shipping" title). Each earlier
+claim of "no result exists" in this proof described the state at that turn and
+is superseded by the final section.
 
 ## Coordinator producer acceptance at `d637573` (historical evidence)
 
@@ -303,21 +324,24 @@ the raw samples are in those files, not here.
 | Benchmark, 30 interleaved pairs | Passed with equal timer and delay counts per variant in every workload. Per-call deltas, candidate less base: no-wait `paceStore` +0.002 µs; forced single sleep −0.56 µs (within noise, no improvement is claimed); completed wrapper per journey +175 µs, which carries the entry's report load and write |
 | Real Playwright producer probe | Passed, with a `FLAKY` journey whose failed try's entry was retained across the retry's new worker; no live I/O |
 
-This evidence is specific to `d637573`. Between it and the current head,
+This evidence is specific to `d637573`. Between it and the frozen source,
 `steps.mjs` is byte-identical and `pace.mjs` differs by a comment only (turn
 3; see `validation.json`), but `proof.mjs` changed in turn 6 (the fact's write
 is now whole-or-nothing, with two more writes and two renames per published
 entry), so the wrapper workload's `+175 µs` figure describes the earlier
-write path and not the current one; the analyzer change (turn 4), the
-analyzer's adversarial tests, the renamed fixture titles, the midway-write
-case and the docs are also later than it and not covered by it. The one
-failed case is expected to pass on the current head once "Free shipping over
-an amount" is an allowlisted name, and the new case is expected to pass, but
-those are expectations, not results: the coordinator reruns every check on the
-final source and supplies the final results for a proof-only update. Primary
-acceptance (correct private metrics with behavior unchanged, a report that
-survives a failed publication, negligible measured overhead, and the consumer
-reading the producer's shape) rests on that rerun:
+write path; the analyzer change (turn 4), the analyzer's adversarial tests,
+the renamed fixture titles, the midway-write case and the docs are also later
+than it. The coordinator's rerun on `c0b0338` (next section) covers all of
+them and is the acceptance evidence; this section is history.
+
+## Final coordinator acceptance at `c0b0338` (turn 8)
+
+The coordinator ran the three commands below independently on the frozen
+source `c0b03386a18f3bd4a367fc696c9463fce0df1d0a` with the pinned Node
+24.22.0 (linux arm64) in an isolated environment (own `HOME`, proof and
+profile folders, `DINKUS_E2E_ENV_FILE=/dev/null`), capturing the source
+hashes before and after (stable), and supplied the result files for this
+proof-only update. The commands, as this proof has listed them since turn 1:
 
 ```sh
 # from live-journeys/, with the pinned Node 24.22.0 as NODE, isolated HOME/proof/profile
@@ -328,36 +352,172 @@ env -i HOME="$TMP_HOME" PATH="$PATH" DINKUS_E2E_ENV_FILE=/dev/null \
   DINKUS_E2E_PROOF="$TMP_HOME/proof" DINKUS_E2E_PROFILE="$TMP_HOME/profile" \
   "$NODE" --test runner/unit/*.test.mjs
 "$NODE" proof/private-timing-20261107/benchmark.mjs \
-  --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 \
+  --base da61f2206486504eb4784571e6b15680328c5fc3 \
+  --candidate c0b03386a18f3bd4a367fc696c9463fce0df1d0a --samples 30 \
   --out proof/private-timing-20261107/benchmark-results.json
 ```
 
-The diagnostics test's new cases run about 110 `analyze` calls and 13 CLI
-passes against temporary folders, with no timers. The timing test takes about
-six seconds of real timers (five seeded sleeps of about 1.25 s each) and holds
-the thread for 0.4 s in the boundary case; the midway-write case adds no timer
-and a few file writes. Its
-time bounds leave 50 to 180 ms of headroom for a loaded machine; a bound that
-trips under heavy load is a test-tolerance matter, not a metric defect, and
-the assertion message prints the figure that tripped it.
+### Full offline unit suite
 
-The benchmark now also asserts the wrapper workload's work per sample exactly
-(the counts above) and the candidate's 25 published entries after every
-sample, and exits non-zero otherwise; a passing run therefore shows the
-candidate published every entry in every sample and the base none.
+| Figure | Value |
+| --- | --- |
+| Source | `c0b0338`, source hashes stable across the run ([unit-results.json](unit-results.json), which also lists every hashed file; its hashes for `pace.mjs`, `proof.mjs`, `steps.mjs`, the analyzer, the timing and diagnostics tests and the wrapper fixture equal `validation.json`'s and `git show c0b0338:<file>`, checked in turn 8) |
+| Tests | 229 |
+| Passed | 229 |
+| Failed, cancelled, skipped, todo | 0, 0, 0, 0 |
+| Suite wall time | 5,746 ms |
+| Exit code | 0 |
 
-Expected shape, unmeasured: per pace sleep, two `performance.now()` reads and
-four additions against a sleep of 250 ms or more; per journey, one counter
-copy, two clock reads, one step filter, one report load and one write of each
-of the two files to a temporary file plus its rename, the same class of work
-as one existing `note()` plus two renames, against journeys of one to fifteen
-minutes; per `startJourney`, one property delete. The benchmark's work counts
-must show equal timers and delays for base and candidate in every workload,
-zero timers in the no-wait and wrapper workloads, more file writes and the
-only renames in the candidate's wrapper workload, and zero unlinks in both. If
-the full suite shows sandbox subprocess
-failures in the unchanged `gmail` and `proof` tests, that is the known
-environment limit, not this change.
+The 229 include the fourteen timing cases (among them "a timing write that
+stops midway…", "a retry in a new worker…", "a later worker keeps every
+journey's timing…", now naming only allowlisted journeys) and the three
+adversarial analyzer cases; all passed. No sandbox subprocess failure appeared
+in the unchanged `gmail` and `proof` tests on the coordinator's host. The
+suite's full output stays in the coordinator's task folder (237 lines, the
+Node test reporter's per-test lines and totals); only its totals and hash
+record are copied here, since the raw log is not needed and the record holds
+no machine path.
+
+### Overhead benchmark, 30 interleaved pairs
+
+Script: `benchmark.mjs` at SHA-256
+`d0a5f86dcb5877dd813866f44bff9995bc6a6d7c0ed68d34d67bb11f66f9d53f`, unchanged
+across the run ([benchmark-manifest.json](benchmark-manifest.json)); base
+`da61f22`, candidate `c0b0338` read from immutable Git objects; exit 0. The
+raw results, with every per-sample microsecond figure, are copied as-is in
+[benchmark-results.json](benchmark-results.json) (the file names no machine
+path); a sanitized summary of the capture receipt (exit, wall and CPU seconds,
+peak RSS; the receipt's `argv` left out because it names the coordinator's
+workstation paths) is in [benchmark-capture.json](benchmark-capture.json).
+
+| Workload | Calls per sample | Base median per call | Candidate median per call | Median delta | Per-call min to max across the 30 samples (base / candidate) |
+| --- | --- | --- | --- | --- | --- |
+| `paceStore` with room, no wait | 10,000 | 0.356 µs | 0.356 µs | +0.001 µs | 0.345 to 1.097 µs / 0.346 to 0.932 µs |
+| Forced single sleep (fake clock) | 200 | 125.34 µs | 125.855 µs | +0.515 µs | 123.77 to 178.175 µs / 124.175 to 138.23 µs |
+| Completed wrapped journey | 25 | 124.16 µs | 305.76 µs | +181.6 µs | 114 to 139.2 µs / 236.68 to 329.76 µs |
+
+The first two deltas are within the sample-to-sample spread of either variant
+(the no-wait p90 is 0.87 µs for the base and 0.84 µs for the candidate; the
+forced-sleep min-to-max spread is 54 µs for the base and 14 µs for the
+candidate); no improvement and no
+measurable cost is claimed for them. The wrapper delta is real and is the
+fact's publication: one report read and, for each of the two files, a write
+to the temporary file and a rename, against a journey body that in a real run
+is one to fifteen minutes. It is a small-fixture figure (the fixture's journey
+body is empty, so the whole 306 µs is wrapper and file work on the
+coordinator's disk), not live speed; it says the publication costs well under
+a millisecond per journey on that machine and nothing about a run's time.
+
+Work per sample, identical in every sample of both variants:
+
+| Workload | Timers / delay | Base file work | Candidate file work |
+| --- | --- | --- | --- |
+| No wait | 0 / 0 ms in both | | |
+| Forced single sleep | 200 / 12,050,000 ms in both | | |
+| Wrapped journeys (25) | 0 / 0 ms in both | 100 writes, 0 reads, 0 renames, 0 unlinks | 150 writes, 25 reads, 50 renames, 0 unlinks |
+
+So no timer, delay, network call (none bound; the static import check passed
+for all three modules in both revisions) or unlink was added, and the only
+new file work is the candidate's two temporary-file writes, two renames and
+one read per published entry. The turn 7 publication check passed in every
+sample: 30 base samples with no timing fact, 30 candidate samples each with
+exactly 25 well-formed single-try entries, 750 entries in all
+(`wrapper_samples_checked` in the results), each `{ unit: "ms", tries: [one
+entry] }` with the eight producer keys in order.
+
+### Portable local-browser producer and consumer proof
+
+The coordinator also wrote and ran a portable 76-line script,
+[portable/producer-consumer-proof.mjs](portable/producer-consumer-proof.mjs),
+that drives actual Playwright 1.61.1 and a Chromium against a loopback
+(`127.0.0.1`) fixture page with the production `browser.mjs`, `steps.mjs`,
+`pace.mjs`, `proof.mjs`, the verdict reporter, `run-summary.mjs` and the
+diagnostics analyzer, every one read from immutable Git objects at the named
+commit (never the working tree) and hashed into
+[portable/source-manifest.json](portable/source-manifest.json). Its thirteen
+hashes equal `git show c0b0338:runner/<file>` for every file (checked in turn
+8). Instructions and limits are in [portable/README.md](portable/README.md);
+the exact command, from this folder, with the pinned Node, the existing
+`runner/node_modules` and a Chromium binary:
+
+```sh
+env -i PATH=/usr/bin:/bin "$NODE_24_22_0" ./portable/producer-consumer-proof.mjs \
+  --repo ../.. \
+  --ref c0b03386a18f3bd4a367fc696c9463fce0df1d0a \
+  --playwright ../../runner/node_modules \
+  --chromium "$CHROMIUM"
+```
+
+It installs nothing, writes only under a fresh system temporary directory,
+makes no request beyond the loopback fixture, and hands the analyzer an
+explicitly synthetic selection receipt, so no GitHub, R2 or private read
+happens. The existing manual diagnostic transport (`verify`, `fetch`) is never
+called. The coordinator's run against `c0b0338`, copied as-is in
+[portable/result.json](portable/result.json):
+
+| Invocation | Run / journey verdict | Try | Body | `body_ms` | `pace_sleeps` | requested / measured / wall ms | Worker |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| pass | PASS / PASS | 1 | returned, PASS | 1,925 | 1 | 1,224 / 1,226 / 1,226 | 0 |
+| retry | PASS / FLAKY | 1 | threw, FAIL | 1,988 | 1 | 1,224 / 1,226 / 1,226 | 0 |
+| retry | PASS / FLAKY | 2 | returned, PASS | 2,016 | 1 | 1,218 / 1,220 / 1,220 | 1 |
+
+Both Playwright invocations and both analyzer calls exited 0 with empty
+analyzer stderr. The seeded request log (100 requests 59 s old) caused one
+real pacing sleep per try, and each body covers its sleep. The failed first
+try's entry was retained beside the retry's, and Playwright ran the retry in a
+different worker (index 1), so the entry crossed a real worker restart. The
+analyzer's projection equalled the producer's fact (`assert.deepEqual`), and
+neither the default public summary nor Playwright's stdout carried
+`body_ms`, `pace_sleep` or the fact's name.
+
+Limits: this is functional local-browser evidence of producer and consumer
+agreement on a synthetic journey, not live-store performance, authenticated
+behavior, interruption, disk failure, video or private-transport proof; the
+disposable fixture alone enables one retry for its synthetic test, and the
+production roster, selection, assertions and retry policy are unchanged. In an
+earlier, non-portable run at `c0b0338` the coordinator's audit also noted that
+the fact's write replaces each of `report.json` and `PROOF.md` atomically but
+not as one transaction across both, so a report that succeeds and a Markdown
+that fails can leave a valid report newer than its `PROOF.md`; the README's
+"Private timing" section states the per-file behavior, and nothing reads the
+Markdown back. No screenshot, browser profile or raw log is copied into this
+proof.
+
+### Files added in turn 8 and what each is
+
+| File | What it is | SHA-256 of the copy here |
+| --- | --- | --- |
+| `benchmark-results.json` | The final benchmark's output, as written by `benchmark.mjs --out` | `15951da0…8150` |
+| `benchmark-manifest.json` | Candidate, script hash, script unchanged, exit code | `f686b8eb…106f` |
+| `benchmark-capture.json` | Sanitized summary of the capture receipt | `da20daa4…90d2` |
+| `unit-results.json` | The suite's head, exit, hash record and totals | `4510abe0…173a` |
+| `portable/producer-consumer-proof.mjs` | The portable local-browser script | `506f1b9e…1b76` |
+| `portable/README.md` | Its instructions and limits | `0e8386be…d575` |
+| `portable/result.json` | Its run against `c0b0338` | `28b73ecd…f826` |
+| `portable/source-manifest.json` | The import closure it hashed at `c0b0338` | `8846b20c…2515` |
+
+This worker's tool surface can read but not copy or hash files outside its
+workspace, so each copy was transcribed from the coordinator's file as read
+and the hashes above are of the copies in this folder (full values in
+`validation.json`); the raw capture receipt's own SHA-256 is therefore not
+recorded, and the coordinator can add it. The copies were checked after
+writing: every JSON parses, no file names a machine path, and the hash values
+they carry equal the frozen commit's files as stated above.
+
+### What the final results establish, and what they do not
+
+Primary acceptance holds on the coordinator's evidence: the private metrics
+are produced in the documented shape and read back by the existing consumer
+(229 of 229 offline tests, the local-browser proof with a real retry across
+workers), existing behavior is unchanged (equal timers, delays and outcomes;
+the public summary and console show nothing new), a failed publication leaves
+the report whole (the midway-write case), and the publication's cost is a few
+hundred microseconds of file work per journey in a small fixture with no
+added timer, wait, network call or unlink. Not established, and not claimed:
+any live observed performance, any attribution of a real run's time (that
+needs a future, separately authorized full run and read; the one approved
+diagnostics read is consumed), and anything the portable proof's limits above
+exclude. Nothing is deployed.
 
 No live run, store, mail, credential, private report or external request was
 made or requested. No push, PR, review or merge by this worker.

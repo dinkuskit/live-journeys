@@ -7,7 +7,11 @@
   "turn_4_commit": "3a7f913a7dffb8ff526c3f4aac1368ccf391d6ef",
   "turn_5_commit": "7bd7379e5d58b7b8c0ab35a573e87df4b6583a16",
   "turn_6_commit": "c0b03386a18f3bd4a367fc696c9463fce0df1d0a",
-  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turns 3 to 7 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted, retried or delegated",
+  "turn_7_commit": "d28057bdd86673375d86c1204d3b47a589614071",
+  "frozen_source": "c0b03386a18f3bd4a367fc696c9463fce0df1d0a",
+  "frozen_source_equivalence": "git diff --stat c0b0338 d28057b -- runner references is empty (checked in turn 8); d28057b and the turn 8 commit change only proof/private-timing-20261107/; benchmark.mjs at d28057b (d0a5f86d...) is the script the final benchmark ran, benchmark.mjs at c0b0338 hashed 8a51651400f3369df018c1f83f76f070354abdb33944539682b36219123978a5 and was not used for the final figures",
+  "turn_8_changes": "proof-only: PROOF.md, STATE.md, validation.json, events.jsonl, heartbeat updated; coordinator result copies added (benchmark-results.json, benchmark-manifest.json, sanitized benchmark-capture.json, unit-results.json, portable/ with the local-browser script, README, result and source manifest); no runner, reference, test or benchmark source change; no experiment",
+  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy in turns 1 and 2 (pinned Node 24.22.0 --version/--check/--test, PATH Node beyond --version, npm ci, delegated subagent); in turns 3 to 8 the coordinator stated Node is intentionally unavailable on this worker's tool surface and nothing was attempted, retried or delegated",
   "platform": "Linux aarch64",
   "source_sha256": {
     "runner/support/pace.mjs": "847a3c26c4b1091ed56ce9b14933ec8a0092d64d5f340d44dcfbbd48515a5a3c",
@@ -36,19 +40,57 @@
     "coordinator_files": ["producer-unit.log", "producer-unit.json", "producer-benchmark-results.json", "capture-producer/", "real-playwright/PROOF.md", "real-playwright/source-manifest.json"],
     "covers_current_head": "partly: steps.mjs byte-identical since d637573 and pace.mjs a comment-only change in turn 3, but proof.mjs changed in turn 6 (whole-or-nothing timing write: two more writes and two renames per published entry), so the +175 us wrapper figure is historical; the analyzer change, its adversarial tests, the title renames, the midway-write case and the docs are later and need the coordinator's rerun"
   },
+  "coordinator_final_acceptance": {
+    "at_commit": "c0b03386a18f3bd4a367fc696c9463fce0df1d0a",
+    "node": "24.22.0 pinned, linux arm64, isolated HOME/proof/profile, DINKUS_E2E_ENV_FILE=/dev/null, source hashes stable before and after",
+    "unit_full": { "tests": 229, "passed": 229, "failed": 0, "cancelled": 0, "skipped": 0, "todo": 0, "duration_ms": 5745.794752, "exit": 0, "record": "unit-results.json", "sandbox_subprocess_failures": 0 },
+    "benchmark": {
+      "script_sha256": "d0a5f86dcb5877dd813866f44bff9995bc6a6d7c0ed68d34d67bb11f66f9d53f", "script_unchanged": true, "base": "da61f2206486504eb4784571e6b15680328c5fc3", "candidate": "c0b03386a18f3bd4a367fc696c9463fce0df1d0a", "samples": 30, "exit": 0,
+      "timers_and_delays": "equal per variant in every workload (no-wait 0/0 ms; forced sleep 200 timers/12050000 ms; wrapper 0/0 ms)",
+      "median_per_call_us": { "no_wait": { "base": 0.356, "candidate": 0.356, "delta": 0.001 }, "forced_sleep": { "base": 125.34, "candidate": 125.855, "delta": 0.515 }, "completed_wrapper": { "base": 124.16, "candidate": 305.76, "delta": 181.6 } },
+      "per_call_min_max_us": { "no_wait": { "base": [0.345, 1.097], "candidate": [0.346, 0.932] }, "forced_sleep": { "base": [123.77, 178.175], "candidate": [124.175, 138.23] }, "completed_wrapper": { "base": [114, 139.2], "candidate": [236.68, 329.76] } },
+      "work_per_sample": { "base": { "writes": 100, "reads": 0, "renames": 0, "unlinks": 0 }, "candidate": { "writes": 150, "reads": 25, "renames": 50, "unlinks": 0 } },
+      "wrapper_samples_checked": { "base": { "samples": 30, "timing_facts": 0 }, "candidate": { "samples": 30, "timing_facts": 25, "entries": 750 } },
+      "capture": { "wall_seconds": 2.210107900999901, "user_seconds": 2.470472, "system_seconds": 0.138732, "max_rss_kib": 86960, "raw_receipt_sha256": null, "note": "argv of the receipt names the coordinator's workstation paths and is left out; the receipt's own hash could not be computed from this worker's tool surface" },
+      "files": ["benchmark-results.json", "benchmark-manifest.json", "benchmark-capture.json"],
+      "improvement_claimed": false, "live_speed_claimed": false,
+      "reading": "the first two deltas are within either variant's sample spread; the wrapper delta is the publication's file work (one read, two temporary-file writes, two renames per entry) in a fixture whose journey body is empty"
+    },
+    "portable_local_browser_proof": {
+      "files": ["portable/producer-consumer-proof.mjs", "portable/README.md", "portable/result.json", "portable/source-manifest.json"],
+      "script_lines": 76, "source": "13 runner files read from immutable Git objects at c0b0338 and hashed; each hash equals git show c0b0338:runner/<file> (checked in turn 8)", "playwright": "1.61.1", "node": "v24.22.0", "fixture": "loopback 127.0.0.1 page, seeded request log of 100 requests 59 s old, synthetic Manage products test with retry enabled in the disposable fixture only",
+      "pass": { "run": "PASS", "journey": "PASS", "tries": [ { "try": 1, "body": "returned", "verdict": "PASS", "body_ms": 1925, "pace_sleeps": 1, "pace_sleep_requested_ms": 1224, "pace_sleep_ms": 1226, "pace_sleep_wall_ms": 1226, "worker": 0 } ] },
+      "retry": { "run": "PASS", "journey": "FLAKY", "tries": [ { "try": 1, "body": "threw", "verdict": "FAIL", "body_ms": 1988, "pace_sleeps": 1, "pace_sleep_requested_ms": 1224, "pace_sleep_ms": 1226, "pace_sleep_wall_ms": 1226, "worker": 0 }, { "try": 2, "body": "returned", "verdict": "PASS", "body_ms": 2016, "pace_sleeps": 1, "pace_sleep_requested_ms": 1218, "pace_sleep_ms": 1220, "pace_sleep_wall_ms": 1220, "worker": 1 } ] },
+      "analyzer_projection_equals_fact": true, "analyzer_stderr_empty": true, "public_summary_and_stdout_omit_timing": true, "existing_transport_called": false, "live_io": false, "exit_codes": [0, 0],
+      "limits": "functional local-browser producer/consumer agreement only: not live-store performance, authenticated behavior, interruption, disk failure, video or private-transport proof; production roster, selection, assertions and retry policy unchanged; the fact's write is atomic per file, not one transaction across report.json and PROOF.md"
+    },
+    "copies_in_this_folder_sha256": {
+      "benchmark-results.json": "15951da0ef52a733b8d5b1b759f3216c3b2aea355ffccd4b35961179b93f8150",
+      "benchmark-manifest.json": "f686b8ebc4b9a0f274bd11a266acadc3d218a4549c05f299796ab1079eb3106f",
+      "benchmark-capture.json": "da20daa4bc73c8f74fe87a384e8d3a9233f3511c1f3517ac1b022088fbc890d2",
+      "unit-results.json": "4510abe0911c41029f3f58f07d2dde570212869b955797cb7367b0a57a90173a",
+      "portable/producer-consumer-proof.mjs": "506f1b9e7c1c40a438a0b2d0388700b5c1d7d9f463c4fa403bbd2fe3b5021b76",
+      "portable/README.md": "0e8386bec226492897182475b1159536261d670ab328cc82255af56bc58ed575",
+      "portable/result.json": "28b73ecd2388b6547fb8d50b02c2e98f6e91b0b1b3f16802b3769515a9eaf826",
+      "portable/source-manifest.json": "8846b20c22b7bd7bac374ad004f2145b24e922fb3007f626c5710ee7352dc515",
+      "note": "transcribed from the coordinator's files as read (the tool surface cannot copy or hash outside the workspace); hashes are of these copies; every JSON parses; no copy names a machine path"
+    }
+  },
   "checks": {
     "git_diff_check": { "exit": 0 },
-    "syntax_check": { "command": "node --check runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs runner/scripts/report-diagnostics.mjs proof/private-timing-20261107/benchmark.mjs", "run": false, "reason": "no Node on this worker; proof-read only" },
-    "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs", "run": false, "reason": "no Node on this worker" },
-    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "no Node on this worker", "coordinator_at_d637573": "224 tests, 223 passed, 1 fixture failure (see coordinator_producer_acceptance); historical, to be rerun on the final source" },
-    "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "no Node on this worker", "coordinator_at_d637573": "30 pairs passed, equal timers and delays per variant (see coordinator_producer_acceptance); historical, to be rerun on the final source", "since_turn_7": "a passing run also attests that the candidate published every entry in every wrapper sample with the exact expected work, and that every module's imports were bound" }
+    "syntax_check": { "command": "node --check runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs runner/scripts/report-diagnostics.mjs proof/private-timing-20261107/benchmark.mjs", "run": false, "reason": "no Node on this worker; the coordinator's suite and benchmark runs at c0b0338 are the evidence these files parse" },
+    "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs runner/unit/report-diagnostics.test.mjs", "run": false, "reason": "no Node on this worker; covered by the coordinator's full suite at c0b0338 (all 17 timing and analyzer cases passed)" },
+    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "no Node on this worker", "coordinator_at_d637573": "224 tests, 223 passed, 1 fixture failure (see coordinator_producer_acceptance); historical", "coordinator_at_3a7f913": "228 tests, 227 passed, 1 fixture failure (Free shipping title); historical", "coordinator_at_c0b0338": "229 tests, 229 passed, 0 failed, exit 0; final (see coordinator_final_acceptance)" },
+    "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --candidate c0b03386a18f3bd4a367fc696c9463fce0df1d0a --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "no Node on this worker", "coordinator_at_d637573": "30 pairs passed, equal timers and delays per variant, +175 us per wrapped journey; historical, earlier write path", "coordinator_at_c0b0338": "30 pairs passed, exit 0, equal timers and delays, +0.001/+0.515/+181.6 us, 750 entries verified; final (see coordinator_final_acceptance and benchmark-results.json)", "since_turn_7": "a passing run also attests that the candidate published every entry in every wrapper sample with the exact expected work, and that every module's imports were bound" },
+    "portable_local_browser_proof": { "command": "env -i PATH=/usr/bin:/bin \"$NODE_24_22_0\" ./portable/producer-consumer-proof.mjs --repo ../.. --ref c0b03386a18f3bd4a367fc696c9463fce0df1d0a --playwright ../../runner/node_modules --chromium \"$CHROMIUM\"", "run_by_this_worker": false, "coordinator_at_c0b0338": "both invocations and both analyzer calls exited 0; see coordinator_final_acceptance" }
   },
   "claims": {
     "live_performance": false,
-    "overhead_measured": false,
-    "attribution_from_a_real_run": "none: offline fixtures prove producer and consumer agree on the shape; a future, separately authorized full run and read is needed, and the one approved diagnostics read is consumed",
+    "overhead_measured": "by the coordinator at c0b0338, offline, small fixture: +0.001 us per no-wait paceStore call, +0.515 us per forced sleep (both within spread), +181.6 us per completed wrapped journey (the publication's file work); not live speed",
+    "attribution_from_a_real_run": "none: offline fixtures and the loopback local-browser proof show producer and consumer agree on the shape and numbers; a future, separately authorized full run and read is needed, and the one approved diagnostics read is consumed",
+    "consumer_reads_producer": "shown at c0b0338: the later-worker unit case and the portable local-browser proof both had the actual analyzer project the producer's fact equal to what was written, with the default public summary omitting it",
     "additional_network_calls": "none by construction: pace.mjs, proof.mjs and steps.mjs import only node:fs, node:path and runner modules (turn 6 adds renameSync and unlinkSync from node:fs); the benchmark asserts this statically and binds no network API; the analyzer change adds no import",
-    "report_survives_failed_publication": "by construction since turn 6: the fact's files are written to a .tmp and renamed over, so a write that stops midway leaves report.json and PROOF.md as the journey's steps left them; pinned offline by the midway-write case, which the coordinator runs",
+    "report_survives_failed_publication": "by construction since turn 6: the fact's files are written to a .tmp and renamed over, so a write that stops midway leaves report.json and PROOF.md as the journey's steps left them; pinned offline by the midway-write case, which passed in the coordinator's suite at c0b0338; atomic per file, not one transaction across both files",
     "additional_scheduled_waits": "none by construction: the only timer in paceStore is unchanged and its delay is now also recorded as requested time; the benchmark counts timers and delays per variant",
     "pacing_decisions": "unchanged: Date.now() and the request log decide every wait; performance.now() only measures",
     "consumer_boundary": "unchanged: verify, fetch, clean, the workflow file, selectors, credential refusal and run-summary.mjs are untouched; the existing workflow tests still pin them"

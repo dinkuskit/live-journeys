@@ -1,0 +1,410 @@
+{
+  "node": "v24.22.0",
+  "platform": "linux arm64",
+  "base": "da61f2206486504eb4784571e6b15680328c5fc3",
+  "candidate": "c0b03386a18f3bd4a367fc696c9463fce0df1d0a",
+  "samples": 30,
+  "workloads": {
+    "pace-no-wait": {
+      "calls_per_sample": 10000,
+      "samples_us": {
+        "base": [
+          10970,
+          8349,
+          8659,
+          8172,
+          8996,
+          4126,
+          3556,
+          5588,
+          3653,
+          3769,
+          3474,
+          3557,
+          3707,
+          3472,
+          3455,
+          3482,
+          3484,
+          3478,
+          3471,
+          3495,
+          3479,
+          3771,
+          3483,
+          3760,
+          3493,
+          3504,
+          3592,
+          3487,
+          3549,
+          3495
+        ],
+        "candidate": [
+          9324,
+          8698,
+          7982,
+          8417,
+          7120,
+          3599,
+          3565,
+          4760,
+          4429,
+          3897,
+          3545,
+          3818,
+          3461,
+          3472,
+          3610,
+          3506,
+          4034,
+          3486,
+          3474,
+          3608,
+          3474,
+          3479,
+          3484,
+          3480,
+          3489,
+          3503,
+          3779,
+          3483,
+          3495,
+          3548
+        ]
+      },
+      "work_per_sample": {
+        "base": {
+          "timers": 0,
+          "delay_ms": 0
+        },
+        "candidate": {
+          "timers": 0,
+          "delay_ms": 0
+        }
+      },
+      "same_timers_and_delays": true,
+      "per_sample_us": {
+        "base": {
+          "min": 3455,
+          "median": 3556,
+          "p90": 8659,
+          "max": 10970,
+          "mean": 4551
+        },
+        "candidate": {
+          "min": 3461,
+          "median": 3565,
+          "p90": 8417,
+          "max": 9324,
+          "mean": 4434
+        }
+      },
+      "per_call_us": {
+        "base": {
+          "min": 0.345,
+          "median": 0.356,
+          "p90": 0.866,
+          "max": 1.097,
+          "mean": 0.455
+        },
+        "candidate": {
+          "min": 0.346,
+          "median": 0.356,
+          "p90": 0.842,
+          "max": 0.932,
+          "mean": 0.443
+        }
+      },
+      "median_delta_per_call_us": 0.001
+    },
+    "pace-one-sleep": {
+      "calls_per_sample": 200,
+      "samples_us": {
+        "base": [
+          35635,
+          25339,
+          25099,
+          25102,
+          25140,
+          25091,
+          25133,
+          25023,
+          25142,
+          25080,
+          25108,
+          24977,
+          24998,
+          24942,
+          25170,
+          25378,
+          25418,
+          24930,
+          24924,
+          24945,
+          24922,
+          24880,
+          25299,
+          24903,
+          25035,
+          25068,
+          25042,
+          24766,
+          24754,
+          24786
+        ],
+        "candidate": [
+          27646,
+          25568,
+          25263,
+          25106,
+          25177,
+          25206,
+          25173,
+          25148,
+          25247,
+          25168,
+          25876,
+          25021,
+          25006,
+          24985,
+          25693,
+          25578,
+          25171,
+          25304,
+          24931,
+          25093,
+          24976,
+          24987,
+          25035,
+          24921,
+          25046,
+          25245,
+          25223,
+          25228,
+          24835,
+          24842
+        ]
+      },
+      "work_per_sample": {
+        "base": {
+          "timers": 200,
+          "delay_ms": 12050000
+        },
+        "candidate": {
+          "timers": 200,
+          "delay_ms": 12050000
+        }
+      },
+      "same_timers_and_delays": true,
+      "per_sample_us": {
+        "base": {
+          "min": 24754,
+          "median": 25068,
+          "p90": 25378,
+          "max": 35635,
+          "mean": 25401
+        },
+        "candidate": {
+          "min": 24835,
+          "median": 25171,
+          "p90": 25693,
+          "max": 27646,
+          "mean": 25257
+        }
+      },
+      "per_call_us": {
+        "base": {
+          "min": 123.77,
+          "median": 125.34,
+          "p90": 126.89,
+          "max": 178.175,
+          "mean": 127.005
+        },
+        "candidate": {
+          "min": 124.175,
+          "median": 125.855,
+          "p90": 128.465,
+          "max": 138.23,
+          "mean": 126.285
+        }
+      },
+      "median_delta_per_call_us": 0.515
+    },
+    "journey-wrapper": {
+      "calls_per_sample": 25,
+      "samples_us": {
+        "base": [
+          3391,
+          3357,
+          3241,
+          3093,
+          3090,
+          3114,
+          3229,
+          3093,
+          3144,
+          3311,
+          3198,
+          3480,
+          3104,
+          3052,
+          3159,
+          3038,
+          3055,
+          3141,
+          3150,
+          3111,
+          3072,
+          3142,
+          3057,
+          3030,
+          3099,
+          2881,
+          2850,
+          2995,
+          3035,
+          2978
+        ],
+        "candidate": [
+          5917,
+          8244,
+          7847,
+          7834,
+          7784,
+          7758,
+          8139,
+          7722,
+          7738,
+          7517,
+          7688,
+          7730,
+          7683,
+          7702,
+          7644,
+          7628,
+          8095,
+          7709,
+          7627,
+          7291,
+          7003,
+          6697,
+          6720,
+          6655,
+          6777,
+          6593,
+          6743,
+          6797,
+          6930,
+          6783
+        ]
+      },
+      "work_per_sample": {
+        "base": {
+          "timers": 0,
+          "delay_ms": 0,
+          "writes": 100,
+          "reads": 0,
+          "renames": 0,
+          "unlinks": 0
+        },
+        "candidate": {
+          "timers": 0,
+          "delay_ms": 0,
+          "writes": 150,
+          "reads": 25,
+          "renames": 50,
+          "unlinks": 0
+        }
+      },
+      "same_timers_and_delays": true,
+      "per_sample_us": {
+        "base": {
+          "min": 2850,
+          "median": 3104,
+          "p90": 3357,
+          "max": 3480,
+          "mean": 3123
+        },
+        "candidate": {
+          "min": 5917,
+          "median": 7644,
+          "p90": 8095,
+          "max": 8244,
+          "mean": 7367
+        }
+      },
+      "per_call_us": {
+        "base": {
+          "min": 114,
+          "median": 124.16,
+          "p90": 134.28,
+          "max": 139.2,
+          "mean": 124.92
+        },
+        "candidate": {
+          "min": 236.68,
+          "median": 305.76,
+          "p90": 323.8,
+          "max": 329.76,
+          "mean": 294.68
+        }
+      },
+      "median_delta_per_call_us": 181.6
+    }
+  },
+  "wrapper_samples_checked": {
+    "base": {
+      "samples": 30,
+      "timing_facts": 0
+    },
+    "candidate": {
+      "samples": 30,
+      "timing_facts": 25,
+      "entries": 750
+    },
+    "expected_work_per_sample": {
+      "base": {
+        "timers": 0,
+        "delay_ms": 0,
+        "writes": 100,
+        "reads": 0,
+        "renames": 0,
+        "unlinks": 0
+      },
+      "candidate": {
+        "timers": 0,
+        "delay_ms": 0,
+        "writes": 150,
+        "reads": 25,
+        "renames": 50,
+        "unlinks": 0
+      }
+    },
+    "entry_keys": [
+      "try",
+      "body",
+      "verdict",
+      "body_ms",
+      "pace_sleeps",
+      "pace_sleep_requested_ms",
+      "pace_sleep_ms",
+      "pace_sleep_wall_ms"
+    ]
+  },
+  "candidate_fact_example": {
+    "unit": "ms",
+    "tries": [
+      {
+        "try": 1,
+        "body": "returned",
+        "verdict": "PASS",
+        "body_ms": 0,
+        "pace_sleeps": 0,
+        "pace_sleep_requested_ms": 0,
+        "pace_sleep_ms": 0,
+        "pace_sleep_wall_ms": 0
+      }
+    ]
+  }
+}
