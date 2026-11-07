@@ -84,7 +84,8 @@ test("Install the Registry plugins", { tag: "@running" }, journey(async ({ page 
     if (missing.length) throw new Error(`Plugins still doesn't list ${missing.map(plugin => `${plugin.name} ${plugin.version}`).join(", ")}.`);
     const moved = have.filter(plugin => plugin.installed !== plugin.version && plan.find(item => item.name === plugin.name)?.install);
     if (moved.length) throw new Error(`Plugins lists ${moved.map(plugin => `${plugin.name} ${plugin.installed}, not ${plugin.version}`).join("; ")}.`);
-    await page.waitForTimeout(FOLLOW);
+    // Verification is complete; this last pause is only for a viewer.
+    if (!config.headless || config.video) await page.waitForTimeout(FOLLOW);
     return have.map(plugin => `${plugin.listing ?? plugin.name} ${plugin.installed}`).join(", ");
   });
 }));
