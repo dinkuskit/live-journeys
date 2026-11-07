@@ -83,7 +83,7 @@ directory or the named `--out`, and make no request beyond loopback.
 
 ## Prototype evidence (history, not this commit)
 
-The 2026-11-06 prototype at the base (uncommitted patched copy `9e32d2f1…998a4`) first reproduced the
+The 2026-11-07 prototype at the base (uncommitted patched copy `9e32d2f1…998a4`) first reproduced the
 defect: immutable median 4634.716 ms to 9.635 ms over three pairs, `no-store` 4678.943 ms to 4631.608 ms,
 16 model cases passed. The prototype's `failed` flag was recorded but not applied; the portable model
 here applies it. Samples: [prototype-browser-summary.json](prototype-browser-summary.json) (temporary paths
