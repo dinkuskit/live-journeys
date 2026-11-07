@@ -6,8 +6,10 @@
     ".github/workflows/report-diagnostics.yml": "c19e9e6ad02d728e8ae5ddb402a4bd64270eb53089c0ec189e590b1033f784ad",
     "runner/scripts/report-diagnostics.mjs": "3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80",
     "runner/unit/report-diagnostics.test.mjs": "b56d302b614d68aa252d85b293bb594f96a95b518be4d0331d25e667fb9e215b",
-    "references/report-diagnostics.md": "ad56dffbdd97c826a7760fdbca1161c3e1a617cb15d183d9576c5aedc04f562f",
-    "runner/README.md": "fb0b80f4d128a367437d0acc4f40a93704071cb057db5cf9bef7bdbb56e2e074"
+    "references/report-diagnostics.md": "606bd81a5eaa2bec9bc9ac10dfeed0629e0e1ceb3e54c801c55da7f5d0ea60b6",
+    "runner/README.md": "fb0b80f4d128a367437d0acc4f40a93704071cb057db5cf9bef7bdbb56e2e074",
+    ".github/workflows/live-journeys.yml": "d112b3b33d0f3dda0afdcd49ece18823ee92bac49ddb01fdf34d595c73e404d0",
+    "runner/unit/report-qualification.test.mjs": "66d977d44703b1ac7423b02ab02d58deb74f34b165b2bf6942784db9bc54724a"
   },
   "local_validation_sha256": {
     "targeted.log": "1aeaed32b7c06584a85611e509475aa4e65a96d174455485fa395af523025b7d",
@@ -114,6 +116,77 @@
         "private",
         "Volumes"
       ],
+      "matched_literals_printed": false
+    }
+  },
+  "qualification_preparation": {
+    "source_parent": "9a6260a8950cdc58dd16c8bc502de5a600bf5d7c",
+    "status": "source-only; owner approval pending",
+    "targeted": {
+      "command": "node --test --test-isolation=none runner/unit/report-diagnostics.test.mjs runner/unit/report-qualification.test.mjs",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "node": "v24.22.0",
+      "environment": "empty environment; temporary HOME/proof/profile; env file /dev/null",
+      "log_label": "qualification-targeted.log",
+      "log_sha256": "f0fd69ca4c751d77e498270865f8aac9f925af9eba5af18d826470ffc387cbfc"
+    },
+    "offline_workflow_checks": {
+      "yaml_parse": "passed",
+      "shell_outcome_cases": 21,
+      "shell_pin_cases": 3,
+      "fixed_stdout_stderr": "passed",
+      "scope": "workflow scripts and restricted routing expressions; not GitHub runtime proof"
+    },
+    "full_suite": {
+      "command": "node --test runner/unit/*.test.mjs",
+      "exit": 1,
+      "failed_files": [
+        "gmail.test.mjs",
+        "proof.test.mjs"
+      ],
+      "limitation": "same sandbox subprocess EPERM; no current-head full-suite pass claimed",
+      "log_label": "qualification-full-suite.log",
+      "log_sha256": "876b43310f28db9f8c363aae4651ef190d645947f5a1ea3aa525a0d50180055d",
+      "file_passes": 25,
+      "file_failures": 2
+    },
+    "permanent_reader_unchanged": true,
+    "production_qualification": "needs-evidence; not dispatched",
+    "allowed_run": "42337050608",
+    "allowed_attempt": "1",
+    "negative_cases": [
+      [
+        "42342624009",
+        "1"
+      ],
+      [
+        "42342657068",
+        "1"
+      ],
+      [
+        "42337050608",
+        "9999"
+      ]
+    ],
+    "credential_access": false,
+    "private_io": false,
+    "dispatch": false,
+    "push": false,
+    "merge": false,
+    "next": "coordinator reviews source, obtains explicit owner approval before one qualification; removes temporary route and renews final-head reviews before authorized merge",
+    "subprocess_diagnosis": {
+      "command": "node --test --test-isolation=none runner/unit/gmail.test.mjs runner/unit/proof.test.mjs",
+      "passed": 14,
+      "failed": 9,
+      "EPERM_observed": true,
+      "log_label": "qualification-subprocess-diagnosis.log",
+      "log_sha256": "2c9c927c8afecf48daf5545d725607339fa0cc13971536c5096f948c44b77db5"
+    },
+    "private_path_audit": {
+      "audited_files": 12,
+      "matches": 0,
       "matched_literals_printed": false
     }
   }

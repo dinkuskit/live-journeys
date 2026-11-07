@@ -14,9 +14,11 @@ integer record counts. Unknown schema/journey/identity fails closed. Private
 AWS output is discarded even on error. The [consumer contract](../../references/report-diagnostics.md)
 records binding, boundaries and the approval gate.
 
-The live workflow, journey assertions, default public summary, credentials,
-account configuration and auth mode are unchanged. No private-proof access or
-activation was performed for this repair.
+The original privacy repair left live behavior unchanged. The subsequent
+temporary qualification preparation below adds a gated mode to the live
+workflow; journey assertions, default public summary, credentials, account
+configuration and auth mode remain unchanged. No private-proof access or
+activation was performed.
 
 ## Offline checks
 
@@ -95,3 +97,39 @@ requires its own explicit authorized scope; this repair grants none.
 The hosted runner's AWS path/availability, R2 binding/readability and actual
 selected report remain untested. A binding mismatch fails closed; it is not
 permission to change credentials or account settings.
+
+
+## Temporary premerge qualification preparation
+
+Prepared on privacy-repair parent `9a6260a8950cdc58dd16c8bc502de5a600bf5d7c`.
+The already registered `live-journeys.yml` now has a temporary false-by-default
+qualification mode, bound to the exact task branch, actor ID `159389674`, first
+attempt, and caller-supplied approved full head matching `github.sha` and the
+checkout. Before credentials, the unmodified production reader's SHA-256 is
+checked. The permanent main-only workflow and reader script are unchanged.
+
+The normal live journey job is skipped whenever qualification is requested,
+even when other qualification gates fail. A fixed matrix uses the same
+production verify/fetch/analyze/clean commands for one allowed report and three
+negative metadata cases. Fetch requires successful verification AND the fixed
+allowed case. Negative cases require verification failure, fetch/analyze skipped
+and cleanup success. Existing R2 secret references occur only on the fetch step;
+no new credentials, fake AWS or production access were used in preparation.
+
+Offline checks on Node v24.22.0: **11 targeted tests passed, 0 failed/skipped**.
+The workflow parses as YAML; actual shell bodies passed **21 outcome cases**
+and **3 head-pin cases**, with only fixed output. Routing tests exercise the
+owned workflow expressions and ensure no normal journey runs in qualification
+mode. These are static/local checks, not GitHub runtime or real-owner proof.
+Full canonical suite was attempted and failed in the same two unchanged
+subprocess test files (`gmail.test.mjs`, `proof.test.mjs`) with sandbox `EPERM`.
+Earlier coordinator 211-pass evidence remains historical, not this head's pass.
+Portable log labels and hashes are recorded in `validation.json`.
+
+The [permission packet and command](../../references/report-diagnostics.md#permission-packet-and-exact-command)
+require explicit approval of one run and one bounded read of run `42337050608`,
+attempt `1`. Optional conditional merge authority must be explicit. No dispatch,
+private read, credential access, push or merge occurred. Production qualification
+remains **needs-evidence**. The temporary route and its tests must be removed
+before final-head CI and both required reviews; the permanent main-only gate
+must remain intact. Coordinator owns review, approval, dispatch and closeout.

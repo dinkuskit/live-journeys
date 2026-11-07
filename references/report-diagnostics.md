@@ -8,7 +8,8 @@ may explicitly cover both the reviewed merge and the first read of run
 authorization. Approval limited to merging does not authorize a private read,
 and the named first-read approval grants no authority for future reads.
 The coordinator will request this combined approval after review. Do not
-dispatch it as a test of this PR.
+dispatch the permanent workflow as a test of this PR. The temporary
+qualification route below requires a separate explicit one-run approval.
 
 The proposed consumer is `.github/workflows/report-diagnostics.yml` in
 `dinkuskit/live-journeys`, running `runner/scripts/report-diagnostics.mjs` on
@@ -90,6 +91,94 @@ This is a bounded diagnostic projection, not an assertion that source error
 text is trustworthy or a live root-cause finding. GitHub metadata establishes
 run ownership, not cryptographic provenance for an R2 object's contents.
 
-The existing Live journeys workflow, assertions and default `run-summary.mjs`
-behavior are unchanged. A successful diagnostics workflow means its projection
+The permanent design leaves Live journeys, its assertions and default
+`run-summary.mjs` behavior unchanged. The temporary premerge mode below is
+removed before final merge. A successful diagnostics workflow means its projection
 completed; it does not mean the selected journey passed.
+
+## Temporary premerge qualification (source only)
+
+PR 39's native review requires real owner-context allowed and forbidden cases.
+The proposed temporary mode in the **already registered** `live-journeys.yml`
+lets GitHub select this task branch before the new main-only diagnostics
+workflow exists on the default branch. It does not relax that permanent gate.
+No qualification has been dispatched or approved by this source change.
+
+The temporary mode requires all of:
+
+- A manual `workflow_dispatch` with `diagnostics_qualification: true` (boolean,
+  default **false**) in `dinkuskit/live-journeys`.
+- Exactly `refs/heads/ridge/live-journey-diagnostics-20261107`, actor ID
+  `159389674` (`saariuslystoned`), and first attempt only. A rerun is refused.
+- `diagnostics_expected_head` equal to `github.sha`; the checked-out commit must
+  also equal that full 40-character SHA. Before explicit verifier-token or
+  R2-secret injection, the reader must hash to
+  `3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80`.
+
+With the boolean true, the normal journey job is skipped regardless of whether
+qualification's other gates pass. No store updates, browser, inbox, orders or
+live journeys run. Qualification uses a separate per-run concurrency group, so
+it cannot replace a pending normal store run. With the default false, the
+existing normal journey route and store concurrency remain in effect.
+
+The fixed matrix has no caller-selected run, attempt, path, bucket or endpoint:
+
+| Case | Run / attempt | Required outcome |
+| --- | --- | --- |
+| Allowed | `42337050608` / `1` | Production `verify`, bounded `fetch`, allowlisted `analyze`, `clean` all succeed |
+| Forbidden workflow | `42342624009` / `1` | Production `verify` fails; `fetch` and `analyze` skipped; cleanup succeeds |
+| Foreign repository | `42342657068` / `1` | Same rejection, through the production same-repository metadata endpoint |
+| Forbidden attempt | `42337050608` / `9999` | Same rejection |
+
+These negative targets are coordinator-supplied qualification fixtures; their
+live metadata and rejections have not been independently observed here. All
+four cases use the unmodified production CLI calls. Even an unexpected
+successful negative verification cannot reach `fetch`: only the literal
+`allowed` case can fetch. Such an outcome fails qualification. Each negative
+case reports only fixed failure text and fixed step outcomes, never API bodies
+or logs. `continue-on-error` is limited to verification so expected rejections
+can be asserted; it cannot make the final qualification assertion pass.
+The fetch step alone receives the existing R2 references. The analyzer and
+cleanup receive none. No credentials or account permissions change.
+
+### Permission packet and exact command
+
+The coordinator must present the reviewed source head and request explicit
+owner approval for **one** manual qualification dispatch from that exact head:
+three fixed metadata-only rejection cases and one bounded private read of
+`runs/github-42337050608-1/report.json`, projected to fixed public codes/counts.
+The owner may also explicitly grant conditional merge authority, exercisable
+only after qualification succeeds, the temporary route is removed, and all
+required reviews/CI are clean on the final head. Approval for qualification
+alone grants no merge authority; neither grants further private reads.
+This document and source preparation grant neither approval.
+
+After approval, the coordinator runs this command from the exact reviewed,
+owner-approved checkout, after pushing that same commit. The authenticated
+GitHub actor must be `saariuslystoned`. Record the full `qualification_head` in
+the approval and dispatch receipt; if the remote branch has moved, the workflow
+refuses the mismatch. **Do not execute during source preparation.**
+
+```sh
+set -euo pipefail
+test "$(git branch --show-current)" = ridge/live-journey-diagnostics-20261107
+qualification_head=$(git rev-parse HEAD)
+gh workflow run live-journeys.yml --repo dinkuskit/live-journeys \
+  --ref ridge/live-journey-diagnostics-20261107 \
+  -F diagnostics_qualification=true \
+  -f diagnostics_expected_head="$qualification_head" \
+  -F update_store=false
+```
+
+Observe all four exact matrix jobs and the skipped journey job on that one run;
+retain only safe source identity, run/attempt, step outcomes and allowlisted
+summary. A failure is a stop condition, not permission to rerun, broaden access,
+change credentials, or use another reader. No raw report/log artifact is needed.
+After successful authorized qualification, remove the two temporary inputs,
+the qualification job, its separate concurrency choice, the journey skip
+condition, and `runner/unit/report-qualification.test.mjs`. Restore the original
+live workflow exactly. Retain sanitized qualification evidence and obtain
+required CI plus comprehensive and native reviews for that final source head
+before any owner-authorized merge. Permanent `report-diagnostics.yml` remains
+main-only throughout. Static routing/shell checks are regression evidence,
+not real-owner or hosted-runner qualification.

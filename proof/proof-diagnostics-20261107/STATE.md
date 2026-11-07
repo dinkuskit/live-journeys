@@ -1,12 +1,11 @@
 # Diagnostics source status
 
 - Base: `9d0302c4264412d5c782a44d976ab56c681f0532`.
-- Implementation: `6b350ed0080838eb9ff80c81b996cf1f9e13a24d`; prior validation: `6e095a6bf1a9e6d183750826635356adeb4dc4e5`.
-- PR 39 privacy repair: current private paths replaced by portable labels; hashes retained; no history rewrite.
-- Repair checks: private-path audit 0 matches across 10 task files; Node v24.22.0 targeted tests 8 passed, 0 failed/skipped; full suite not rerun.
-- Workflow text test no longer depends on a step display name; static policy checks remain.
-- Earlier accepted Node v24.22.0 canonical suite: 211 passed, 0 failed/skipped. Historical sandbox subprocess failures retained in validation.json.
-- Production-owner allowed and forbidden qualification: needs-evidence (`human_gate`), not performed; main-only gate unchanged.
-- Changed head requires renewed CI and external reviews, owned by coordinator.
-- No private proof, credentials, AWS calls, dispatch or merge in this repair.
-- Approval scope remains explicit reviewed merge plus named first read only when owner grants it; no future-read authority.
+- Qualification preparation parent: `9a6260a8950cdc58dd16c8bc502de5a600bf5d7c`.
+- Temporary premerge mode prepared on the assigned branch only; actor/head/reader pin and manual boolean gates; normal journeys skipped in that mode.
+- Permanent main-only diagnostics workflow and reader are unchanged.
+- Current targeted offline checks: 11 passed, 0 failed/skipped; YAML parse, 21 shell outcome cases and 3 head-pin cases passed.
+- Current full suite: two unchanged subprocess test files fail with sandbox EPERM. Prior coordinator 211-pass is historical evidence only.
+- Real-owner allowed/forbidden qualification: needs-evidence; not dispatched.
+- Next: coordinator reviews source and obtains explicit one-run approval before any private read. Remove temporary route after authorized proof and renew CI/comprehensive/native reviews on final head before owner-authorized merge.
+- No private I/O, credentials, dispatch, push or merge during preparation.
