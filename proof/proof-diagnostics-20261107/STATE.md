@@ -1,11 +1,10 @@
 # Diagnostics source status
 
 - Base: `9d0302c4264412d5c782a44d976ab56c681f0532`.
-- Fresh-environment repair parent: `67c7df3c826bbc5fa3464eec21aaf04960acced7`.
-- All production/qualification Node modes use fresh explicit environment allowlists; reader and AWS child allowlist unchanged.
-- Normal journey job, permanent main-only guard and temporary branch/actor/head/script-pin gates unchanged.
-- Current targeted checks: 12 passed, 0 failed/skipped; eight actual offline Node environment probes passed.
-- Current full suite: two unchanged subprocess test files fail with sandbox EPERM; prior coordinator full-suite evidence is historical.
-- Real-owner allowed/forbidden qualification: needs-evidence; not dispatched.
-- Permission command resolves current checkout HEAD; coordinator must renew reviews and obtain explicit approval for that exact pushed head.
-- No private I/O, credential access, dispatch, push or merge. Remove temporary route after approved qualification and renew final-head CI/comprehensive/native reviews before owner-authorized merge.
+- Qualified cleanup parent: `cb741d85c8d1c7d44c1b2b4b7ba82f3df4fe1a0e`.
+- Owner-approved qualification `42381597122` attempt `1` succeeded: four case jobs, four cleanups; live journeys skipped.
+- Temporary route/test removed; live workflow equals base bytes. Permanent main-only workflow and reader unchanged; fresh-environment test retained.
+- Nine targeted Node24 tests passed. Full suite still has the two unchanged sandbox subprocess failures; independent final-head validation remains required.
+- Sanitized projection: 14 journeys, 103 records, one Manage products failure categorized navigation_missing.
+- One-read authority consumed; no further private reads authorized. Worker made no dispatch, credential access, push or merge.
+- Coordinator owns final Node24 validation, push, CI and both external reviews; conditional merge only after all clean.

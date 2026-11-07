@@ -1,0 +1,444 @@
+{
+  "conclusion": "success",
+  "jobs": [
+    {
+      "completedAt": "2026-11-07T14:26:36Z",
+      "conclusion": "success",
+      "databaseId": 128430183111,
+      "name": "Report qualification (foreign-repository)",
+      "startedAt": "2026-11-07T14:26:24Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-07T14:26:25Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-07T14:26:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:26Z",
+          "conclusion": "success",
+          "name": "Check out approved source",
+          "number": 2,
+          "startedAt": "2026-11-07T14:26:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:31Z",
+          "conclusion": "success",
+          "name": "Set up Node",
+          "number": 3,
+          "startedAt": "2026-11-07T14:26:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:31Z",
+          "conclusion": "success",
+          "name": "Pin approved reader before credentials",
+          "number": 4,
+          "startedAt": "2026-11-07T14:26:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Verify selected run before any R2 read",
+          "number": 5,
+          "startedAt": "2026-11-07T14:26:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "skipped",
+          "name": "Read only the allowed bounded report",
+          "number": 6,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "skipped",
+          "name": "Publish allowlisted diagnostics without credentials",
+          "number": 7,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Remove private temporary files",
+          "number": 8,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Assert fixed qualification outcomes",
+          "number": 9,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Post Set up Node",
+          "number": 17,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Post Check out approved source",
+          "number": 18,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/dinkuskit/live-journeys/actions/runs/42381597122/job/128430183111"
+    },
+    {
+      "completedAt": "2026-11-07T14:26:42Z",
+      "conclusion": "success",
+      "databaseId": 128430183121,
+      "name": "Report qualification (allowed)",
+      "startedAt": "2026-11-07T14:26:24Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-07T14:26:26Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-07T14:26:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:27Z",
+          "conclusion": "success",
+          "name": "Check out approved source",
+          "number": 2,
+          "startedAt": "2026-11-07T14:26:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Set up Node",
+          "number": 3,
+          "startedAt": "2026-11-07T14:26:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Pin approved reader before credentials",
+          "number": 4,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:33Z",
+          "conclusion": "success",
+          "name": "Verify selected run before any R2 read",
+          "number": 5,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:38Z",
+          "conclusion": "success",
+          "name": "Read only the allowed bounded report",
+          "number": 6,
+          "startedAt": "2026-11-07T14:26:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:38Z",
+          "conclusion": "success",
+          "name": "Publish allowlisted diagnostics without credentials",
+          "number": 7,
+          "startedAt": "2026-11-07T14:26:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:38Z",
+          "conclusion": "success",
+          "name": "Remove private temporary files",
+          "number": 8,
+          "startedAt": "2026-11-07T14:26:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:38Z",
+          "conclusion": "success",
+          "name": "Assert fixed qualification outcomes",
+          "number": 9,
+          "startedAt": "2026-11-07T14:26:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:38Z",
+          "conclusion": "success",
+          "name": "Post Set up Node",
+          "number": 17,
+          "startedAt": "2026-11-07T14:26:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:38Z",
+          "conclusion": "success",
+          "name": "Post Check out approved source",
+          "number": 18,
+          "startedAt": "2026-11-07T14:26:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:38Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-11-07T14:26:38Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/dinkuskit/live-journeys/actions/runs/42381597122/job/128430183121"
+    },
+    {
+      "completedAt": "2026-11-07T14:26:36Z",
+      "conclusion": "success",
+      "databaseId": 128430183195,
+      "name": "Report qualification (forbidden-attempt)",
+      "startedAt": "2026-11-07T14:26:24Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-07T14:26:26Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-07T14:26:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:27Z",
+          "conclusion": "success",
+          "name": "Check out approved source",
+          "number": 2,
+          "startedAt": "2026-11-07T14:26:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Set up Node",
+          "number": 3,
+          "startedAt": "2026-11-07T14:26:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Pin approved reader before credentials",
+          "number": 4,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Verify selected run before any R2 read",
+          "number": 5,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "skipped",
+          "name": "Read only the allowed bounded report",
+          "number": 6,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "skipped",
+          "name": "Publish allowlisted diagnostics without credentials",
+          "number": 7,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Remove private temporary files",
+          "number": 8,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Assert fixed qualification outcomes",
+          "number": 9,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Post Set up Node",
+          "number": 17,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:33Z",
+          "conclusion": "success",
+          "name": "Post Check out approved source",
+          "number": 18,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:33Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-11-07T14:26:33Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/dinkuskit/live-journeys/actions/runs/42381597122/job/128430183195"
+    },
+    {
+      "completedAt": "2026-11-07T14:26:36Z",
+      "conclusion": "success",
+      "databaseId": 128430183205,
+      "name": "Report qualification (forbidden-workflow)",
+      "startedAt": "2026-11-07T14:26:24Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-07T14:26:26Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-07T14:26:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:27Z",
+          "conclusion": "success",
+          "name": "Check out approved source",
+          "number": 2,
+          "startedAt": "2026-11-07T14:26:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Set up Node",
+          "number": 3,
+          "startedAt": "2026-11-07T14:26:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Pin approved reader before credentials",
+          "number": 4,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Verify selected run before any R2 read",
+          "number": 5,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "skipped",
+          "name": "Read only the allowed bounded report",
+          "number": 6,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "skipped",
+          "name": "Publish allowlisted diagnostics without credentials",
+          "number": 7,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Remove private temporary files",
+          "number": 8,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Assert fixed qualification outcomes",
+          "number": 9,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Post Set up Node",
+          "number": 17,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:32Z",
+          "conclusion": "success",
+          "name": "Post Check out approved source",
+          "number": 18,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T14:26:33Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-11-07T14:26:32Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/dinkuskit/live-journeys/actions/runs/42381597122/job/128430183205"
+    },
+    {
+      "completedAt": "2026-11-07T14:26:22Z",
+      "conclusion": "skipped",
+      "databaseId": 128430184479,
+      "name": "Journeys on beta.sm0ky.dev",
+      "startedAt": "2026-11-07T14:26:22Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/dinkuskit/live-journeys/actions/runs/42381597122/job/128430184479"
+    }
+  ],
+  "status": "completed"
+}

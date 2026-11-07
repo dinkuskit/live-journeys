@@ -1,17 +1,15 @@
-# Manual report diagnostics (proposed)
+# Manual report diagnostics
 
-Source only. This capability is not activated or registered as an installed
-runtime. The coordinator must obtain the owner's explicit approval **after the
-PR is reviewed**, before the first dispatch/private-proof read. That approval
-may explicitly cover both the reviewed merge and the first read of run
-`42337050608`, attempt `1`; no second confirmation is required within that same
-authorization. Approval limited to merging does not authorize a private read,
-and the named first-read approval grants no authority for future reads.
-The coordinator will request this combined approval after review. Do not
-dispatch the permanent workflow as a test of this PR. The temporary
-qualification route below requires a separate explicit one-run approval.
+The owner explicitly approved one qualification and conditional merge. The
+coordinator executed that qualification once, successfully, on the exact source
+and selection recorded below. That authorization has been consumed for the
+private read; it grants no further private reads. Conditional merge remains
+subject to clean CI, comprehensive OpenClaw and native ClawSweeper reviews of
+the final source after temporary-route removal. No repeated confirmation is
+required for actions already within that approval. The permanent workflow has
+not been dispatched; no installed runtime is registered.
 
-The proposed consumer is `.github/workflows/report-diagnostics.yml` in
+The permanent consumer is `.github/workflows/report-diagnostics.yml` in
 `dinkuskit/live-journeys`, running `runner/scripts/report-diagnostics.mjs` on
 `ubuntu-24.04` with Node `24.22.0`. It accepts only `run_id` (1–15 decimal digits,
 positive, no leading zero) and `attempt` (1–4 decimal digits, same restrictions).
@@ -20,7 +18,7 @@ schedule, live journey, store, inbox or browser operation is added.
 
 ## Fixed binding and process boundary
 
-Both workflows launch each Node mode with `env -i`, carrying only `PATH` and
+The workflow launches each Node mode with `env -i`, carrying only `PATH` and
 `RUNNER_TEMP`, plus `GH_TOKEN` for verify or the four existing R2/AWS binding
 values for fetch. Analyze and cleanup receive only those two runtime variables.
 Selectors remain quoted positional arguments. Ambient hosted-runner variables,
@@ -100,94 +98,43 @@ text is trustworthy or a live root-cause finding. GitHub metadata establishes
 run ownership, not cryptographic provenance for an R2 object's contents.
 
 The permanent design leaves Live journeys, its assertions and default
-`run-summary.mjs` behavior unchanged. The temporary premerge mode below is
-removed before final merge. A successful diagnostics workflow means its projection
+`run-summary.mjs` behavior unchanged. The temporary premerge mode has been removed. A successful diagnostics workflow means its projection
 completed; it does not mean the selected journey passed.
 
-## Temporary premerge qualification (source only)
+## Completed owner qualification
 
-PR 39's native review requires real owner-context allowed and forbidden cases.
-The proposed temporary mode in the **already registered** `live-journeys.yml`
-lets GitHub select this task branch before the new main-only diagnostics
-workflow exists on the default branch. It does not relax that permanent gate.
-No qualification has been dispatched or approved by this source change.
+The coordinator ran [qualification 42381597122, attempt 1](https://github.com/dinkuskit/live-journeys/actions/runs/42381597122)
+on approved head `cb741d85c8d1c7d44c1b2b4b7ba82f3df4fe1a0e`, as actor ID
+`159389674`, using the temporary branch/head/actor-gated route. Its reader SHA-256
+was `3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80`,
+identical to the retained permanent reader. All four case jobs and outcome
+assertions passed; live journeys were skipped.
 
-The temporary mode requires all of:
-
-- A manual `workflow_dispatch` with `diagnostics_qualification: true` (boolean,
-  default **false**) in `dinkuskit/live-journeys`.
-- Exactly `refs/heads/ridge/live-journey-diagnostics-20261107`, actor ID
-  `159389674` (`saariuslystoned`), and first attempt only. A rerun is refused.
-- `diagnostics_expected_head` equal to `github.sha`; the checked-out commit must
-  also equal that full 40-character SHA. Before explicit verifier-token or
-  R2-secret injection, the reader must hash to
-  `3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80`.
-
-With the boolean true, the normal journey job is skipped regardless of whether
-qualification's other gates pass. No store updates, browser, inbox, orders or
-live journeys run. Qualification uses a separate per-run concurrency group, so
-it cannot replace a pending normal store run. With the default false, the
-existing normal journey route and store concurrency remain in effect.
-
-The fixed matrix has no caller-selected run, attempt, path, bucket or endpoint:
-
-| Case | Run / attempt | Required outcome |
+| Case | Run / attempt | Observed outcome |
 | --- | --- | --- |
-| Allowed | `42337050608` / `1` | Production `verify`, bounded `fetch`, allowlisted `analyze`, `clean` all succeed |
-| Forbidden workflow | `42342624009` / `1` | Production `verify` fails; `fetch` and `analyze` skipped; cleanup succeeds |
-| Foreign repository | `42342657068` / `1` | Same rejection, through the production same-repository metadata endpoint |
-| Forbidden attempt | `42337050608` / `9999` | Same rejection |
+| Allowed | `42337050608` / `1` | Verify, bounded fetch, analyze and cleanup succeeded |
+| Forbidden workflow | `42342624009` / `1` | Verify rejected; fetch/analyze skipped; cleanup succeeded |
+| Foreign repository | `42342657068` / `1` | Verify rejected; fetch/analyze skipped; cleanup succeeded |
+| Forbidden attempt | `42337050608` / `9999` | Verify rejected; fetch/analyze skipped; cleanup succeeded |
 
-These negative targets are coordinator-supplied qualification fixtures; their
-live metadata and rejections have not been independently observed here. All
-four cases use the unmodified production CLI calls. Even an unexpected
-successful negative verification cannot reach `fetch`: only the literal
-`allowed` case can fetch. Such an outcome fails qualification. Each negative
-case reports only fixed failure text and fixed step outcomes, never API bodies
-or logs. `continue-on-error` is limited to verification so expected rejections
-can be asserted; it cannot make the final qualification assertion pass.
-The fetch step alone receives the existing R2 references. Every production CLI
-call uses the same fresh environment allowlist as the permanent workflow; the
-analyzer and cleanup receive only `PATH` and `RUNNER_TEMP`. No credentials or account permissions change.
+GitHub's step conclusion displays success for the negative verification steps
+because they use `continue-on-error`. The final fixed assertion passed only
+when the actual `steps.verify.outcome` was failure and fetch/analyze were
+skipped. All four cleanup steps passed. This proves the observed route's
+allowed read and rejection behavior, not IAM denial for arbitrary objects.
 
-### Permission packet and exact command
+The sanitized projection has 14 journeys and 103 step records. `Manage products`
+has 13 records, one failed record, and `navigation_missing: 1`; its other four
+link counters are zero. Every other journey has zero failed records. These
+counts include retained retry records and identify a failure category, not its
+root cause. No raw error, product name, private URL or report was retained here.
+See [the portable proof](../proof/proof-diagnostics-20261107/PROOF.md) for the
+sanitized receipt, job metadata, projection and offline checks.
 
-The coordinator must present the reviewed source head and request explicit
-owner approval for **one** manual qualification dispatch from that exact head:
-three fixed metadata-only rejection cases and one bounded private read of
-`runs/github-42337050608-1/report.json`, projected to fixed public codes/counts.
-The owner may also explicitly grant conditional merge authority, exercisable
-only after qualification succeeds, the temporary route is removed, and all
-required reviews/CI are clean on the final head. Approval for qualification
-alone grants no merge authority; neither grants further private reads.
-This document and source preparation grant neither approval.
-
-After approval, the coordinator runs this command from the exact reviewed,
-owner-approved checkout, after pushing that same commit. The authenticated
-GitHub actor must be `saariuslystoned`. Record the full `qualification_head` in
-the approval and dispatch receipt; if the remote branch has moved, the workflow
-refuses the mismatch. **Do not execute during source preparation.**
-
-```sh
-set -euo pipefail
-test "$(git branch --show-current)" = ridge/live-journey-diagnostics-20261107
-qualification_head=$(git rev-parse HEAD)
-gh workflow run live-journeys.yml --repo dinkuskit/live-journeys \
-  --ref ridge/live-journey-diagnostics-20261107 \
-  -F diagnostics_qualification=true \
-  -f diagnostics_expected_head="$qualification_head" \
-  -F update_store=false
-```
-
-Observe all four exact matrix jobs and the skipped journey job on that one run;
-retain only safe source identity, run/attempt, step outcomes and allowlisted
-summary. A failure is a stop condition, not permission to rerun, broaden access,
-change credentials, or use another reader. No raw report/log artifact is needed.
-After successful authorized qualification, remove the two temporary inputs,
-the qualification job, its separate concurrency choice, the journey skip
-condition, and `runner/unit/report-qualification.test.mjs`. Restore the original
-live workflow exactly. Retain sanitized qualification evidence and obtain
-required CI plus comprehensive and native reviews for that final source head
-before any owner-authorized merge. Permanent `report-diagnostics.yml` remains
-main-only throughout. Static routing/shell checks are regression evidence,
-not real-owner or hosted-runner qualification.
+The temporary inputs, qualification job, concurrency branch, journey skip
+condition and qualification-only tests are removed. `live-journeys.yml` is
+restored byte-for-byte to base `9d0302c4264412d5c782a44d976ab56c681f0532`.
+The permanent workflow retains its main-only gate and fresh environment
+allowlists. Qualification exercised the same reader and launch boundaries,
+not the permanent workflow on main; final-head CI and external review remain
+required. No further dispatch, private read or merge is part of this cleanup.

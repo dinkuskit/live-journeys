@@ -1,17 +1,131 @@
 {
   "base": "9d0302c4264412d5c782a44d976ab56c681f0532",
-  "branch": "ridge/live-journey-diagnostics-20261107",
-  "node": "v24.22.0",
+  "source_parent": "cb741d85c8d1c7d44c1b2b4b7ba82f3df4fe1a0e",
+  "status": "qualification succeeded; temporary route removed; final-head checks and reviews pending",
+  "qualification": {
+    "qualification_run": 42381597122,
+    "attempt": 1,
+    "head": "cb741d85c8d1c7d44c1b2b4b7ba82f3df4fe1a0e",
+    "actor_id": 159389674,
+    "conclusion": "success",
+    "url": "https://github.com/dinkuskit/live-journeys/actions/runs/42381597122",
+    "recorded_at": "2026-11-07T14:27:29.685230+00:00",
+    "private_report_selection": {
+      "run": 42337050608,
+      "attempt": 1
+    },
+    "live_journeys": "skipped",
+    "negative_cases": "all three passed rejection assertions with fetch/analyze skipped",
+    "cleanup": "all four passed",
+    "projection_file": "qualification-safe-projection.json",
+    "scope": "one owner-authorized qualification; no further private reads authorized"
+  },
+  "recorded_at": "2026-11-07T14:28:34.828085+00:00",
+  "qualification_evidence": {
+    "provenance": "coordinator-provided sanitized receipt, GitHub job metadata and allowlisted projection; worker read only these files",
+    "files_sha256": {
+      "qualification-receipt.json": "267aef7b76c150e86dba1872c97d78a7cedf50e433c994b9081c55fec7e5ae41",
+      "qualification-run.json": "75b88bcaca184541244bf4e60fbe3dec6e2b42db49ff6d31a1c40cff4cb3118e",
+      "qualification-safe-projection.json": "c14468b5e0cd5f76d5729b58ab2f6c8d3db1ce6be3ed1d8e4562eac33010d3e4"
+    },
+    "reader_sha256": "3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80",
+    "case_jobs_passed": 4,
+    "live_journeys": "skipped",
+    "cleanup_passed": 4,
+    "negative_cases": {
+      "count": 3,
+      "verify_outcome": "failure; asserted by successful fixed outcome step and coordinator receipt",
+      "github_verify_step_conclusion": "success under continue-on-error",
+      "fetch": "skipped",
+      "analyze": "skipped"
+    },
+    "projection": {
+      "journeys": 14,
+      "step_records": 103,
+      "failed_records": 1,
+      "manage_products": {
+        "journey": "Manage products",
+        "step_count": 13,
+        "failed_step_count": 1,
+        "link_problems": {
+          "missing_card_or_link": 0,
+          "navigation_missing": 1,
+          "non_200": 0,
+          "heading_mismatch": 0,
+          "unknown": 0
+        }
+      }
+    }
+  },
+  "authorization": {
+    "reported_by": "coordinator",
+    "approved": "one exact-head qualification plus conditional merge after final clean reviews",
+    "qualification_consumed": true,
+    "future_private_reads_authorized": false,
+    "merge_performed": false
+  },
+  "final_cleanup": {
+    "live_workflow_equals_base_bytes": true,
+    "temporary_inputs_job_concurrency_and_skip_removed": true,
+    "qualification_only_test_removed": true,
+    "permanent_reader_and_workflow_equal_qualified_head": true,
+    "permanent_environment_policy_test_retained": true
+  },
+  "offline_checks": {
+    "node": "v24.22.0",
+    "isolation": "env -i; temporary HOME/proof/profile; env file /dev/null",
+    "targeted": {
+      "command": "node --test --test-isolation=none runner/unit/report-diagnostics.test.mjs",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "log_label": "diagnostics-final-targeted.log",
+      "log_sha256": "beea62592920a3627ba2a87802671a27ea67db8676943e4e603a46c2aa0d3b86"
+    },
+    "full_suite": {
+      "command": "node --test runner/unit/*.test.mjs",
+      "exit": 1,
+      "failed_files": [
+        "gmail.test.mjs",
+        "proof.test.mjs"
+      ],
+      "limitation": "sandbox subprocess failures in unchanged files; no final-head full-suite pass claimed",
+      "log_label": "diagnostics-final-full.log",
+      "log_sha256": "a979ede14f5dddad3877c1be03b73942557488e42925679f9f1c9c28462e89d2"
+    },
+    "subprocess_diagnosis": {
+      "command": "node --test --test-isolation=none runner/unit/gmail.test.mjs runner/unit/proof.test.mjs",
+      "passed": 14,
+      "failed": 9,
+      "EPERM_observed": true,
+      "log_label": "diagnostics-final-subprocess.log",
+      "log_sha256": "fa3a2b264e63f2370dfa6b3b27656f85dac565b7449d0f35bf594bbf653d855c"
+    },
+    "private_path_audit": {
+      "audited_files": 13,
+      "matches": 0,
+      "matched_literals_printed": false
+    },
+    "diff_check": "passed"
+  },
+  "worker_scope": {
+    "additional_private_io": false,
+    "credential_access": false,
+    "dispatch": false,
+    "push": false,
+    "merge": false
+  },
+  "next": "coordinator independent Node24 validation, push and final-head CI/comprehensive/native reviews before conditional merge",
   "source_sha256": {
+    ".github/workflows/live-journeys.yml": "aef1f6109cf01669ec25af8c1ac17a2dc1d55603c210be2ad7121948fe72d9df",
     ".github/workflows/report-diagnostics.yml": "7b434602eac79508b4e4e742acea57e0cc8921b94761a01e0bb19c93b3e1452f",
     "runner/scripts/report-diagnostics.mjs": "3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80",
-    "runner/unit/report-diagnostics.test.mjs": "185d6ef4f7f528f3d1686c06cbc853a8127d5916c98cf6b258925b5680e64a40",
-    "references/report-diagnostics.md": "960e7bae35c7fccb9237c2577e4c25fcc680b76a8bba33e27de79fe7ee1c49a0",
-    "runner/README.md": "fb0b80f4d128a367437d0acc4f40a93704071cb057db5cf9bef7bdbb56e2e074",
-    ".github/workflows/live-journeys.yml": "25b6061017e1059515d0f20bfe7e4d278fa80622f070ad1a4283251935692c5a",
-    "runner/unit/report-qualification.test.mjs": "2d3c05f67a2a93dd065d08ed5fa706dd5e957e0383a9196933982319a4c70a17"
+    "runner/unit/report-diagnostics.test.mjs": "ed585142c01577bc4bc25cef2bb4814dc850954c71f56f3a720de35166321890",
+    "references/report-diagnostics.md": "37a656c8673f32283a3ebfd799e59336d75e0545b1092510ff464b013e5b952b",
+    "runner/README.md": "fb0b80f4d128a367437d0acc4f40a93704071cb057db5cf9bef7bdbb56e2e074"
   },
-  "local_validation_sha256": {
+  "historical_evidence_note": "Snapshots from prior source-only turns, before owner approval and qualification; old pending/unperformed states below are historical only. Prior-head tests do not attest final head.",
+  "historical_local_validation_sha256": {
     "targeted.log": "1aeaed32b7c06584a85611e509475aa4e65a96d174455485fa395af523025b7d",
     "full-suite.log": "72aaee19ef1725c812164c9e52bb045daaa1460ab76c0a266697005e86d8344d",
     "gmail.log": "c5776fd7913ffdb267d06e55ed76ac614907722395ccb73e92690b34481c3aa8",
@@ -23,22 +137,22 @@
     "rejected.err": "88585159981c094df93e669c7cea5563ea52c5ef7abf6da8c30b20e1c164ab35",
     "rejected.exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
   },
-  "targeted": {
+  "historical_targeted": {
     "passed": 8,
     "failed": 0,
     "skipped": 0,
     "isolation": "none; same CLI main boundary in-process"
   },
-  "standalone_cli": {
+  "historical_standalone_cli": {
     "synthetic_redaction": "passed",
     "malicious_selector": "passed",
     "stdout_stderr": "exactly checked"
   },
-  "live_access": false,
-  "private_proof_read": false,
-  "credentials_read_or_changed": false,
-  "implementation_commit": "6b350ed0080838eb9ff80c81b996cf1f9e13a24d",
-  "historical_local_canonical_suite": {
+  "historical_live_access": false,
+  "historical_private_proof_read": false,
+  "historical_credentials_read_or_changed": false,
+  "historical_implementation_commit": "6b350ed0080838eb9ff80c81b996cf1f9e13a24d",
+  "historical_historical_local_canonical_suite": {
     "passed_files": 24,
     "failed_files": [
       "gmail.test.mjs",
@@ -47,7 +161,7 @@
     "exit": 1,
     "limitation": "Existing subprocess checks encounter spawnSync node EPERM in this workspace sandbox. Not a full-suite pass."
   },
-  "canonical_suite": {
+  "historical_canonical_suite": {
     "status": "accepted",
     "reported_by": "coordinator",
     "node": "v24.22.0",
@@ -60,11 +174,11 @@
     "verification": "safe log totals inspected and hash computed by worker",
     "log_label": "full-unit.log"
   },
-  "coordinator_source_privacy_review": {
+  "historical_coordinator_source_privacy_review": {
     "result": "no actionable defect",
     "external_review_pending": true
   },
-  "coordinator_public_metadata_check": {
+  "historical_coordinator_public_metadata_check": {
     "id": 42337050608,
     "run_attempt": 1,
     "status": "completed",
@@ -72,12 +186,12 @@
     "repository": "dinkuskit/live-journeys",
     "verification": "coordinator-reported public GitHub API read; no private R2 read"
   },
-  "untested": [
+  "historical_untested": [
     "hosted runner AWS path/availability",
     "R2 binding/readability",
     "actual selected report"
   ],
-  "approval_scope": {
+  "historical_approval_scope": {
     "state": "pending after external review",
     "proposed": [
       "reviewed merge",
@@ -86,7 +200,7 @@
     "repeat_confirmation_required_within_same_authorization": false,
     "future_reads_authorized": false
   },
-  "review_repair": {
+  "historical_review_repair": {
     "reviewed_head": "6e095a6bf1a9e6d183750826635356adeb4dc4e5",
     "native_finding": "https://github.com/dinkuskit/live-journeys/pull/39#issuecomment-6702824000",
     "private_paths": "removed from current tracked files; history retained",
@@ -119,7 +233,7 @@
       "matched_literals_printed": false
     }
   },
-  "qualification_preparation": {
+  "historical_qualification_preparation": {
     "source_parent": "9a6260a8950cdc58dd16c8bc502de5a600bf5d7c",
     "status": "source-only; owner approval pending",
     "targeted": {
@@ -190,7 +304,7 @@
       "matched_literals_printed": false
     }
   },
-  "fresh_environment_repair": {
+  "historical_fresh_environment_repair": {
     "source_parent": "67c7df3c826bbc5fa3464eec21aaf04960acced7",
     "boundary": "env -i; PATH and RUNNER_TEMP for every mode; GH_TOKEN only for verify; four existing R2/AWS values only for fetch",
     "reader_and_aws_child_allowlist_unchanged": true,

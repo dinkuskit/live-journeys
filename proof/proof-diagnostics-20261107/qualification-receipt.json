@@ -1,0 +1,18 @@
+{
+  "qualification_run": 42381597122,
+  "attempt": 1,
+  "head": "cb741d85c8d1c7d44c1b2b4b7ba82f3df4fe1a0e",
+  "actor_id": 159389674,
+  "conclusion": "success",
+  "url": "https://github.com/dinkuskit/live-journeys/actions/runs/42381597122",
+  "recorded_at": "2026-11-07T14:27:29.685230+00:00",
+  "private_report_selection": {
+    "run": 42337050608,
+    "attempt": 1
+  },
+  "live_journeys": "skipped",
+  "negative_cases": "all three passed rejection assertions with fetch/analyze skipped",
+  "cleanup": "all four passed",
+  "projection_file": "qualification-safe-projection.json",
+  "scope": "one owner-authorized qualification; no further private reads authorized"
+}

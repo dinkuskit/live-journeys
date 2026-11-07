@@ -16,16 +16,6 @@ run-name: Live journeys${{ inputs.beta && format(' for {0}', inputs.beta) || '' 
 on:
   workflow_dispatch:
     inputs:
-      # TEMPORARY PR 39 qualification; remove this mode after authorized proof.
-      diagnostics_qualification:
-        description: Owner-approved diagnostics qualification only (skips all live journeys)
-        type: boolean
-        default: false
-      diagnostics_expected_head:
-        description: Full reviewed branch commit approved for the one qualification run
-        type: string
-        default: ""
-        required: false
       journeys:
         description: Which journeys (a Playwright --grep; @running runs every Running journey)
         default: "@running"
@@ -53,13 +43,13 @@ permissions:
 # One run on the store at a time. A press while a run is going waits its turn; GitHub keeps only
 # one waiting run, so a further press replaces the waiting one (and its choices).
 concurrency:
-  group: ${{ inputs.diagnostics_qualification && format('report-qualification-{0}', github.run_id) || 'live-journeys-beta-store' }}
+  group: live-journeys-beta-store
   cancel-in-progress: false
 
 jobs:
   journeys:
     name: Journeys on beta.sm0ky.dev
-    if: github.repository == 'dinkuskit/live-journeys' && !inputs.diagnostics_qualification
+    if: github.repository == 'dinkuskit/live-journeys'
     runs-on: ubuntu-24.04
     timeout-minutes: 130
     env:
@@ -170,111 +160,3 @@ jobs:
           PLAYWRIGHT_CODE: ${{ steps.run.outputs.code }}
         run: |
           node scripts/run-summary.mjs "$DINKUS_E2E_PROOF/$DINKUS_E2E_RUN" "$PLAYWRIGHT_CODE" "the private R2 bucket, folder $PROOF_PREFIX/" | tee -a "$GITHUB_STEP_SUMMARY"
-
-  # TEMPORARY: source-only until explicit owner approval. Remove before final merge.
-  diagnostics-qualification:
-    name: Report qualification (${{ matrix.case }})
-    if: github.repository == 'dinkuskit/live-journeys' && github.event_name == 'workflow_dispatch' && inputs.diagnostics_qualification == true && github.ref == 'refs/heads/ridge/live-journey-diagnostics-20261107' && github.actor_id == '159389674' && github.run_attempt == 1 && inputs.diagnostics_expected_head == github.sha
-    permissions:
-      contents: read
-      actions: read
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - case: allowed
-            run: '42337050608'
-            attempt: '1'
-          - case: forbidden-workflow
-            run: '42342624009'
-            attempt: '1'
-          - case: foreign-repository
-            run: '42342657068'
-            attempt: '1'
-          - case: forbidden-attempt
-            run: '42337050608'
-            attempt: '9999'
-    defaults:
-      run:
-        shell: bash
-        working-directory: runner
-    env:
-      SELECTED_RUN: ${{ matrix.run }}
-      SELECTED_ATTEMPT: ${{ matrix.attempt }}
-      DINKUS_E2E_ENV_FILE: /dev/null
-    steps:
-      - name: Check out approved source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
-        with:
-          node-version: "24.22.0"
-      - name: Pin approved reader before credentials
-        id: pin
-        env:
-          EXPECTED_HEAD: ${{ inputs.diagnostics_expected_head }}
-        run: |
-          if [[ ! "$EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]] || [[ "$EXPECTED_HEAD" != "$GITHUB_SHA" ]] || [[ "$(git rev-parse HEAD)" != "$EXPECTED_HEAD" ]]; then
-            echo 'Qualification source rejected.' >&2
-            exit 1
-          fi
-          printf '%s  %s\n' '3797025ed95801b337efeeea86cda2e67c8b7b4b2f5ab438515cfa1e2bfcee80' 'scripts/report-diagnostics.mjs' | sha256sum --check --status
-      - name: Verify selected run before any R2 read
-        id: verify
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" GH_TOKEN="$GH_TOKEN" node scripts/report-diagnostics.mjs verify "$SELECTED_RUN" "$SELECTED_ATTEMPT"
-      - name: Read only the allowed bounded report
-        id: fetch
-        if: steps.verify.outcome == 'success' && matrix.case == 'allowed'
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" R2_ACCOUNT_ID="$R2_ACCOUNT_ID" R2_BUCKET="$R2_BUCKET" node scripts/report-diagnostics.mjs fetch "$SELECTED_RUN" "$SELECTED_ATTEMPT"
-      - name: Publish allowlisted diagnostics without credentials
-        id: analyze
-        if: steps.fetch.outcome == 'success'
-        run: |
-          env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" node scripts/report-diagnostics.mjs analyze "$SELECTED_RUN" "$SELECTED_ATTEMPT" | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Remove private temporary files
-        id: clean
-        if: always() && steps.pin.outcome == 'success'
-        run: env -i PATH="$PATH" RUNNER_TEMP="$RUNNER_TEMP" node scripts/report-diagnostics.mjs clean "$SELECTED_RUN" "$SELECTED_ATTEMPT"
-      - name: Assert fixed qualification outcomes
-        if: always() && steps.pin.outcome == 'success'
-        env:
-          QUALIFICATION_CASE: ${{ matrix.case }}
-          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
-          FETCH_OUTCOME: ${{ steps.fetch.outcome }}
-          ANALYZE_OUTCOME: ${{ steps.analyze.outcome }}
-          CLEAN_OUTCOME: ${{ steps.clean.outcome }}
-        run: |
-          if [[ "$CLEAN_OUTCOME" != success ]]; then
-            echo 'Qualification failed.' >&2
-            exit 1
-          fi
-          case "$QUALIFICATION_CASE" in
-            allowed)
-              if [[ "$VERIFY_OUTCOME" != success || "$FETCH_OUTCOME" != success || "$ANALYZE_OUTCOME" != success ]]; then
-                echo 'Qualification failed.' >&2
-                exit 1
-              fi
-              echo 'allowed: verify, fetch, analyze and cleanup passed.' >> "$GITHUB_STEP_SUMMARY"
-              ;;
-            forbidden-workflow|foreign-repository|forbidden-attempt)
-              if [[ "$VERIFY_OUTCOME" != failure || "$FETCH_OUTCOME" != skipped || "$ANALYZE_OUTCOME" != skipped ]]; then
-                echo 'Qualification failed.' >&2
-                exit 1
-              fi
-              echo 'forbidden: verify rejected; fetch and analyze skipped; cleanup passed.' >> "$GITHUB_STEP_SUMMARY"
-              ;;
-            *) echo 'Qualification failed.' >&2; exit 1 ;;
-          esac
