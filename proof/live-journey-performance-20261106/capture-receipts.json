@@ -1,0 +1,143 @@
+{
+  "note": "Node executable paths normalized; metric values unchanged. Original receipts retained in task-local temporary outputs.",
+  "receipts": {
+    "benchmark": {
+      "schema": "smoky-ci-performance.capture.v1",
+      "classification": "complete",
+      "argv": [
+        "node-24.22.1",
+        "proof/live-journey-performance-20261106/benchmark.mjs",
+        "/tmp/live-journey-performance-baseline.mjs"
+      ],
+      "exit": {
+        "raw": 0,
+        "normalized": 0,
+        "signal": null
+      },
+      "wall_seconds": 0.09051192799961427,
+      "resources": {
+        "user_seconds": 0.08764899999999999,
+        "system_seconds": 0.049804999999999995,
+        "max_rss": 89804,
+        "max_rss_unit": "KiB",
+        "aggregation": "waited-children"
+      },
+      "metrics_supported": true,
+      "cost": "unknown",
+      "streams": {
+        "stdout": "stdout.txt",
+        "stderr": "stderr.txt"
+      },
+      "error": null
+    },
+    "unit": {
+      "schema": "smoky-ci-performance.capture.v1",
+      "classification": "complete",
+      "argv": [
+        "node-24.22.1",
+        "--test",
+        "runner/unit/catalog-gate.test.mjs",
+        "runner/unit/categories.test.mjs",
+        "runner/unit/checkout.test.mjs",
+        "runner/unit/commerce-settings.test.mjs",
+        "runner/unit/connect-dinkuskit.test.mjs",
+        "runner/unit/errors.test.mjs",
+        "runner/unit/free-shipping.test.mjs",
+        "runner/unit/gmail.test.mjs",
+        "runner/unit/label-pdf.test.mjs",
+        "runner/unit/order-details.test.mjs",
+        "runner/unit/orders-poll.test.mjs",
+        "runner/unit/pace-log.test.mjs",
+        "runner/unit/pace.test.mjs",
+        "runner/unit/panel-answer.test.mjs",
+        "runner/unit/parsing.test.mjs",
+        "runner/unit/payments-status.test.mjs",
+        "runner/unit/plugin-connect.test.mjs",
+        "runner/unit/proof.test.mjs",
+        "runner/unit/registry-install.test.mjs",
+        "runner/unit/request-policy.test.mjs",
+        "runner/unit/ship-settings.test.mjs",
+        "runner/unit/shipping-text.test.mjs",
+        "runner/unit/store-copies.test.mjs",
+        "runner/unit/store-updates.test.mjs"
+      ],
+      "exit": {
+        "raw": 1,
+        "normalized": 1,
+        "signal": null
+      },
+      "wall_seconds": 0.4588354969964712,
+      "resources": {
+        "user_seconds": 1.302702,
+        "system_seconds": 0.60258,
+        "max_rss": 79520,
+        "max_rss_unit": "KiB",
+        "aggregation": "waited-children"
+      },
+      "metrics_supported": true,
+      "cost": "unknown",
+      "streams": {
+        "stdout": "stdout.txt",
+        "stderr": "stderr.txt"
+      },
+      "error": null
+    },
+    "targeted": {
+      "schema": "smoky-ci-performance.capture.v1",
+      "classification": "complete",
+      "argv": [
+        "node-24.22.1",
+        "runner/unit/orders-poll.test.mjs"
+      ],
+      "exit": {
+        "raw": 0,
+        "normalized": 0,
+        "signal": null
+      },
+      "wall_seconds": 0.036344519998237956,
+      "resources": {
+        "user_seconds": 0.057581,
+        "system_seconds": 0.035901999999999996,
+        "max_rss": 68064,
+        "max_rss_unit": "KiB",
+        "aggregation": "waited-children"
+      },
+      "metrics_supported": true,
+      "cost": "unknown",
+      "streams": {
+        "stdout": "stdout.txt",
+        "stderr": "stderr.txt"
+      },
+      "error": null
+    },
+    "capture-preflight": {
+      "schema": "smoky-ci-performance.capture.v1",
+      "classification": "complete",
+      "argv": [
+        "python3",
+        "-c",
+        "import sys; print(\"stdout-check\"); print(\"stderr-check\", file=sys.stderr); sys.exit(7)"
+      ],
+      "exit": {
+        "raw": 7,
+        "normalized": 7,
+        "signal": null
+      },
+      "wall_seconds": 0.046698179001396056,
+      "resources": {
+        "user_seconds": 0.038655999999999996,
+        "system_seconds": 0.027049,
+        "max_rss": 79060,
+        "max_rss_unit": "KiB",
+        "aggregation": "waited-children"
+      },
+      "metrics_supported": true,
+      "cost": "unknown",
+      "streams": {
+        "stdout": "stdout.txt",
+        "stderr": "stderr.txt"
+      },
+      "error": null
+    }
+  }
+}

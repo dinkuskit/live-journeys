@@ -1,0 +1,3 @@
+{"event":"recovered","base":"39723f974d5ed7fda703ea11cec0cc20153b235f","scope":"offline-only","remote_freshness":"dns-blocked","baseline_run":"42335784911"}
+{"event":"offline_candidate","source_head":"f00d29324a268282a512d302180e8ed74f3f5b1d","change":"remove_redundant_problems_reload","targeted_tests_passed":6,"comparison_pairs":60,"full_suite_files_passed":22,"full_suite_files_total":24,"full_suite_gap":"child-process EPERM"}
+{"event":"handoff","owner":"coordinator","live_runs_dispatched":0,"review_ready":false,"next":"verify remote, complete CI and exact-head reviews, controlled live comparison"}
