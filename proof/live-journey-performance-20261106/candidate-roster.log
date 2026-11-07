@@ -1,0 +1,16 @@
+Listing tests:
+  01-install-plugins.spec.mjs:39:1 › Install the Registry plugins
+  02-connect-dinkuskit.spec.mjs:54:1 › DinkusKit.com account and connect the store
+  03-payments-status.spec.mjs:25:1 › Payments status
+  04-commerce-settings.spec.mjs:57:1 › Commerce settings
+  05-ship-settings.spec.mjs:27:1 › Ship settings
+  buy-and-ship.spec.mjs:90:1 › Buy and ship
+  cart.spec.mjs:120:1 › Cart
+  full-catalog.spec.mjs:225:1 › Full catalog
+  manage-products.spec.mjs:73:1 › Manage products
+  mark-completed.spec.mjs:59:1 › Mark as completed
+  onboarding-product.spec.mjs:42:1 › One product with a category
+  problems.spec.mjs:111:1 › Problems
+  store-admin-label.spec.mjs:31:1 › Buy a label in the store admin
+  storefront.spec.mjs:65:1 › Storefront
+Total: 14 tests in 14 files

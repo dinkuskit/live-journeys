@@ -1,202 +1,84 @@
-# Problems polling: bounded offline candidate
+# Problems polling: accepted offline candidate
 
-Source base: `39723f974d5ed7fda703ea11cec0cc20153b235f`.
-Candidate source commit: `f00d29324a268282a512d302180e8ed74f3f5b1d`.
+Base: `39723f974d5ed7fda703ea11cec0cc20153b235f`.
+Source candidate: `f00d29324a268282a512d302180e8ed74f3f5b1d`.
 Branch: `ridge/live-journey-performance-20261106`.
-Classification: offline operation-count improvement and pinned-runtime offline validation passed; live performance and exact-head review gates remain outstanding.
+Status: pinned-runtime offline validation passed; live comparison and exact-head
+CI/comprehensive OpenClaw/native ClawSweeper reviews pending. Not review-ready.
 
-## Change and rationale
+## Change and preserved behavior
 
-Problems formerly reloaded the current Orders page after every unsuccessful
-30-second wait, then `testOrders()` opened Orders again before scanning all pages.
-The candidate removes only that reload. `testOrders()` still calls `openAdmin()`,
-which calls `openStoreAdmin()`, whose first operation is `page.goto(url)`.
-The initial navigation and readiness check, every full scan, pagination,
-30-second waits, configured completion deadline, and later checkout-status and
-order-ID checks remain. No caching, parallelism, request-limit changes, or changes
-to test selection, retry policy, security, redaction or proof output.
+Problems previously reloaded Orders after each unsuccessful 30-second wait;
+`testOrders()` then opened Orders again before scanning every page. The candidate
+removes only that intervening reload. The initial Orders open and `ordersListed`
+readiness check remain, as do the fresh navigation and full scan per observation,
+pagination, waits, completion deadline, checkout-status and order-ID assertions.
+No changes to parallelism, request caps, security, redaction, retry policy, proof
+output, five-minute background checks, or the full `@running` selection.
 
-Rejected: stopping the `numberOf()` scan after five rows. No source contract makes
-page order numeric-newest order (the README says orders are listed by order ID).
-The full list, status filtering, numeric descending sort and newest-five
-selection therefore remain unchanged. Reusing an earlier scan for `openOrder()`
-would introduce stale page/order assumptions; that is outside this candidate.
-`runner/support/orders-admin.mjs` is byte-for-byte unchanged, SHA-256
+Stopping after five rows was rejected: no source contract guarantees numeric
+newest-first page order. Status filtering, numeric sort and newest-five selection
+remain. Reusing an earlier scan for `openOrder()` was also excluded.
+`runner/support/orders-admin.mjs` remains unchanged, SHA-256
 `fd8a6537971032a93273190bf1266e92dc113c1ec150862a1ce1040ad69cb2d8`.
 
-## Comparison and correctness
+## Canonical offline acceptance
 
-Primary metric: explicit admin navigations in the existing Problems polling
-block. Accept only fewer redundant navigations with identical returned order
-identities, read counts, failure messages and scheduled waits for each fixture.
+The coordinator ran Node **24.22.0**, installed locked dependencies (`npm ci`,
+three packages, unchanged lockfile), and used `/dev/null` for
+`DINKUS_E2E_ENV_FILE` with fresh task-local HOME, proof and profile directories.
+This worker inspected the safe logs and verified the copied artifacts' hashes.
 
-`benchmark.mjs` executes the actual polling block extracted from the immutable
-base and candidate source. Six cases run ten interleaved pairs each (60 pairs,
-120 executions); execution order alternates. Input baseline content is SHA-256
-checked. `benchmark-results.json` records the results and candidate source hash.
+| Check | Accepted result |
+| --- | --- |
+| `node --test unit/*.test.mjs` from `runner/` | 189 passed; zero failures, cancellations, skips or todo |
+| Playwright `--list --grep @running` | 14 tests in 14 files; listing only |
+| Pinned-Node deterministic comparison | Six cases × ten interleaved pairs = 60 pairs / 120 executions |
+| Source binding | Problems source SHA-256 `6406dabc859d55192e70e189b2ee63c06c6904189124e16b3f4becf8dc18dd41` |
 
-| Workload | Base navigations | Candidate navigations | Full scans on each side |
+Canonical artifacts are [canonical-validation.json](canonical-validation.json),
+[canonical-benchmark.json](canonical-benchmark.json) and
+[candidate-roster.log](candidate-roster.log). The validation summary records the
+unit raw-log hash, isolated environment and dependency evidence without private
+absolute paths. The raw unit log remains coordinator-held.
+
+## Measured scope and correctness
+
+`benchmark.mjs` extracts the real polling block from the immutable base and
+candidate, verifies the baseline hash and alternates execution order. It asserts
+equal returned identities, read counts, scheduled waits and failure behavior.
+The JSON retains the final representative counts after all ten pairs per case.
+
+| Workload | Base navigations | Candidate navigations | Scans each |
 | --- | ---: | ---: | ---: |
 | Immediate arrival | 2 | 2 | 1 |
-| Arrival on third poll | 6 | 4 | 3 |
-| Missing through 90-second fixture deadline | 8 | 5 | 4 |
-| Arrival at deadline | 8 | 5 | 4 |
-| Unordered rows, both statuses, more than five new orders | 2 | 2 | 1 |
-| Scan failure on third observation | 6 | 4 | 3 |
+| Third-poll arrival | 6 | 4 | 3 |
+| Missing through fixture deadline | 8 | 5 | 4 |
+| Arrival at fixture deadline | 8 | 5 | 4 |
+| Unordered rows / statuses / more than five new orders | 2 | 2 | 1 |
+| Third-observation scan failure | 6 | 4 | 3 |
 
-The third-poll case removes two of six explicit navigations (33.3%); there is
-no gain when the first observation succeeds. Generally it removes N-1 reloads
-for N successful polling observations. These counts exclude pagination and
-subrequests, which the fixture does not execute. Virtual elapsed times record
-the unchanged waits; they are not measurements of live latency.
+Six targeted tests also cover slow scans consuming the deadline. The harness
+stubs the unchanged scan boundary; it does not execute browser pagination or
+service requests. Counts exclude pagination/subrequests; virtual elapsed time
+reflects unchanged waits, not live latency. Third-poll navigation count drops
+33.3%; immediate success has no gain. Removed-reload-only failures disappear;
+retained scan failures propagate. Real timing may change which observation sees
+an arriving order. **No live speedup is established.**
 
-Six new offline tests pass, covering delayed arrival, arbitrary ordering/all
-new orders, missing orders, deadline arrival, propagated scan failure and slow
-scans consuming the deadline. The harness executes the real source block in a
-VM with an injected clock and scan boundary; it imports no live browser,
-settings, credentials or inbox. It stubs the unchanged `testOrders()` boundary,
-so this is not browser/pagination or service correctness proof. Transient
-failures unique to the removed reload naturally disappear; failures in the
-retained scan are still propagated. Real navigation timing can change which
-observation sees an asynchronously arriving order, so live proof is required.
+## Resolved attempts and remaining handoff
 
-## Commands and environment
+Earlier Node 26/24.22.1 attempts encountered output-path/subprocess restrictions;
+the exact runtime was initially absent from mise, and remote lookup failed.
+These gaps are resolved by the coordinator's pinned-runtime acceptance and fresh
+fetch of the unchanged base. Existing events, capture receipts and historical
+benchmark results remain as chronology, not canonical acceptance. The coordinator
+also reports an independent source review with no actionable issues; this does
+not substitute for the required review rails.
 
-Run from the mounted repository root. Local runtime: Node 24.22.1 on Linux
-7.3.0-3.1-omarchy, aarch64, ARM Cortex-X925. CI specifies Node 24.22.0; the patch
-version and platform differ. No dependencies installed, browser launched or
-live requests made. No build/cache warming; only source and synthetic rows.
-Lockfile SHA-256: `51a538a6154719d5bebb4393b607303a175be28d18518b605e3dfaa47637f397`.
-
-```sh
-git show 39723f974d5ed7fda703ea11cec0cc20153b235f:runner/tests/problems.spec.mjs > /tmp/live-journey-performance-baseline.mjs
-node proof/live-journey-performance-20261106/benchmark.mjs /tmp/live-journey-performance-baseline.mjs
-node runner/unit/orders-poll.test.mjs
-DINKUS_E2E_ENV_FILE=/tmp/live-journey-perf-no-settings DINKUS_E2E_PROOF=/tmp/live-journey-perf-proof DINKUS_E2E_PROFILE=/tmp/live-journey-perf-profile node --test runner/unit/*.test.mjs
-node --check runner/tests/problems.spec.mjs
-git diff --check
-```
-
-Each measured command used the performance skill's `scripts/capture.py --out
-<new directory> -- <argv>` helper. A harmless exit-7 preflight preserved exit 7
-and separated stdout/stderr. `capture-receipts.json` retains metric values and
-normalizes only the Node executable path. Raw outputs remain under the
-`/tmp/live-journey-perf-*` paths on the worker. Benchmark wall time is harness
-execution overhead, not an estimate of journey savings; monetary cost unknown.
-
-- Benchmark: exit 0, wall 0.09051192799961427 s, user 0.08764899999999999 s,
-  system 0.049804999999999995 s, max RSS 89804 KiB.
-- Targeted six tests: exit 0, wall 0.036344519998237956 s,
-  user 0.057581 s, system 0.035901999999999996 s, max RSS 68064 KiB.
-- Full offline suite: exit 1, 22/24 files pass. `gmail.test.mjs` and
-  `proof.test.mjs` fail at their child-process checks with `spawnSync ... EPERM`
-  (some callers catch the error and subsequently assert on empty output).
-  Direct diagnostics confirm eight child-process cases fail in Gmail tests
-  and one in proof tests. No test was skipped or weakened to produce a pass.
-  Wall 0.4588354969964712 s, user 1.302702 s, system 0.60258 s,
-  max RSS 79520 KiB. This is incomplete verification, not a clean suite result.
-- Syntax and diff whitespace checks pass.
-
-Initial Node 26.13.0 attempt also hit default proof/profile output paths outside
-the writable scope. Subsequent runs use task-local temporary settings/output
-paths and Node 24.22.1. An initial benchmark using `execFileSync('git', ...)`
-hit the same subprocess restriction; the final benchmark instead reads a
-baseline file produced by an explicit Git command and validates its hash.
-Those attempts are retained in temporary capture outputs, not treated as
-comparable successful measurements. No privilege widening attempted.
-
-## Handoff and limits
-
-Local HEAD and local `origin/main` initially matched the expected base.
-`git ls-remote origin refs/heads/main` could not resolve github.com, so remote
-freshness remains unverified. The source commit was created despite the Git
-command reporting read-only `packed-refs.lock` / `rr-cache` errors; its identity
-and three-file contents were independently verified with Git afterward.
-
-Coordinator-reported baseline `42335784911` was running at handoff; its outcome,
-inputs, store versions and proof have not been independently read by this
-worker. Historical run `41310449365` (head `6f505b9`) reportedly had 2380 seconds
-in Run journeys and 2416 seconds overall. It is context, not a comparable
-measurement of this candidate.
-
-Next, the coordinator should verify remote base/source identity, rerun the
-complete offline suite in the supported CI environment, non-force push this
-branch and open a PR to main. After the existing baseline finishes and beta is
-idle, a candidate run through the existing Live journeys workflow can use the
-same full `@running` selection, beta/hold/update_store/video inputs and store
-versions as the baseline. Bind its exact head and run ID/attempt. Do not queue
-a duplicate or run locally. If the baseline updates the store, resolve version
-comparability before interpreting timing; never downgrade it for this test.
-Compare whole-step and Problems timing, full journey results, store refusals,
-and all required private proof through the authorized coordinator. One pair
-can establish live correctness but supports only a limited timing conclusion.
-Do not publish raw private proof or claim a full-runtime improvement from these
-synthetic operation counts. Retain the 100-request/min guard and five-minute
-background-check coverage.
-
-No live workflow was dispatched. CI, comprehensive OpenClaw and native
-ClawSweeper evidence for the exact reviewed revision are still required.
-This candidate is not review-ready, and no merge is authorized.
-
-## Pinned-runtime acceptance follow-up
-
-The hosted offline workflow pins Node `24.22.0`. Read-only inspection of the
-existing mise installations found Node `24.22.1` and `26.13.0`; the `24` and
-`24.22` aliases resolve to `24.22.1`. Executing that installed binary with
-`--version` returned `v24.22.1`. The exact `24.22.0/bin/node` executable is
-absent. No runtime was installed or global setting modified.
-
-No new unit or benchmark run was attempted: the required runtime is missing.
-Existing Node 26 results remain noncanonical history; prior Node 24.22.1
-results also do not satisfy the exact Node 24.22.0 acceptance check. The
-coordinator must provision the pinned Node 24.22.0 runtime before rerunning
-`node --test runner/unit/*.test.mjs` and the recorded offline benchmark with
-`DINKUS_E2E_ENV_FILE=/dev/null` and task-local writable HOME, proof and profile
-paths. Dependency availability under that exact runtime remains unverified.
-The candidate source is unchanged, including the initial Orders open and its
-`ordersListed` behavior. No live workflow, push, PR or review was initiated.
-
-## Coordinator acceptance evidence — 2026-11-07
-
-This update resolves the earlier pinned-runtime, dependency, sandbox unit-suite
-and remote-freshness gaps. Those observations above remain chronological
-history, not current blockers. No source changes or new test runs were made by
-this worker for this update.
-
-The coordinator located and verified Node `v24.22.0` at
-`/home/bobby-xps/Work/repos/saari-co/x-api/runs/ci-opportunity-runs/20261106/commerce-baseline/runtime/node-v24.22.0-linux-arm64/bin/node`.
-The coordinator reports installing the locked dependencies with `npm ci`
-(three packages; lockfile unchanged), then running from `runner/` with
-`DINKUS_E2E_ENV_FILE=/dev/null` and fresh temporary HOME, proof and profile
-paths. The exact commands reported are `node --test unit/*.test.mjs` and
-Playwright `--list --grep @running`, using that pinned runtime; the recorded
-`benchmark.mjs` comparison was also rerun with it. This worker read the safe
-logs and benchmark JSON, rather than rerunning these checks.
-
-| Acceptance check | Observed result |
-| --- | --- |
-| Full offline unit suite | 189 passed; 0 failed, cancelled, skipped or todo; reported duration 608.151105 ms |
-| Playwright running roster | 14 tests in 14 files; listing only, no live execution |
-| Exact-Node benchmark | Six cases × ten interleaved pairs = 60 pairs; same navigation, scan, wait and failure results as the comparison table above |
-| Candidate source binding | Benchmark SHA-256 `6406dabc859d55192e70e189b2ee63c06c6904189124e16b3f4becf8dc18dd41` matches current `runner/tests/problems.spec.mjs` |
-| Locked dependencies | Current lockfile SHA-256 remains `51a538a6154719d5bebb4393b607303a175be28d18518b605e3dfaa47637f397` |
-
-Safe evidence files, under the coordinator's
-`x-api/runs/live-journey-performance-runs/20261106/` directory:
-
-- `independent-unit-node24.log`: SHA-256 `1c7485fe8a99becc4cedce5f144e5111199b108b274f7a26779525121c767137`.
-- `candidate-roster.log`: SHA-256 `dc5067fda9b19c1f981988646773f0dbf320c017f87df971917e194965da336e`.
-- `canonical-benchmark.json`: SHA-256 `4a0683ba8bfa1e3225609f0dc7b434bbedf964adb962e8c0205a43e3454adb26`.
-
-The coordinator also reports a fresh `git fetch origin main` resolving to
-`39723f974d5ed7fda703ea11cec0cc20153b235f` (no base drift), and an independent
-source review with no actionable issues at source commit
-`f00d29324a268282a512d302180e8ed74f3f5b1d`. The local remote-tracking ref
-matches that base. These coordinator attestations are separate from the safe
-log results this worker inspected and do not replace required reviewer rails.
-
-Next owner remains the coordinator: non-force push, PR to `main`, exact-head
-CI/comprehensive OpenClaw/native ClawSweeper evidence, and controlled live
-comparison through the existing workflow. No live latency improvement is
-claimed from synthetic operation counts. This worker dispatched no live run,
-push, PR or review. The candidate is not review-ready; no merge is authorized.
+Next owner: coordinator for non-force push/PR, exact-head CI and both reviews,
+and a controlled full-roster live comparison through the existing workflow when
+beta is idle. Match baseline inputs/store versions and bind exact head/run ID;
+resolve version comparability without downgrading. Compare full results, Problems
+and whole-step timing, refusals and authorized private proof. One live pair offers
+limited timing evidence. This worker dispatched no live run. No merge authorized.
