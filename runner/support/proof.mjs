@@ -104,6 +104,22 @@ export function note(key, value) {
 }
 
 /**
+ * Keeps one private timing fact per journey, "<name> timing", written once when a try of the journey
+ * finishes (see steps.mjs). Each try keeps its own entry, so a failed try is never erased by the retry
+ * that followed it: a retry (`retry` above 0) adds its entry beside the earlier tries', as startJourney
+ * keeps their steps, and a journey run again under the same run id starts its tries over. A try the
+ * run cut off before its wrapper finished leaves no entry at all, rather than a zero. The README's
+ * "Proof" section describes the shape.
+ */
+export function noteJourneyTiming(name, retry, entry) {
+  load();
+  const key = `${name} timing`;
+  const tries = retry > 0 && Array.isArray(facts[key]?.tries) ? facts[key].tries.filter(t => t.try !== retry + 1) : [];
+  facts[key] = { unit: "ms", tries: [...tries, { try: retry + 1, ...entry }] };
+  write();
+}
+
+/**
  * Saves the page's screenshot for the step about to be recorded. A picture is never worth holding the
  * run for: one that hasn't come within 30 s is skipped, and the step's result stands.
  */
@@ -154,7 +170,7 @@ function write() {
       ...steps.filter(s => s.journey === r.name).map(s => `| ${cell(s.step)}${s.retried ? " (first try)" : ""} | ${s.status} | ${cell(s.detail)} |`),
     ]),
     "", "## Facts", "",
-    ...Object.entries(facts).map(([key, value]) => `- ${key}: ${value}`),
+    ...Object.entries(facts).map(([key, value]) => `- ${key}: ${Object(value) === value ? JSON.stringify(value) : value}`),
   ];
   writeFileSync(join(config.runDir, "PROOF.md"), lines.join("\n") + "\n");
 }

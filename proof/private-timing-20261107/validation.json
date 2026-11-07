@@ -1,0 +1,27 @@
+{
+  "base": "da61f2206486504eb4784571e6b15680328c5fc3",
+  "branch": "ridge/live-journey-timing-20261107",
+  "worker_runtime_available": "none: every Node invocation was denied by the session permission policy (pinned Node 24.22.0, PATH Node v26.13.0 beyond --version, npm ci, delegated subagent)",
+  "platform": "Linux aarch64",
+  "source_sha256": {
+    "runner/support/pace.mjs": "ec065caf0b01c3465f68b2051213a72881603679273d99b9186c5d86ab7273ba",
+    "runner/support/proof.mjs": "332f2507691bbb3edff87fa02be3f50269e6dcfebd111167dc2b72cf1cd22821",
+    "runner/support/steps.mjs": "30acadf4026d5ba33b68ed4ae990bc0e6e935fcd0e728cfb213bb5291c9ba18e",
+    "runner/unit/journey-timing.test.mjs": "8915568da4f7e3c5f01ed576bf893d746ec555c152259fb26c306888d2ab969b",
+    "runner/unit/fixtures/journey-wrapper.mjs": "70e4061b524356a49b77c70dd09606014f1b1413f2b2b6a4b6a9a9a463b68bae",
+    "proof/private-timing-20261107/benchmark.mjs": "8f0db8ac2601765df3eb726d45abd195805e17907b98d15f0b2a1bbd121b9e37",
+    "runner/README.md": "7a9cfcb39eb9b63161097e57fa55a955829fa8cc10fe08729e8e0430c0c136a9"
+  },
+  "checks": {
+    "git_diff_check": { "exit": 0 },
+    "unit_targeted": { "command": "node --test runner/unit/journey-timing.test.mjs", "run": false, "reason": "execution denied" },
+    "unit_full": { "command": "node --test runner/unit/*.test.mjs", "run": false, "reason": "execution denied" },
+    "benchmark": { "command": "node proof/private-timing-20261107/benchmark.mjs --base da61f2206486504eb4784571e6b15680328c5fc3 --samples 30 --out proof/private-timing-20261107/benchmark-results.json", "run": false, "samples": 0, "reason": "execution denied" }
+  },
+  "claims": {
+    "live_performance": false,
+    "overhead_measured": false,
+    "additional_network_calls": "none by construction: pace.mjs, proof.mjs and steps.mjs import only node:fs, node:path and runner modules; the benchmark asserts this statically and binds no network API",
+    "additional_scheduled_waits": "none by construction: the only timer in paceStore is unchanged; the benchmark counts timers and delays per variant"
+  }
+}
