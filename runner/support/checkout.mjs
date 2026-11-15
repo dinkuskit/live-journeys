@@ -61,8 +61,10 @@ export async function openCheckout(page, { quantity = 1 } = {}) {
     const add = page.locator(productId ? `form[data-add-to-cart-form] [data-add-to-cart="${productId}"]` : ADD_TO_CART).first();
     unitCents = await unitPrice(page, await add.getAttribute("data-add-to-cart"));
     await add.click();
-    await orFail(expect(page.locator("[data-add-to-cart-status]")).toHaveText(ADDED, { timeout: 10_000 }), async () =>
-      `Add to cart failed: ${await texts(page, "[data-add-to-cart-status]")}`);
+    // The message beside the pressed button: a Shop list draws one beside each card's button.
+    const status = add.locator("xpath=ancestor::*[.//*[@data-add-to-cart-status]][1]").locator("[data-add-to-cart-status]");
+    await orFail(expect(status).toHaveText(ADDED, { timeout: 10_000 }), async () =>
+      `Add to cart failed: ${(await status.innerText({ timeout: 5_000 }).catch(() => "")).trim() || "no message beside the button"}`);
 
     // The server draws the cart from Commerce, so the page as loaded is the cart.
     await page.goto(config.store + "/cart");
