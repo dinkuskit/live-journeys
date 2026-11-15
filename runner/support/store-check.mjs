@@ -213,11 +213,12 @@ export async function storeShows(shopper, state, { opened = null } = {}) {
 }
 
 /**
- * Everything that still offers this run's product to shoppers once the owner archived it or took its
- * page down. An archived product's page must say it's no longer available, and its category, still
- * published then, must answer for the missing card to count; so must a category the store's other
- * products are in (`shared`), which the clean-up leaves on the store. `opened`, the handoff from
- * openShopperPage(shopper, "/"), spares the homepage's first load (see catchUp).
+ * Everything that still offers this run's product to shoppers once the owner archived it (moved its
+ * page to the Trash) or took its page down. An archived product's page must answer HTTP 404, as an
+ * archived product's does at Shopify, and its category, still published then, must answer for the missing
+ * card to count; so must a category the store's other products are in (`shared`), which the clean-up
+ * leaves on the store. `opened`, the handoff from openShopperPage(shopper, "/"), spares the homepage's
+ * first load (see catchUp).
  */
 export async function storeHides(shopper, { id, name, productPath, categoryPath, shared = false }, { archived = false, opened = null } = {}) {
   // A homepage that doesn't answer, or whose Shop list can't be read, shows no cards either, which proves nothing.
@@ -235,8 +236,7 @@ export async function storeHides(shopper, { id, name, productPath, categoryPath,
       if (offers.length) return [`${productPath} still ${offers.join(" and ")}`];
       // A shopper following an old link to an archived product learns it's gone, from a page that answers 404.
       if (!archived) return [];
-      const says = /no longer available/i.test(await text(shopper.locator("main")));
-      return response.status() === 404 && says ? [] : [`${productPath} answers HTTP ${response.status()}${says ? " instead of 404" : " without saying the product is no longer available"}`];
+      return response.status() === 404 ? [] : [`${productPath} answers HTTP ${response.status()} instead of 404`];
     }));
     if (categoryPath) checks.push(await catchUp(shopper, categoryPath, async response => categoryHides({
       path: categoryPath, status: response.status(), archived, shared,

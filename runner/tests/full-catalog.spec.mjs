@@ -4,7 +4,7 @@ import { config } from "../support/env.mjs";
 import { firstLine, withoutQueries } from "../support/errors.mjs";
 import {
   addCategory, addProductPage, choosePhoto, entryLinks, finishProductPage, makeProduct, openPanel, openPhotoPanel, openProductPanel, panelProduct, panelWeight, publish,
-  publishProductPage, publishedLink, republishProductPage, restore, setPrice, setWeight, uploadPhotos,
+  publishProductPage, publishedLink, republishProductPage, setPrice, setWeight, uploadPhotos,
 } from "../support/products-admin.mjs";
 import { PHOTO_ROOM, STORE_BUDGET, paceStore } from "../support/pace.mjs";
 import { note } from "../support/proof.mjs";
@@ -158,8 +158,8 @@ async function productPageProblems(shopper, product) {
 /**
  * Gives one catalog product what the store lacks for it, as an owner would, all on its product page:
  * a page in its category when it has none, its Commerce product made by the first Save in the page's
- * Dinkus Commerce panel with its price and weight (or the one the page already has), restored
- * when archived, its price and weight saved where they differ, its photo chosen when the panel shows
+ * Dinkus Commerce panel with its price and weight (or the one the page already has; an archived one
+ * is reported), its price and weight saved where they differ, its photo chosen when the panel shows
  * none (uploaded first unless its batch did), and the page published, again when its product is a
  * Draft. Records in `did` what it did, which stays nothing when the store had it all, and keeps what
  * was done when a later part fails.
@@ -185,11 +185,9 @@ async function completeProduct(page, content, product, { entry, uploaded }, did)
   }
   // A page naming some other product is never written to, so the SKU is checked before anything changes it.
   if (shown.sku !== product.sku) throw new Error(`its page's panel shows SKU ${shown.sku || "none"} instead of ${product.sku}`);
-  if (shown.state === "archived") {
-    await restore(panel);
-    did.push("restored");
-    shown = await panelProduct(panel);
-  }
+  // An owner archives a product by moving its page to the Trash, so a page in the list never shows an
+  // archived product; one that does is left alone and reported (catalog-archive-is-page-trash-20261115).
+  if (shown.state === "archived") throw new Error("its page's panel shows its product as archived, which no button can undo");
   // The panel shows the price and weight Commerce stored, so only one that differs is saved, and reported.
   const price = (product.cents / 100).toFixed(2);
   if (await panel.getByRole("textbox", { name: "Regular", exact: true }).inputValue() !== price) {

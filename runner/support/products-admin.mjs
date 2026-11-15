@@ -21,7 +21,7 @@ export async function answer(page, question, choice) {
 }
 
 // The Dinkus Commerce panel on a Content > Products page is the one product screen: it makes the page's
-// Commerce product and holds its price, weight, name and archive. From Commerce 0.8.0 (commerce#244) a
+// Commerce product and holds its price, weight and name; moving the page to the Trash archives it. From Commerce 0.8.0 (commerce#244) a
 // page with no product opens on its price form ("Save makes the product as a Draft."), whose Save makes
 // the product; a page with one opens on a grid of Status, SKU and Name (page title), then "Pricing &
 // stock" for a simple product, then cards (Variants, Shipping, Identifiers) that stay shut until opened.
@@ -203,7 +203,7 @@ const MADE = /^Draft made\. Publish the page to sell it\.$/;
  * fails. When Commerce's answer shows the price or weight wasn't kept (the panel drawing itself again
  * between typing and Save sends an empty box), each is saved again on the product's own form.
  * `made.product` is "asked" from the moment a product may be made and true once the page has it, so a
- * caller can archive a product Commerce made even when the test lost sight of it. Returns the panel and
+ * caller can take a product Commerce made off the store even when the test lost sight of it. Returns the panel and
  * the product's ID.
  */
 export async function makeProduct(page, { sku, regular, ounces }, made = {}) {
@@ -267,21 +267,6 @@ export async function rename(page, editor, name) {
   await publishProductPage(page);
 }
 
-/** Archives the product in the open panel, answering the question Commerce asks first. */
-export async function archive(panel) {
-  const button = panel.getByRole("button", { name: "Archive product", exact: true });
-  if (!await button.count()) throw new Error("The Dinkus Commerce panel has no Archive product.");
-  const name = await gridValue(panel, "Name (page title)");
-  await panelSays(panel, async () => {
-    await button.click();
-    await answer(panel.page(), `Archive ${name}?`, "Archive");
-  }, "Product archived");
-}
-
-/** Restores the archived product in the open panel; Commerce brings it back as a Draft. */
-export async function restore(panel) {
-  await panelSays(panel, () => panel.getByRole("button", { name: "Restore", exact: true }).click(), "Restored as a Draft");
-}
 
 /** Uploads a plain square photo to the Media library, as an owner does before choosing it for a product. */
 export async function uploadPhoto(page, fileName, label) {
@@ -599,4 +584,25 @@ export async function trash(page, url) {
   await page.getByRole("button", { name: "Move to Trash" }).click();
   await answer(page, "Move to Trash?", "Move to Trash");
   await page.waitForURL(next => !next.href.startsWith(url.split("?")[0]), { timeout: 30_000 });
+}
+
+/**
+ * Restores the `collection` entry titled `title` (product pages unless named) from the Trash tab of
+ * EmDash's list, as an owner does to bring back an archived product: EmDash brings the page back as a Draft.
+ */
+export async function restoreFromTrash(page, title, collection = "products") {
+  await openAdmin(page, `${config.store}/_emdash/admin/content/${collection}`);
+  await page.getByRole("tab", { name: /^Trash/ }).click();
+  // The Trash tab lists the newest trashed entries first, with each title as plain text in its row.
+  const row = page.getByRole("table").getByRole("row").filter({ has: page.getByText(title, { exact: true }) });
+  if (!await row.first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
+    throw new Error(`EmDash's Trash tab for ${collection} doesn't list "${title}".`);
+  }
+  await row.first().getByRole("button", { name: `Actions for ${title}`, exact: true }).click();
+  const restored = page.waitForResponse(response => response.request().method() === "POST"
+    && /^\/_emdash\/api\/content\/[^/]+\/[^/]+\/restore$/.test(new URL(response.url()).pathname), { timeout: 30_000 });
+  await page.getByRole("menu", { name: `Actions for ${title}`, exact: true }).getByRole("menuitem", { name: "Restore", exact: true }).click();
+  const response = await restored.catch(() => null);
+  if (!response) throw new Error(`EmDash didn't answer Restore for "${title}" within 30 seconds.`);
+  if (!response.ok()) throw new Error(`EmDash refused to restore "${title}" (HTTP ${response.status()}).`);
 }

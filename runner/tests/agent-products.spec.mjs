@@ -61,7 +61,7 @@ async function onSale(page, agent, want) {
 // Draft product and its page through Commerce's catalog API and EmDash's content API, the page in a
 // category the store's other products are in (Full catalog's tees, when the store has them), publishes the
 // page, changes the price from a preview, sees Commerce refuse a change made from an old preview, and
-// archives the product, with the store following each change. It tidies up after itself.
+// archives the product by moving its page to the Trash, with the store following each change. It tidies up after itself.
 test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
   const run = runNames();
@@ -69,7 +69,7 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
   // What the store should show, and what this run made, so the last steps can take it all off the store.
   // `shared` says the page went in a category other products are in, which stays on the store.
   const state = { id: "", name: run.product, cents: 1200, productPath: "", categoryPath: "", hasPhoto: false, photoHash: "", shared: false, beside: 0 };
-  const made = { product: "", entry: "", archived: false };
+  const made = { product: "", entry: "", trashed: false };
   const soft = { soft: true };
   let agent;
   try {
@@ -191,35 +191,36 @@ test("An agent manages a product", { tag: "@next" }, journey(async ({ page }) =>
       return `HTTP ${response.status}, "${reason.slice(reason.indexOf(STALE_PREVIEW), 200)}"; the product still reads as preview ${now.expected}, at $13.50`;
     }, soft);
 
+    // An agent archives a product as an owner does, by moving its page to the Trash with EmDash's DELETE
+    // (catalog-archive-is-page-trash-20261115): the store's publish check takes the product off sale.
     await step(shopper, "Archiving the product through the API takes it off the store", async () => {
-      const { expected } = await preview(page, agent);
-      const archived = await catalog(page, agent, { op: "archive", catalogItemId: made.product, archived: true, expected });
-      if (archived?.changed !== true) throw new Error("Commerce answered that archiving changed nothing.");
-      made.archived = true;
-      const { problems, seconds } = await storeHides(shopper, state, { archived: true });
-      if (problems.length) throw new Error(`Archived through the API, but ${problems.join("; ")}${after(seconds)}.`);
-      return `gone from the Shop list${state.categoryPath ? ` and ${state.categoryPath}` : ""}, and ${state.productPath} says it's no longer available (HTTP 404)${after(seconds)}`;
+      if (!made.entry) throw new Error("The agent saved no page for the product, so there's no page to move to the Trash.");
+      await agentAsk(page, agent, undefined, { url: `${agent.apis.products}/${encodeURIComponent(made.entry)}`, method: "DELETE", what: "EmDash's content API (delete)" });
+      made.trashed = true;
+      const problems = await onSale(page, agent, false) ? ["Commerce still has the product on sale 30 seconds after its page went to the Trash"] : [];
+      const { problems: storeProblems, seconds } = await storeHides(shopper, state, { archived: true });
+      problems.push(...storeProblems);
+      if (problems.length) throw new Error(`Moved its page to the Trash through EmDash's API, but ${problems.join("; ")}${after(seconds)}.`);
+      return `moved its page to EmDash's Trash; Commerce has the product off sale, it's gone from the Shop list${state.categoryPath ? ` and ${state.categoryPath}` : ""}, and ${state.productPath} answers HTTP 404${after(seconds)}`;
     }, soft);
   } finally {
     // Whatever this run added comes off the store again, even when a step above stopped the journey.
     if (agent && (made.product || made.entry)) await step(shopper, "The test takes its product and page off the store", async () => {
       const problems = [];
-      if (made.product && !made.archived) {
-        await catalog(page, agent, { op: "archive", catalogItemId: made.product, archived: true })
-          .then(() => { made.archived = true; }, error => problems.push(`archiving ${made.product} failed, so look for SKU ${run.sku} under Commerce settings' Products: ${firstLine(error)}`));
-      }
-      // EmDash's DELETE moves the page to the Trash, where the owner can restore it.
-      if (made.entry) {
+      // EmDash's DELETE moves the page to the Trash, which archives its product; the owner can restore it.
+      if (made.entry && !made.trashed) {
         await agentAsk(page, agent, undefined, { url: `${agent.apis.products}/${encodeURIComponent(made.entry)}`, method: "DELETE", what: "EmDash's content API (delete)" })
-          .catch(error => problems.push(`moving the page "${run.product}" to the Trash failed: ${firstLine(error)}`));
+          .then(() => { made.trashed = true; }, error => problems.push(`moving the page "${run.product}" to the Trash failed: ${firstLine(error)}`));
       }
+      // A product made without its page can't be archived, so it's named for the owner.
+      if (made.product && !made.entry) problems.push(`Commerce made ${made.product} (SKU ${run.sku}) but the test saved no page for it, so look for it under Commerce settings' Products`);
       const opened = await openShopperPage(shopper, "/").catch(error => { problems.push(`the test couldn't open the store as a shopper to check it: ${firstLine(error)}`); return null; });
       if (opened) {
         problems.push(...(await storeHides(shopper, state, { opened })).problems);
         if (state.productPath) problems.push(...(await catchUp(shopper, state.productPath, response => response.status() === 200 ? [`${state.productPath} still answers HTTP 200`] : [])).problems);
       }
       if (problems.length) throw new Error(`${problems.join("; ")}.`);
-      return `archived ${made.product || "no product"}${made.entry ? " and moved its page to EmDash's Trash" : ""}; the store shows neither`;
+      return `moved its page to EmDash's Trash, which archives ${made.product || "no product"}; the store shows neither`;
     }, soft);
     if (agent) await step(page, "The test deletes the agent's key", () => deleteAgentKey(page, agent, () => agentCall(page, agent, { op: "list" }, { url: agent.apis.catalog, what: "Commerce's catalog API" })), soft);
     await closeShopper(shopper);
