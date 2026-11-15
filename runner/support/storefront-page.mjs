@@ -3,6 +3,10 @@ import { expect } from "./browser.mjs";
 /** How long a check waits for something a loaded page should already show. */
 export const quick = { timeout: 5_000 };
 
+// Add to cart is a submit button in a plain form posting to /cart/add (Template Store #229, the server cart):
+// it works the moment the page is drawn, with or without the page script.
+export const ADD_TO_CART = "form[data-add-to-cart-form] [data-add-to-cart]";
+
 // innerText also reads an element the page hides, so only the first one a shopper can see counts.
 export const text = async (locator) => (await locator.filter({ visible: true }).first().innerText(quick).catch(() => "")).replace(/\s+/g, " ").trim();
 

@@ -2,19 +2,20 @@ import { newPage, get } from "./browser.mjs";
 import { expect } from "@playwright/test";
 import { config } from "./env.mjs";
 import { openStorePage } from "./signin.mjs";
+import { ADD_TO_CART } from "./storefront-page.mjs";
 import { cartCount } from "./storefront-text.mjs";
 import { storeReturnLinks, storeReturnPage } from "./checkout-text.mjs";
 
-// The storefront's own localStorage keys (template-store guest-cart intent.ts and checkout-protocol.ts).
-const CART_KEY = "dinkus.guest-cart.v1";
-const CHECKOUT_KEY = "dinkus.guest-checkout.v1";
+// Commerce keeps the cart (Template Store #229); the browser holds only its key, in the store's HttpOnly
+// dk_cart cookie, and the item count in dk_cart_count (template-store guest-cart server-cart.ts).
+const CART_COOKIES = ["dk_cart", "dk_cart_count"];
 const HUMAN_WAIT_MS = 10 * 60 * 1000;
 // The Add to cart button findPhysicalProduct chose, when the page shows more than one.
 let productId = null;
 
 /**
- * Buys one physical product as a guest, the way a shopper does: product page, Add to cart,
- * /cart with a US delivery address, Stripe's hosted Checkout with the 4242 test card, and back.
+ * Buys one physical product as a guest, the way a shopper does: product page, Add to cart, /cart,
+ * /checkout with a US delivery address, Stripe's hosted Checkout with the 4242 test card, and back.
  *
  * Returns { number, orderId, checkoutToken, state, pricing, thankYou }. The storefront never
  * learns the short order number: Commerce's guest checkout status carries only `order:<attempt id>`,
@@ -32,9 +33,8 @@ export async function placeTestOrder(page) {
 
 /**
  * Takes a guest shopper to Stripe's hosted Checkout for one physical product: product page, Add to
- * cart, /cart with a US delivery address, then Continue to secure checkout. A cart without the
- * checkout contact (Template Store #127) sends the shopper to /checkout for it. `quantity` is typed
- * into the cart's quantity box, as a shopper buying several would. Returns the checkout contact's
+ * cart, /cart, then /checkout with a US delivery address and Continue to secure checkout. `quantity`
+ * is typed into the cart's quantity box and Update pressed, as a shopper buying several would. Returns the checkout contact's
  * email, the product's unit price in cents from the store's cart snapshot (`unitCents`, null when
  * unreadable), and `resumed` when the browser already had a checkout pending in Commerce and went
  * back to its Stripe session instead.
@@ -49,40 +49,41 @@ export async function openCheckout(page, { quantity = 1 } = {}) {
   // own Stripe session instead of starting another.
   const resumed = await resumeCheckout(page);
   if (!resumed) {
-    // The saved profile keeps an earlier run's cart and checkout; a leftover checkout locks the cart.
-    await page.evaluate(keys => keys.forEach(key => localStorage.removeItem(key)), [CART_KEY, CHECKOUT_KEY]);
+    // The saved profile keeps an earlier run's cart and checkout; a leftover checkout locks the cart, so
+    // the shopper starts a new cart, as one whose cookies were cleared does.
+    for (const name of CART_COOKIES) await page.context().clearCookies({ name });
     path = config.productPath || await findPhysicalProduct(page);
 
     await page.goto(new URL(path, config.store).href);
-    await orFail(page.locator('[data-add-to-cart][data-guest-cart-ready="1"]').first().waitFor({ timeout: 15_000 }), async () =>
+    await orFail(page.locator(ADD_TO_CART).first().waitFor({ timeout: 15_000 }), async () =>
       `${path} offers no Add to cart: ${await texts(page, ".product-detail__notice, [data-product-status]")}`);
-    const add = page.locator(productId ? `[data-add-to-cart="${productId}"]` : "[data-add-to-cart]").first();
+    const add = page.locator(productId ? `form[data-add-to-cart-form] [data-add-to-cart="${productId}"]` : ADD_TO_CART).first();
     unitCents = await unitPrice(page, await add.getAttribute("data-add-to-cart"));
     await add.click();
-    await orFail(expect(page.locator("[data-add-to-cart-status]")).toHaveText(/added to cart/i, { timeout: 10_000 }), async () =>
+    await orFail(expect(page.locator("[data-add-to-cart-status]")).toHaveText(ADDED, { timeout: 10_000 }), async () =>
       `Add to cart failed: ${await texts(page, "[data-add-to-cart-status]")}`);
 
-    // The checkout button turns on once the cart's catalog snapshot and Commerce's prepare both answer.
+    // The server draws the cart from Commerce, so the page as loaded is the cart.
     await page.goto(config.store + "/cart");
     if (quantity !== 1) {
       const field = page.locator("[data-guest-cart-qty]").first();
       await orFail(field.waitFor({ timeout: 15_000 }), async () => `The cart shows no quantity box to change: ${await cartMessage(page)}`);
       await field.fill(String(quantity));
-      // The cart applies a typed quantity when the field loses focus, as when a shopper tabs on.
-      await field.press("Tab");
-      await orFail(expect(field).toHaveValue(String(quantity), { timeout: 10_000 }), async () =>
+      // The line's Update button sends the new quantity, as a shopper presses it.
+      await page.locator("[data-guest-cart-update]").first().click();
+      await orFail(expect(page.locator("[data-guest-cart-qty]").first()).toHaveValue(String(quantity), { timeout: 10_000 }), async () =>
         `The cart wouldn't keep quantity ${quantity}: ${await cartMessage(page)}`);
     }
+    // The cart's checkout is a link to /checkout, which asks for the contact and delivery address.
+    const proceed = page.locator("[data-guest-cart-proceed]");
+    await orFail(expect(proceed).toHaveAttribute("href", "/checkout", { timeout: 5_000 }), async () => `The cart never offered checkout: ${await cartMessage(page)}`);
+    await proceed.click();
+    await orFail(page.waitForURL(url => storeReturnPage(url.href, config.store) === "checkout page", { timeout: 30_000 }), async () =>
+      `The cart's checkout button didn't open the store's checkout page: ${await cartMessage(page)}`);
     const checkout = page.locator("[data-guest-cart-checkout]");
-    await orFail(expect(checkout).toBeEnabled({ timeout: 45_000 }), async () => `The cart never offered checkout: ${await cartMessage(page)}`);
-    if (!await page.locator("[data-guest-cart-email]").count()) {
-      await checkout.click();
-      await orFail(page.waitForURL(url => storeReturnPage(url.href, config.store) === "checkout page", { timeout: 30_000 }), async () =>
-        `The cart asks for no checkout contact and its checkout button didn't open the store's checkout page: ${await cartMessage(page)}`);
-      await orFail(expect(checkout).toBeEnabled({ timeout: 45_000 }), async () => `The checkout page never offered checkout: ${await cartMessage(page)}`);
-    }
+    await orFail(expect(checkout).toBeEnabled({ timeout: 15_000 }), async () => `The checkout page never offered checkout: ${await cartMessage(page)}`);
     await orFail(page.locator("[data-guest-cart-delivery]").waitFor({ timeout: 5_000 }), async () =>
-      `The cart asks for no delivery address, so ${path} is not a physical product; set DINKUS_E2E_PRODUCT_PATH.`);
+      `The checkout page asks for no delivery address, so ${path} is not a physical product; set DINKUS_E2E_PRODUCT_PATH.`);
     const { shopper } = config;
     await page.locator("[data-guest-cart-email]").fill(email);
     await page.locator("[data-guest-cart-delivery-name]").fill(shopper.name);
@@ -114,7 +115,7 @@ async function unitPrice(page, id) {
 export async function resumeCheckout(page) {
   // A store behind Cloudflare Access sends the browser to Access's login once the saved sign-in lapses.
   await openStorePage(page, config.store + "/");
-  const earlier = await page.evaluate(readStatus, { key: CHECKOUT_KEY, routes: statusRoutes() });
+  const earlier = await readStatus(page);
   const resume = earlier.checkout?.state === "pending" ? earlier.checkout.redirectUrl : null;
   if (!resume || new URL(resume).hostname !== "checkout.stripe.com") return false;
   await page.goto(resume);
@@ -191,7 +192,7 @@ async function findPhysicalProduct(page) {
   for (const path of [...paths, listing]) {
     await page.goto(new URL(path, config.store).href);
     // From Template Store #125 a product sold only by its options also draws a locked Add to cart, which this journey can't use.
-    const ids = await page.locator("[data-add-to-cart]").evaluateAll(buttons => buttons.filter(button => !button.disabled).map(button => button.getAttribute("data-add-to-cart")));
+    const ids = await page.locator(ADD_TO_CART).evaluateAll(buttons => buttons.filter(button => !button.disabled).map(button => button.getAttribute("data-add-to-cart")));
     for (const id of ids.filter(Boolean)) {
       const response = await get(page, `${config.store}/api/guest-cart/snapshot?ids=${encodeURIComponent(id)}`);
       const product = response.ok() ? (await response.json()).products?.[0] : null;
@@ -395,12 +396,12 @@ export class CaptchaShown extends Error {
   }
 }
 
-/** Commerce's status for the checkout this browser saved, read from a store page opened beside the shopper's. */
+/** Commerce's status for this browser's cart's checkout, read from a store page opened beside the shopper's. */
 export async function checkoutStatus(page) {
   const storePage = await newPage(page.context());
   try {
     await openStorePage(storePage, config.store + "/");
-    return await storePage.evaluate(readStatus, { key: CHECKOUT_KEY, routes: statusRoutes() });
+    return await readStatus(storePage);
   } finally {
     await storePage.close();
   }
@@ -411,43 +412,44 @@ export async function checkoutStatus(page) {
  * Commerce check the payment and record the order, so this runs even when the thank-you page cannot.
  */
 async function settle(page) {
-  const routes = statusRoutes();
   const deadline = Date.now() + 90_000;
   let last;
   do {
-    last = await page.evaluate(readStatus, { key: CHECKOUT_KEY, routes });
+    last = await readStatus(page);
     if (!last.attemptId || (last.checkout && last.checkout.state !== "pending")) return last;
     await page.waitForTimeout(5_000);
   } while (Date.now() < deadline);
   return last;
 }
 
-/** Commerce's guest checkout status routes: the store's own proxy, then the plugin route. */
-function statusRoutes() {
+/**
+ * Commerce's word on this browser's cart and its checkout, read the way the store reads it: the cart
+ * key from the dk_cart cookie, sent to Commerce's cart route from a store page. An empty body only
+ * reads the cart, and a read also runs Commerce's payment check. { attemptId: null } with no cart.
+ */
+async function readStatus(page) {
+  const key = (await page.context().cookies(config.store)).find(cookie => cookie.name === CART_COOKIES[0])?.value ?? "";
   const plugin = config.ordersAdmin.match(/\/plugins\/([^/]+)\//)?.[1];
-  return ["/api/checkout/status", ...(plugin ? [`/_emdash/api/plugins/${plugin}/checkout/guest/status`] : [])];
-}
-
-// Runs in the store page: the capability the cart saved is the only key to the checkout's status.
-const readStatus = async ({ key, routes }) => {
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(key) ?? "null"); } catch {}
-  const attemptId = saved?.attemptId ?? null;
-  if (!saved?.capability) return { attemptId };
-  for (const route of routes) {
+  if (!key || !plugin) return { attemptId: null };
+  const checkout = await page.evaluate(async ({ key, route }) => {
     try {
       const response = await fetch(route, {
         method: "POST", cache: "no-store", redirect: "error",
-        headers: { "content-type": "application/json", accept: "application/json", "x-commerce-guest-capability": saved.capability },
-        body: JSON.stringify(attemptId ? { attemptId } : {}),
+        headers: { "content-type": "application/json", accept: "application/json", "x-commerce-guest-capability": key },
+        body: "{}",
       });
       const body = await response.json();
       const value = body?.success === true ? body.data : body;
-      if (value?.ok) return { attemptId, checkout: value.checkout };
-    } catch {}
-  }
-  return { attemptId };
-};
+      return value?.ok ? value.checkout ?? null : null;
+    } catch {
+      return null;
+    }
+  }, { key, route: `/_emdash/api/plugins/${plugin}/checkout/guest/cart` });
+  return checkout ? { attemptId: checkout.attemptId ?? null, checkout } : { attemptId: null };
+}
+
+// The store's word beside Add to cart once the cart has the product ("Added to your cart.").
+const ADDED = /added to (?:your )?cart/i;
 
 /** Awaits `work`; on failure throws `reason()` instead, so the proof report's one line says what happened. */
 async function orFail(work, reason) {

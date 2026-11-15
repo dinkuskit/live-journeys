@@ -3,7 +3,7 @@ import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import { STORE_OPENS, openShopperPage, storeOpens } from "../support/shopper.mjs";
 import { journey, mayRunTwice, step } from "../support/steps.mjs";
-import { quick, text } from "../support/storefront-page.mjs";
+import { ADD_TO_CART, quick, text } from "../support/storefront-page.mjs";
 import { cartCount, cartTotal, dollars, money } from "../support/storefront-text.mjs";
 
 const items = count => count === null ? "nothing readable" : `${count} item${count === 1 ? "" : "s"}`;
@@ -23,17 +23,16 @@ async function shownPrice(scope) {
   return text(await sale.count() ? sale : scope.locator("[data-regular-price]"));
 }
 
-/** The Add to cart button once the page has wired it to the cart and it can be pressed; null when there is none. */
+/** The first Add to cart button a shopper can press; null when there is none. */
 async function ready(buttons) {
   if (!await buttons.count()) return null;
   const button = buttons.first();
-  await expect(button).toHaveAttribute("data-guest-cart-ready", "1", { timeout: 15_000 }).catch(() => {});
-  return await button.getAttribute("data-guest-cart-ready") === "1" && await button.isEnabled() ? button : null;
+  return await button.isEnabled() ? button : null;
 }
 
 /** The product on the page the browser is on, with its Add to cart; null when the page offers none. */
 async function onProductPage(page, path) {
-  const button = await ready(page.locator("[data-add-to-cart]"));
+  const button = await ready(page.locator(ADD_TO_CART));
   const product = page.locator("[data-product-page]");
   return button && { where: path, name: await text(product.locator("h1")), price: await shownPrice(product.locator("[data-product-price]")), button };
 }
@@ -64,7 +63,7 @@ async function findProduct(page) {
     }
     if (new URL(page.url()).pathname !== "/") await openShopperPage(page, "/");
     const card = page.locator(`[data-commerce-catalog] [data-commerce-product="${id}"]`);
-    const button = await ready(card.locator("[data-add-to-cart]"));
+    const button = await ready(card.locator(ADD_TO_CART));
     if (button) return { where: "the homepage's Shop list", name: await text(card.locator("h3")), price: await shownPrice(card), button };
   }
   throw new Error(`None of the Shop list's ${cards.length} products offers a working Add to cart${unopened.length ? ` (${unopened.join("; ")})` : ""}.`);
@@ -134,9 +133,9 @@ test("Cart", { tag: "@running" }, journey(async () => {
       // The message sits beside the button, or from Template Store #125 beside the box holding the button and its quantity.
       const status = product.button.locator("xpath=ancestor::*[.//*[@data-add-to-cart-status]][1]").locator("[data-add-to-cart-status]");
       // The confirmation counts only when the shopper can see it.
-      if (!await expect(status.filter({ visible: true })).toHaveText(/added to cart/i, { timeout: 10_000 }).then(() => true, () => false)) {
+      if (!await expect(status.filter({ visible: true })).toHaveText(/added to (?:your )?cart/i, { timeout: 10_000 }).then(() => true, () => false)) {
         const said = await text(status);
-        throw new Error(`Add to cart on ${product.where} ${said ? `said "${said}"` : "showed no message"} instead of "Added to cart."`);
+        throw new Error(`Add to cart on ${product.where} ${said ? `said "${said}"` : "showed no message"} instead of "Added to your cart."`);
       }
       const count = await headerCount(page, 1);
       if (count !== 1) throw new Error(`After Add to cart the header's cart shows ${items(count)}, not 1 item.`);
@@ -161,8 +160,8 @@ test("Cart", { tag: "@running" }, journey(async () => {
     await step(page, "Changing the quantity updates the cart", async () => {
       const quantity = page.locator("[data-guest-cart-qty]").first();
       await quantity.fill("2", quick);
-      // The cart applies a typed quantity when the field loses focus, as when a shopper tabs on.
-      await quantity.press("Tab", quick);
+      // The line's Update button sends the new quantity, as a shopper presses it.
+      await page.locator("[data-guest-cart-update]").first().click(quick);
       const problems = [];
       const count = await headerCount(page, 2);
       if (count !== 2) problems.push(`the header's cart shows ${items(count)}`);
@@ -174,7 +173,7 @@ test("Cart", { tag: "@running" }, journey(async () => {
         if (live?.quantity !== "2") throw new Error(`Right after the change the cart shows quantity ${live?.quantity || "none"}, not 2, so its total didn't follow it${said}.`);
         return totalCatchesUp(page);
       })().then(detail => ({ detail }), error => ({ error }));
-      // The cart is kept in the shopper's browser, so coming back shows the same quantity.
+      // Commerce keeps the cart, so coming back shows the same quantity.
       await page.reload(load);
       const [line] = await cartLines(page);
       if (line?.quantity !== "2") problems.push(`after a reload the cart shows quantity ${line?.quantity || "none"}`);
@@ -200,7 +199,7 @@ test("Cart", { tag: "@running" }, journey(async () => {
       const count = await headerCount(page, 0);
       if (count !== 0) problems.push(`the header's cart shows ${items(count)}`);
       await page.reload(load);
-      // The cart draws its lines from the browser's saved cart when its script runs, and shows the empty message then.
+      // The server draws the cart from Commerce, so the reloaded page shows the empty message as it loads.
       if (!await empty.waitFor({ timeout: 10_000 }).then(() => true, () => false)) problems.push("after a reload the cart doesn't say it's empty");
       if (await lines.count()) problems.push("after a reload the cart lists the item again");
       const reloaded = await headerCount(page, 0);

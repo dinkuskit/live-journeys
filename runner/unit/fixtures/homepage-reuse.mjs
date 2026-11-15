@@ -146,6 +146,8 @@ export function world({ pages, loadMs = LOAD_MS } = {}) {
 // What storefront-page.mjs reads from a page, without the browser's waits: the same locators.
 const text = async locator => (await locator.filter({ visible: true }).first().innerText().catch(() => "")).replace(/\s+/g, " ").trim();
 const photo = async media => await media.locator("img[data-commerce-image]").count() ? "photo" : await media.locator("img").count() ? "illustration" : "none";
+// storefront-page.mjs's Add to cart selector.
+const ADD_TO_CART = "form[data-add-to-cart-form] [data-add-to-cart]";
 const photoProblem = { none: 'has no photo ("No image")', illustration: "shows a stand-in drawing instead of its photo" };
 const readCard = async (card, { withPhoto = true } = {}) => {
   const links = card.locator('a[href^="/products/"]');
@@ -182,7 +184,7 @@ export function loadHelpers(w, sources = {}) {
     { config, PAGE_ROOM, paceStore, note() {}, openStorePage }, "openShopperPage, storeOpens, elsewhere, STORE_OPENS");
   const get = async (page, url) => { w.gets.push(new URL(url).pathname); return { ok: () => true, body: async () => Buffer.from(new URL(url).pathname) }; };
   const storeCheck = evaluate("store-check.mjs", sources.storeCheck ?? storeCheckSource, {
-    createHash, get, categoryHides, config, firstLine, PAGE_ROOM, paceStore, photo, photoProblem, readCard, text, dollars, money,
+    ADD_TO_CART, createHash, get, categoryHides, config, firstLine, PAGE_ROOM, paceStore, photo, photoProblem, readCard, text, dollars, money,
     Date: { now: () => w.clock },
   }, "catchUp, storeShows, storeHides, findCard, shopCards, categoryCards, unreadableShop, imageHash, after, places");
   const checks = Object.fromEntries(["catchUp", "storeShows", "storeHides"].map(name => [name, (...args) => plain(storeCheck[name](...args))]));
@@ -207,7 +209,8 @@ export const productPage = p => el("html", {}, [el("main", {}, [
     el("h1", {}, [], p.name),
     el("span", { "data-product-price": "" }, [], p.price),
     el("div", { class: "product-detail__visual" }, [el("img", { "data-commerce-image": p.id, src: p.photo })]),
-    el("button", { "data-add-to-cart": "", "data-guest-cart-ready": "1" }, [], "Add to cart"),
+    // The server cart's plain form (Template Store #229).
+    el("form", { "data-add-to-cart-form": "", method: "post", action: "/cart/add" }, [el("button", { "data-add-to-cart": p.id, type: "submit" }, [], "Add to cart")]),
   ]),
 ])]);
 export const gonePage = () => el("html", {}, [el("main", {}, [el("p", {}, [], "This product is no longer available.")])]);

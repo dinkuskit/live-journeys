@@ -12,7 +12,7 @@ import { openShopperPage } from "../support/shopper.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { pluginVersion } from "../support/store-plugins.mjs";
 import { journey, step } from "../support/steps.mjs";
-import { photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
+import { ADD_TO_CART, photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
 import { dollars, money } from "../support/storefront-text.mjs";
 
 // An error's first line without its full stop, since findings are joined into one sentence.
@@ -148,8 +148,8 @@ async function productPageProblems(shopper, product) {
   if (heading !== product.name) problems.push(`is headed "${heading || "nothing"}" instead of "${product.name}"`);
   const price = await text(shown.locator("[data-product-price]"));
   if (money(price) !== product.cents) problems.push(`shows ${price ? `"${price}"` : "no price"} instead of ${dollars(product.cents)}`);
-  // Ready means wired to the cart and pressable; the journey never presses it.
-  const add = shown.locator('[data-add-to-cart][data-guest-cart-ready="1"]').first();
+  // The form's button, pressable; the journey never presses it.
+  const add = shown.locator(ADD_TO_CART).first();
   if (!await add.waitFor({ timeout: 15_000 }).then(() => true, () => false)) problems.push("has no working Add to cart button");
   else if (!await add.isEnabled()) problems.push("has an Add to cart button shoppers can't press");
   return problems;

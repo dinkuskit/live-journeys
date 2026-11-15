@@ -5,7 +5,7 @@ import { PHOTO_ROOM, paceStore } from "../support/pace.mjs";
 import { note, record } from "../support/proof.mjs";
 import { STORE_OPENS, elsewhere, openShopperPage as open, storeOpens } from "../support/shopper.mjs";
 import { journey, mayRunTwice, step } from "../support/steps.mjs";
-import { firstHref, photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
+import { ADD_TO_CART, firstHref, photo, photoProblem, quick, readCard, text } from "../support/storefront-page.mjs";
 import { cantBuyClaims } from "../support/storefront-text.mjs";
 
 /** The visible error boxes a shopper would see: a missing home page, unknown content blocks, alerts. */
@@ -121,8 +121,8 @@ test("Storefront", { tag: "@running" }, journey(async () => {
       if (!name) problems.push("no name");
       if (!/\$\s?\d/.test(price)) problems.push("no price");
       if (image !== "photo") problems.push(`the product ${photoProblem[image]}`);
-      // Ready means wired to the cart and pressable; the journey never presses it.
-      const add = page.locator('[data-add-to-cart][data-guest-cart-ready="1"]').first();
+      // The form's button, pressable; the journey never presses it.
+      const add = page.locator(ADD_TO_CART).first();
       if (!await add.waitFor({ timeout: 15_000 }).then(() => true, () => false)) problems.push("no working Add to cart button");
       else if (!await expect(add).toBeEnabled(quick).then(() => true, () => false)) problems.push("an Add to cart button shoppers can't press");
       if (problems.length) throw new Error(`${path}: ${problems.join("; ")}.`);
