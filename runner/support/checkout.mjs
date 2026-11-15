@@ -410,13 +410,18 @@ export async function checkoutStatus(page) {
 /**
  * Asks Commerce for this checkout's status until it leaves "pending". Status is also what makes
  * Commerce check the payment and record the order, so this runs even when the thank-you page cannot.
+ * A read that got no answer (a dropped request, a 5xx, a refusal) is asked again within the same
+ * 90 seconds, and the last answer Commerce did give is kept meanwhile.
  */
-async function settle(page) {
+export async function settle(page, read = readStatus) {
   const deadline = Date.now() + 90_000;
-  let last;
+  let last = { attemptId: null };
   do {
-    last = await readStatus(page);
-    if (!last.attemptId || (last.checkout && last.checkout.state !== "pending")) return last;
+    const answer = await read(page);
+    if (!answer.unanswered) {
+      last = answer;
+      if (!last.attemptId || (last.checkout && last.checkout.state !== "pending")) return last;
+    }
     await page.waitForTimeout(5_000);
   } while (Date.now() < deadline);
   return last;
@@ -425,13 +430,14 @@ async function settle(page) {
 /**
  * Commerce's word on this browser's cart and its checkout, read the way the store reads it: the cart
  * key from the dk_cart cookie, sent to Commerce's cart route from a store page. An empty body only
- * reads the cart, and a read also runs Commerce's payment check. { attemptId: null } with no cart.
+ * reads the cart, and a read also runs Commerce's payment check. { attemptId: null } when the browser
+ * has no cart or Commerce's cart has no checkout; `unanswered: true` as well when Commerce gave no answer.
  */
 async function readStatus(page) {
   const key = (await page.context().cookies(config.store)).find(cookie => cookie.name === CART_COOKIES[0])?.value ?? "";
   const plugin = config.ordersAdmin.match(/\/plugins\/([^/]+)\//)?.[1];
   if (!key || !plugin) return { attemptId: null };
-  const checkout = await page.evaluate(async ({ key, route }) => {
+  const answer = await page.evaluate(async ({ key, route }) => {
     try {
       const response = await fetch(route, {
         method: "POST", cache: "no-store", redirect: "error",
@@ -440,12 +446,13 @@ async function readStatus(page) {
       });
       const body = await response.json();
       const value = body?.success === true ? body.data : body;
-      return value?.ok ? value.checkout ?? null : null;
+      return value?.ok ? { checkout: value.checkout ?? null } : null;
     } catch {
       return null;
     }
-  }, { key, route: `/_emdash/api/plugins/${plugin}/checkout/guest/cart` });
-  return checkout ? { attemptId: checkout.attemptId ?? null, checkout } : { attemptId: null };
+  }, { key, route: `/_emdash/api/plugins/${plugin}/checkout/guest/cart` }).catch(() => null);
+  if (!answer) return { attemptId: null, unanswered: true };
+  return answer.checkout?.attemptId ? { attemptId: answer.checkout.attemptId, checkout: answer.checkout } : { attemptId: null };
 }
 
 // The store's word beside Add to cart once the cart has the product ("Added to your cart.").
