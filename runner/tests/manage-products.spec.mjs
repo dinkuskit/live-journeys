@@ -3,8 +3,8 @@ import { catalogCategory } from "../support/catalog.mjs";
 import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
 import {
-  addCategory, addProductPage, archive, choosePhoto, openPhotoPanel, openProductPanel, makeProduct, panelProduct, publishProductPage, publishedLink,
-  rename, republishProductPage, restore, setPrice, trash, uploadPhoto,
+  addCategory, addProductPage, choosePhoto, openPhotoPanel, openProductPanel, makeProduct, panelProduct, publishProductPage, publishedLink,
+  rename, republishProductPage, restoreFromTrash, setPrice, trash, uploadPhoto,
 } from "../support/products-admin.mjs";
 import { note, record } from "../support/proof.mjs";
 import { openShopperPage } from "../support/shopper.mjs";
@@ -68,7 +68,8 @@ async function panelPhotoProblem({ panel, title }, hash) {
 // other products are in (Full catalog's caps; a store without them gets a category of its own), give it
 // its Commerce product with a price and a weight in the page's Dinkus Commerce panel, see the Draft
 // stay off the store, give it a photo that stays after a reload, publish the page and see the store
-// sell it, change its price and name, archive and restore it, with the store following each change.
+// sell it, change its price and name, archive it by moving its page to the Trash and restore it, with the
+// store following each change.
 // It tidies up after itself.
 test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
   expect(config.store, `Set DINKUS_E2E_STORE to the store's address (in ${config.settingsFile})`).not.toBe("");
@@ -78,7 +79,7 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
   const shopper = await shopperPage();
   // What the store should show, and what this run made, so the last step can take it all off the store.
   // `shared` says the product went in a category other products are in, which stays on the store.
-  const state = { id: "", name: run.product, cents: 1200, productPath: "", categoryPath: "", published: false, archived: false, hasPhoto: false, photoHash: "", shared: false, beside: 0 };
+  const state = { id: "", name: run.product, cents: 1200, productPath: "", categoryPath: "", published: false, archived: false, trashed: false, hasPhoto: false, photoHash: "", shared: false, beside: 0 };
   // `product` is "asked" from the moment the panel may make it, and true once the page is saved with
   // it; the page and category keep their store addresses from just before each is saved and their
   // editor's once it opens. `lost` names an entry saved without the test learning where its editor is.
@@ -212,48 +213,49 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
     }, soft);
     if (!nameRight) state.hasPhoto = false;
 
+    // The owner archives a product by moving its page to the Trash (catalog-archive-is-page-trash-20261115):
+    // the store's publish check takes the product off sale, and Commerce keeps it linked to the page.
     await step(shopper, "Archiving the product takes it off the store", async () => {
-      await archive(await openProductPanel(page, made.page));
-      state.archived = true;
+      await trash(page, made.page);
+      Object.assign(state, { archived: true, trashed: true });
       const { problems, seconds } = await storeHides(shopper, state, { archived: state.published });
-      if (problems.length) throw new Error(`Archived in the panel, but ${problems.join("; ")}${after(seconds)}.`);
-      const shown = state.productPath ? places(state).replace(state.productPath, `${state.productPath} (now "no longer available", HTTP 404)`) : places(state);
-      return `gone from ${shown}${after(seconds)}`;
+      if (problems.length) throw new Error(`Moved its page to the Trash, but ${problems.join("; ")}${after(seconds)}.`);
+      const shown = state.productPath ? places(state).replace(state.productPath, `${state.productPath} (now HTTP 404)`) : places(state);
+      return `moved its page to EmDash's Trash; gone from ${shown}${after(seconds)}`;
     }, soft);
 
-    // Commerce restores a product as a Draft, so the owner publishes its page again to sell it.
+    // EmDash restores the page as a Draft, and Commerce's product with it, so the owner publishes the page again to sell it.
     const restoreStep = "Restoring the product and publishing its page again puts it back on the store";
-    if (!state.archived) record(restoreStep, "SKIP", "the product wasn't archived, so there's nothing to restore");
+    if (!state.trashed) record(restoreStep, "SKIP", "the product's page wasn't moved to the Trash, so there's nothing to restore");
     else await step(shopper, restoreStep, async () => {
-      await restore(await openProductPanel(page, made.page));
-      state.archived = false;
+      await restoreFromTrash(content, state.name);
+      Object.assign(state, { archived: false, trashed: false });
       await panelShows(page, made.page, "draft").catch(error => { throw new Error(`After Restore, ${firstLine(error)}.`); });
       await republishProductPage(page);
       Object.assign(state, { published: true, productPath: made.pagePath, categoryPath: made.categoryPath });
       const problems = await panelShows(page, made.page, "on sale").then(() => [], error => [`after publishing again, ${firstLine(error)}`]);
       const { problems: storeProblems, seconds } = await storeShows(shopper, state);
       problems.push(...storeProblems);
-      if (problems.length) throw new Error(`Restored in the panel and published again, but ${problems.join("; ")}${after(seconds)}.`);
-      return `restored as a Draft, published again, and back on ${places(state)} as "${state.name}" at ${dollars(state.cents)}${withPhoto(state)}${after(seconds)}`;
+      if (problems.length) throw new Error(`Restored from the Trash and published again, but ${problems.join("; ")}${after(seconds)}.`);
+      return `restored from EmDash's Trash as a Draft, published again, and back on ${places(state)} as "${state.name}" at ${dollars(state.cents)}${withPhoto(state)}${after(seconds)}`;
     }, soft);
   } finally {
     // Whatever this run added comes off the store again, even when a step above stopped the journey.
     if (made.product || made.page || made.category || made.lost.length) await step(shopper, "The test takes what it added off the store", async () => {
       const problems = [];
-      if (made.product && made.page) {
-        // The panel says what the product is now, whatever this run's notes say.
-        const panel = await openProductPanel(page, made.page).catch(error => { problems.push(`opening "${run.product}"'s Dinkus Commerce panel failed, so its product may still be on the store: ${firstLine(error)}`); });
+      if (made.product && made.page && !state.trashed) {
+        // The panel says whether Commerce linked a product to the page; moving the page to the Trash below archives it.
+        const panel = await openProductPanel(page, made.page).catch(error => { problems.push(`opening "${run.product}"'s Dinkus Commerce panel failed: ${firstLine(error)}`); });
         const shown = panel ? await panelProduct(panel) : null;
-        if (shown?.state === "draft" || shown?.state === "on sale") {
-          await archive(panel).then(() => { state.archived = true; }, error => problems.push(`archiving "${shown.name}" in its panel failed: ${firstLine(error)}`));
-        } else if (shown?.state === "archived") state.archived = true;
-        else if (shown?.state === "none" && made.product === true) problems.push(`"${run.product}"'s panel shows no product, so the test couldn't archive it; look for SKU ${run.sku} in Commerce's catalog API`);
+        if (shown?.state === "draft" || shown?.state === "on sale" || shown?.state === "archived") state.archived = true;
+        else if (shown?.state === "none" && made.product === true) problems.push(`"${run.product}"'s panel shows no product; look for SKU ${run.sku} in Commerce's catalog API`);
         else if (shown?.state === "none") problems.push(`Commerce may have made SKU ${run.sku} without linking it to the page; look for it in Commerce's catalog API`);
         else if (shown) problems.push(`"${run.product}"'s panel shows its product as ${shown.state}`);
       }
-      // Each finding names what's left, so the owner can take it off the store by hand.
-      for (const [what, url, tab] of [[`product page "${run.product}"`, made.page, page], [`category "${run.category}"`, made.category, content]]) {
-        if (url) await trash(tab, url).catch(error => problems.push(`moving the ${what} to the Trash failed: ${firstLine(error)}`));
+      // Each finding names what's left, so the owner can take it off the store by hand. A page the
+      // archive step left in the Trash stays there.
+      for (const [what, url, tab] of [[`product page "${run.product}"`, state.trashed ? "" : made.page, page], [`category "${run.category}"`, made.category, content]]) {
+        if (url) await trash(tab, url).catch(error => { if (url === made.page) state.archived = false; problems.push(`moving the ${what} to the Trash failed: ${firstLine(error)}`); });
       }
       for (const what of made.lost) problems.push(`the ${what} may have been saved without the test learning where, so look for it under Content in the store admin`);
       // A step that stopped the journey early can leave the shopper's browser not yet signed in to a store
@@ -270,7 +272,7 @@ test("Manage products", { tag: "@running" }, journey(async ({ page }) => {
       if (problems.length) throw new Error(`${problems.join("; ")}.`);
       const trashed = [...made.page ? ["page"] : [], ...made.category ? ["category"] : []].join(" and ");
       const kept = state.shared ? `; "${catalogCategory("CAP")}" stays, without it` : "";
-      return `${state.archived ? `archived "${state.name}" in its panel` : "Commerce never made the product"}${trashed ? ` and moved its ${trashed} to EmDash's Trash` : ""}; the store shows none of them${kept}`;
+      return `${state.archived ? `archived "${state.name}"` : "Commerce never made the product"}${trashed ? `; its ${trashed} ${made.page && made.category ? "are" : "is"} in EmDash's Trash` : ""}; the store shows none of them${kept}`;
     }, soft);
     await closeShopper(shopper);
     await content.close();
