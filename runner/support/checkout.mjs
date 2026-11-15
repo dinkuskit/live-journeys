@@ -2,6 +2,7 @@ import { newPage, get } from "./browser.mjs";
 import { expect } from "@playwright/test";
 import { config } from "./env.mjs";
 import { openStorePage } from "./signin.mjs";
+import { settleCheckout } from "./checkout-settle.mjs";
 import { ADD_TO_CART } from "./storefront-page.mjs";
 import { cartCount } from "./storefront-text.mjs";
 import { storeReturnLinks, storeReturnPage } from "./checkout-text.mjs";
@@ -407,25 +408,8 @@ export async function checkoutStatus(page) {
   }
 }
 
-/**
- * Asks Commerce for this checkout's status until it leaves "pending". Status is also what makes
- * Commerce check the payment and record the order, so this runs even when the thank-you page cannot.
- * A read that got no answer (a dropped request, a 5xx, a refusal) is asked again within the same
- * 90 seconds, and the last answer Commerce did give is kept meanwhile.
- */
-export async function settle(page, read = readStatus) {
-  const deadline = Date.now() + 90_000;
-  let last = { attemptId: null };
-  do {
-    const answer = await read(page);
-    if (!answer.unanswered) {
-      last = answer;
-      if (!last.attemptId || (last.checkout && last.checkout.state !== "pending")) return last;
-    }
-    await page.waitForTimeout(5_000);
-  } while (Date.now() < deadline);
-  return last;
-}
+/** Asks Commerce for this checkout's status until it leaves "pending" (see checkout-settle.mjs). */
+const settle = page => settleCheckout(page, readStatus);
 
 /**
  * Commerce's word on this browser's cart and its checkout, read the way the store reads it: the cart
