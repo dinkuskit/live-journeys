@@ -360,11 +360,24 @@ async function paymentChoices(page) {
   return found.length ? found.join(" | ") : `none found in ${page.frames().length} frames`;
 }
 
-/** Types into one of Stripe's card fields, emptying it first: after Stripe turns a card down, its fields can still hold that card. */
+/**
+ * Types into one of Stripe's card fields as a shopper does: selects what it holds, deletes it and
+ * types the value, since after Stripe turns a card down its fields can still hold that card. Keys,
+ * not a programmatic clear, so Stripe's own checks see every change.
+ */
 async function retype(field, value) {
   if (!field) throw new Error("Stripe's card form lost one of its fields before the test could fill it.");
-  if (await field.inputValue()) await field.clear();
-  await field.pressSequentially(value);
+  const digits = text => text.replace(/\D/g, "");
+  for (let tries = 0; tries < 3; tries++) {
+    await field.click();
+    if (await field.inputValue()) {
+      await field.press("ControlOrMeta+a");
+      await field.press("Backspace");
+    }
+    await field.pressSequentially(value, { delay: 25 });
+    if (digits(await field.inputValue()) === digits(value)) return;
+  }
+  throw new Error(`One of Stripe's card fields reads "${await field.inputValue()}" after the test typed ${value} three times.`);
 }
 
 /**
@@ -393,8 +406,9 @@ export async function stripeRefusal(page, says, { bankCheck = false } = {}) {
       await fail.click({ timeout: 5_000 }).catch(() => {});
       pressed = Date.now();
     }
-    // A shopper who sees Stripe still complaining about a field they filled in presses Pay again.
+    // A shopper who sees Stripe still say the security code is incomplete types it again and presses Pay.
     if (!fail && repressed < 2 && Date.now() - pressed >= 8_000 && await staleFieldError(page)) {
+      await retype(await field(page, CVC), "123").catch(() => {});
       const pay = await payButton(page);
       if (pay) {
         await pay.click({ timeout: 5_000 }).catch(() => {});

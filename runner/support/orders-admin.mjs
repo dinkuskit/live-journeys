@@ -19,7 +19,11 @@ async function nextPage(page) {
   // Order numbers are unique, so the first one listed tells one page from the next.
   const first = await page.getByRole("button", { name: /^Inspect #/ }).first().textContent();
   await next.click();
-  await expect.poll(() => page.getByRole("button", { name: /^Inspect #/ }).first().textContent(), { timeout: 30_000 }).not.toBe(first);
+  // EmDash answers a plugin page's button in a second or two, but the beta store has taken over a
+  // minute (18 Nov 2026), so a slow page gets 90 seconds and says so.
+  const started = Date.now();
+  await expect.poll(() => page.getByRole("button", { name: /^Inspect #/ }).first().textContent(), { timeout: 90_000 }).not.toBe(first)
+    .catch(() => { throw new Error(`Commerce Orders didn't move past order ${first.trim()} within ${Math.round((Date.now() - started) / 1000)} s of pressing Next.`); });
   return true;
 }
 
