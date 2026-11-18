@@ -210,7 +210,7 @@ export async function payOnStripe(page, email) {
   await submitCard(page, email, "4242424242424242");
   const back = url => url.origin === config.store;
   await page.waitForURL(back, { timeout: 120_000 }).catch(async () => {
-    const problem = await texts(page, '[role="alert"], .FieldError');
+    const problem = await framesTexts(page, '[role="alert"], .FieldError, .p-FieldError');
     if (await captchaShown(page)) throw new CaptchaShown();
     if (config.headless) throw new Error(`Stripe did not send the shopper back to the store: ${problem}`);
     console.log("\n>>> Finish paying on the Stripe page in this test's browser window (card 4242 4242 4242 4242, 12/34, CVC 123).\n");
@@ -233,7 +233,7 @@ export async function payAndCloseTab(page, email) {
     await submitCard(page, email, "4242424242424242");
     if (!(await redirected)) {
       if (await captchaShown(page)) throw new CaptchaShown();
-      const problem = await texts(page, '[role="alert"], .FieldError');
+      const problem = await framesTexts(page, '[role="alert"], .FieldError, .p-FieldError');
       throw new Error(`Stripe did not send the shopper back toward the store: ${problem}`);
     }
   } finally {
@@ -256,28 +256,54 @@ export function requireTestMode(page) {
   if (!/\/cs_test_/.test(new URL(page.url()).pathname)) throw new Error("Stripe opened a session that is not in test mode; nothing was paid.");
 }
 
+// Stripe's card fields, by the ids its Checkout page used and by the names and autofill hints its payment
+// form uses when it draws the payment methods in a frame of their own (as on 18 Nov 2026).
+const CARD = '#cardNumber, input[name="number"], input[autocomplete="cc-number"]';
+const EXPIRY = '#cardExpiry, input[name="expiry"], input[autocomplete="cc-exp"]';
+const CVC = '#cardCvc, input[name="cvc"], input[autocomplete="cc-csc"]';
+const NAME = '#billingName, input[autocomplete="cc-name"], input[autocomplete="billing name"]';
+const COUNTRY = '#billingCountry, select[name="country"], select[autocomplete="billing country"]';
+const POSTAL = '#billingPostalCode, input[name="postalCode"], input[autocomplete="billing postal-code"], input[autocomplete="postal-code"]';
+
+/** The first of `make`'s locators a shopper can see, in Stripe's page or any frame in it, or null. */
+async function shownInFrames(page, make) {
+  for (const frame of page.frames()) {
+    for (const choice of make(frame)) {
+      for (const one of await choice.all().catch(() => [])) if (await one.isVisible().catch(() => false)) return one;
+    }
+  }
+  return null;
+}
+const field = (page, selector) => shownInFrames(page, frame => [frame.locator(selector)]);
+
+/** Whether Stripe shows its card form or a Card choice yet, in its page or a frame. */
+export async function stripeCardReady(page) {
+  return Boolean(await field(page, CARD) || await visibleCardChoice(page));
+}
+
 async function fillCard(page, email, cardNumber) {
-  const card = page.locator("#cardNumber");
   // A card-only session shows the card form at once. With more methods on, Card is a row in Stripe's
-  // list of payment methods, drawn as an accordion button or, as on 18 Nov 2026, a radio row.
-  await expect.poll(async () => await card.isVisible() || Boolean(await visibleCardChoice(page)), { timeout: 60_000 })
+  // list of payment methods, drawn as an accordion button or, as on 18 Nov 2026, a radio row in a frame.
+  await expect.poll(() => stripeCardReady(page), { timeout: 60_000 })
     .toBe(true).catch(async () => { throw new Error(`Stripe's Checkout page showed neither the card form nor a Card choice to open it (its payment choices: ${await paymentChoices(page)}).`); });
-  if (!await card.isVisible()) {
+  if (!await field(page, CARD)) {
     await (await visibleCardChoice(page)).click();
-    await card.waitFor({ timeout: 15_000 }).catch(() => { throw new Error("Choosing Card on Stripe's Checkout page didn't open the card form."); });
+    await expect.poll(async () => Boolean(await field(page, CARD)), { timeout: 15_000 }).toBe(true)
+      .catch(() => { throw new Error("Choosing Card on Stripe's Checkout page didn't open the card form."); });
   }
   // A prefilled email is shown as text, not an input.
-  const emailInput = page.locator("#email");
-  if (await emailInput.isVisible() && await emailInput.isEditable() && !await emailInput.inputValue()) await emailInput.fill(email);
-  await retype(card, cardNumber);
-  await retype(page.locator("#cardExpiry"), "1234");
-  await retype(page.locator("#cardCvc"), "123");
-  const name = page.locator("#billingName");
-  if (await name.isVisible()) await name.fill(config.shopper.name);
-  const country = page.locator("#billingCountry");
-  if (await country.isVisible()) await country.selectOption("US");
-  const zip = page.locator("#billingPostalCode");
-  if (await zip.isVisible()) await zip.fill(config.shopper.postalCode);
+  const emailInput = await field(page, '#email, input[type="email"]');
+  if (emailInput && await emailInput.isEditable() && !await emailInput.inputValue()) await emailInput.fill(email);
+  await retype(await field(page, CARD), cardNumber);
+  await retype(await field(page, EXPIRY), "1234");
+  await retype(await field(page, CVC), "123");
+  const name = await field(page, NAME);
+  if (name) await name.fill(config.shopper.name);
+  const country = await field(page, COUNTRY);
+  if (country) await country.selectOption("US");
+  // The postal code field shows only once the country asks for one.
+  const zip = await field(page, POSTAL);
+  if (zip) await zip.fill(config.shopper.postalCode);
   // Link's "save my information" would also ask for a phone number.
   const saveInfo = page.locator("#enableStripePass");
   if (await saveInfo.isVisible() && await saveInfo.isChecked()) await saveInfo.uncheck();
@@ -285,37 +311,38 @@ async function fillCard(page, email, cardNumber) {
 }
 
 /**
- * The Card choice in Stripe's list of payment methods that a shopper can see, or null. Stripe draws it
- * as an accordion button or a radio row; it also renders the accordion button hidden while Card is
- * open, so only a visible one counts.
+ * The Card choice in Stripe's list of payment methods that a shopper can see, in its page or a frame,
+ * or null. Stripe draws it as an accordion button or a radio row; it also renders the accordion button
+ * hidden while Card is open, so only a visible one counts.
  */
-async function visibleCardChoice(page) {
-  const choices = [
-    page.locator('[data-testid="card-accordion-item-button"]'),
-    page.locator('[data-testid="card-accordion-item"]'),
-    page.locator('label[for="payment-method-accordion-item-title-card"]'),
+function visibleCardChoice(page) {
+  return shownInFrames(page, frame => [
+    frame.locator('[data-testid="card-accordion-item-button"]'),
+    frame.locator('[data-testid="card-accordion-item"]'),
+    frame.locator('label[for="payment-method-accordion-item-title-card"]'),
     // The radio's name can carry the card brands' names too, so it only has to start with Card.
-    page.getByRole("radio", { name: /^(pay with )?card\b/i }),
+    frame.getByRole("radio", { name: /^(pay with )?card\b/i }),
     // The row's own visible label, which selects the row like a press anywhere on it.
-    page.getByText("Card", { exact: true }),
-  ];
-  for (const choice of choices) {
-    for (const one of await choice.all()) if (await one.isVisible()) return one;
-  }
-  return null;
+    frame.getByText("Card", { exact: true }),
+  ]);
 }
 
-/** Stripe's payment-method controls as the page draws them, so a failure names what to look for next. */
+/** Stripe's payment-method controls as its page and frames draw them, so a failure names what to look for next. */
 async function paymentChoices(page) {
-  const found = await page.locator('input[type="radio"], [data-testid*="accordion"], [role="radio"]').evaluateAll(nodes => nodes.slice(0, 12).map(node =>
-    [node.tagName.toLowerCase(), node.id && `#${node.id}`, node.getAttribute("data-testid") && `testid=${node.getAttribute("data-testid")}`,
-      node.getAttribute("value") && `value=${node.getAttribute("value")}`, node.getAttribute("aria-label") && `aria-label=${node.getAttribute("aria-label")}`,
-      node.getClientRects().length ? "shown" : "hidden"].filter(Boolean).join(" "))).catch(() => []);
-  return found.length ? found.join("; ") : "none found";
+  const found = [];
+  for (const frame of page.frames()) {
+    const controls = await frame.locator('input, select, [data-testid*="accordion"], [role="radio"]').evaluateAll(nodes => nodes.slice(0, 12).map(node =>
+      [node.tagName.toLowerCase(), node.id && `#${node.id}`, node.getAttribute("name") && `name=${node.getAttribute("name")}`,
+        node.getAttribute("type") && `type=${node.getAttribute("type")}`, node.getAttribute("data-testid") && `testid=${node.getAttribute("data-testid")}`,
+        node.getAttribute("value") && `value=${node.getAttribute("value")}`, node.getClientRects().length ? "shown" : "hidden"].filter(Boolean).join(" "))).catch(() => []);
+    if (controls.length) found.push(`${frame === page.mainFrame() ? "page" : `frame ${new URL(frame.url()).pathname || frame.url()}`}: ${controls.join(", ")}`);
+  }
+  return found.length ? found.join(" | ") : `none found in ${page.frames().length} frames`;
 }
 
 /** Types into one of Stripe's card fields, emptying it first: after Stripe turns a card down, its fields can still hold that card. */
 async function retype(field, value) {
+  if (!field) throw new Error("Stripe's card form lost one of its fields before the test could fill it.");
   if (await field.inputValue()) await field.clear();
   await field.pressSequentially(value);
 }
@@ -332,13 +359,13 @@ export async function stripeRefusal(page, says, { bankCheck = false } = {}) {
   for (;;) {
     if (new URL(page.url()).origin === config.store) return { paid: true };
     if (await captchaShown(page)) throw new CaptchaShown();
-    const shown = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    const shown = await stripeText(page);
     const message = shown.split("\n").map(line => line.trim()).find(line => says.test(line));
     if (message) return { message };
     const fail = bankCheck ? await bankCheckFail(page) : null;
     if (Date.now() > deadline) {
       throw new Error(fail ? "Stripe's test bank check stayed open after the test pressed Fail."
-        : `Stripe showed no message saying why it turned the card down: ${await texts(page, '[role="alert"], .FieldError')}`);
+        : `Stripe showed no message saying why it turned the card down: ${await framesTexts(page, '[role="alert"], .FieldError, .p-FieldError')}`);
     }
     // Stripe closes its test page within seconds of a press it takes, so one open 8 seconds later never got it.
     if (fail && Date.now() - pressed >= 8_000) {
@@ -479,6 +506,19 @@ const ADDED = /added to (?:your )?cart/i;
 /** Awaits `work`; on failure throws `reason()` instead, so the proof report's one line says what happened. */
 async function orFail(work, reason) {
   try { return await work; } catch { throw new Error(await reason()); }
+}
+
+/** Every line Stripe's page and its frames show, since its card messages can sit in the payment frame. */
+async function stripeText(page) {
+  const parts = await Promise.all(page.frames().map(frame => frame.locator("body").innerText({ timeout: 5_000 }).catch(() => "")));
+  return parts.join("\n");
+}
+
+/** `texts` across Stripe's page and its frames. */
+async function framesTexts(page, selector) {
+  const found = [];
+  for (const frame of page.frames()) found.push(...await frame.locator(selector).allInnerTexts().catch(() => []));
+  return found.map(text => text.trim()).filter(Boolean).join(" / ") || "no message on the page";
 }
 
 async function texts(page, selector) {
