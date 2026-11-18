@@ -292,7 +292,7 @@ async function fillCard(page, email, cardNumber) {
       .catch(() => { throw new Error("Choosing Card on Stripe's Checkout page didn't open the card form."); });
   }
   // A prefilled email is shown as text, not an input.
-  const emailInput = await field(page, '#email, input[type="email"]');
+  const emailInput = await field(page, '#email, input[type="email"], input[name="email"], input[autocomplete="email"]');
   if (emailInput && await emailInput.isEditable() && !await emailInput.inputValue()) await emailInput.fill(email);
   await retype(await field(page, CARD), cardNumber);
   await retype(await field(page, EXPIRY), "1234");
@@ -305,9 +305,13 @@ async function fillCard(page, email, cardNumber) {
   const zip = await field(page, POSTAL);
   if (zip) await zip.fill(config.shopper.postalCode);
   // Link's "save my information" would also ask for a phone number.
-  const saveInfo = page.locator("#enableStripePass");
-  if (await saveInfo.isVisible() && await saveInfo.isChecked()) await saveInfo.uncheck();
-  await page.getByTestId("hosted-payment-submit-button").or(page.locator(".SubmitButton")).first().click();
+  const saveInfo = await shownInFrames(page, frame => [frame.locator("#enableStripePass"), frame.getByRole("checkbox", { name: /save my information/i })]);
+  if (saveInfo && await saveInfo.isChecked()) await saveInfo.uncheck();
+  // Stripe's Pay button, never "Pay securely with Link".
+  const pay = await shownInFrames(page, frame => [frame.getByTestId("hosted-payment-submit-button"), frame.locator(".SubmitButton"),
+    frame.getByRole("button", { name: /^(pay|pay \$[\d.,]+|complete order|place order)$/i })]);
+  if (!pay) throw new Error("Stripe's Checkout page showed no Pay button after the card was filled in.");
+  await pay.click();
 }
 
 /**
