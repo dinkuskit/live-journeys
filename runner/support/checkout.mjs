@@ -212,7 +212,7 @@ export async function payOnStripe(page, email) {
   await page.waitForURL(back, { timeout: 120_000 }).catch(async () => {
     const problem = await framesTexts(page, FIELD_ERRORS);
     if (await captchaShown(page)) throw new CaptchaShown();
-    if (config.headless) throw new Error(`Stripe did not send the shopper back to the store: ${problem}`);
+    if (config.headless) throw new Error(`Stripe did not send the shopper back to the store: ${problem}. Its page held ${await stripeFrames(page)}`);
     console.log("\n>>> Finish paying on the Stripe page in this test's browser window (card 4242 4242 4242 4242, 12/34, CVC 123).\n");
     await page.waitForURL(back, { timeout: HUMAN_WAIT_MS });
   });
@@ -234,7 +234,7 @@ export async function payAndCloseTab(page, email) {
     if (!(await redirected)) {
       if (await captchaShown(page)) throw new CaptchaShown();
       const problem = await framesTexts(page, FIELD_ERRORS);
-      throw new Error(`Stripe did not send the shopper back toward the store: ${problem}`);
+      throw new Error(`Stripe did not send the shopper back toward the store: ${problem}. Its page held ${await stripeFrames(page)}`);
     }
   } finally {
     await page.unroute(storeUrl).catch(() => {});
@@ -399,7 +399,7 @@ export async function stripeRefusal(page, says, { bankCheck = false } = {}) {
     const fail = bankCheck ? await bankCheckFail(page) : null;
     if (Date.now() > deadline) {
       throw new Error(fail ? "Stripe's test bank check stayed open after the test pressed Fail."
-        : `Stripe showed no message saying why it turned the card down: ${await framesTexts(page, FIELD_ERRORS)}`);
+        : `Stripe showed no message saying why it turned the card down: ${await framesTexts(page, FIELD_ERRORS)}. Its page held ${await stripeFrames(page)}`);
     }
     // Stripe closes its test page within seconds of a press it takes, so one open 8 seconds later never got it.
     if (fail && Date.now() - pressed >= 8_000) {
@@ -435,7 +435,7 @@ export async function failBankCheck(page) {
     if (fail) return void await fail.click({ timeout: 5_000 }).catch(() => {});
     await page.waitForTimeout(1_000);
   }
-  throw new Error("Stripe never showed its test bank check with a Fail button.");
+  throw new Error(`Stripe never showed its test bank check with a Fail button. Its page held ${await stripeFrames(page)}`);
 }
 
 /** The Fail button on Stripe's test bank check, in whichever frame shows it, or null while none shows. */
@@ -473,7 +473,27 @@ async function followBackLink(page) {
 }
 
 // A visible captcha is for a person to answer, never the test.
-const captchaShown = page => page.locator('iframe[title*="hCaptcha challenge"]').isVisible().catch(() => false);
+/** Whether Stripe has its hCaptcha challenge up, in its page or, since its form moved into a frame, inside one. */
+async function captchaShown(page) {
+  for (const frame of page.frames()) {
+    if (await frame.locator('iframe[title*="hCaptcha challenge"]').first().isVisible().catch(() => false)) return true;
+  }
+  return false;
+}
+
+/**
+ * What Stripe's page and its frames hold, for a failure where Stripe showed nothing the test knows:
+ * each frame's host and path, whether it shows, and the start of its text.
+ */
+async function stripeFrames(page) {
+  const described = await Promise.all(page.frames().map(async frame => {
+    const where = (() => { try { const url = new URL(frame.url()); return `${url.host}${url.pathname}`.slice(0, 60); } catch { return "about:blank"; } })();
+    const shown = frame === page.mainFrame() ? "page" : await frame.frameElement().then(element => element.isVisible()).then(visible => visible ? "shown" : "hidden").catch(() => "gone");
+    const text = (await frame.locator("body").innerText({ timeout: 2_000 }).catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 80);
+    return `${where} (${shown}${text ? `: ${text}` : ", empty"})`;
+  }));
+  return described.join(" | ");
+}
 
 /** Throws CaptchaShown when Stripe has a captcha up. */
 export async function stopIfCaptcha(page) {
