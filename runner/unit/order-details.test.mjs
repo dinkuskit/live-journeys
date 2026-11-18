@@ -10,7 +10,7 @@ const head = ["Order: #1042 (TEST)", "Order ID: order:abc", "Version: 2", "Recei
 test("a Processing order's status ends before Commerce 0.7.0-beta.3's Email, Phone and Bill to lines", () => {
   const shown = orderDetails(page(...head, "Status: Processing", "Email: shopper@example.com", "Phone: +15555550100",
     "Ship to: Test Shopper, 1 Main St, Asheville, NC, 28801, US", "Bill to: Same as delivery address"));
-  assert.deepEqual(shown, { label: "#1042 (TEST)", test: true, orderId: "order:abc", status: "Processing", carrier: null, tracking: null });
+  assert.deepEqual(shown, { label: "#1042 (TEST)", test: true, orderId: "order:abc", status: "Processing", carrier: null, tracking: null, providerPaid: true });
 });
 
 test("a Completed order's carrier and tracking number end before its Email line", () => {
@@ -28,11 +28,12 @@ test("an order page from before Commerce 0.7.0-beta.3 still reads the same", () 
 
 // Commerce 0.9's order page, as main's innerText reads it with the Order record section open.
 const page09 = (...lines) => ["Orders", "Back to orders", ...lines, "Ship to", "Test Shopper", "Customer", "agent@example.com",
-  "1 item ready to ship", "Complete order", "Order record", "Order ID: order:fd3e9da1", "Version: 1"].join("\n");
+  "1 item ready to ship", "Complete order", "Order record", "Order ID: order:fd3e9da1", "Version: 1", "Receipt: rcpt_1",
+  "Checkout attempt: att_1", "Provider payment: pi_1"].join("\n");
 
 test("Commerce 0.9's order page gives its number, status and order ID from its heading, status line and Order record", () => {
   const shown = orderDetails(page09("Order #1222 (TEST)", "Paid Nov 18, 2026, 5:37 PM UTC · Processing", "Test order"));
-  assert.deepEqual(shown, { label: "#1222 (TEST)", test: true, orderId: "order:fd3e9da1", status: "Processing", carrier: null, tracking: null });
+  assert.deepEqual(shown, { label: "#1222 (TEST)", test: true, orderId: "order:fd3e9da1", status: "Processing", carrier: null, tracking: null, providerPaid: true });
 });
 
 test("a completed Commerce 0.9 order gives its carrier and tracking number from its Shipped line", () => {
@@ -54,4 +55,10 @@ test("both page formats read a carrier and tracking number nobody gave as none",
   for (const shown of [before, after]) assert.deepEqual(completionProblems(shown, { carrier: null, tracking: null }), []);
   assert.deepEqual(completionProblems(after, { carrier: "USPS", tracking: "9400" }),
     ['it shows no carrier, not carrier "USPS"', 'it shows no tracking number, not tracking number "9400"']);
+});
+
+test("an order whose provider recorded no payment reads as not provider-paid on both page formats", () => {
+  const before = orderDetails(page("Order: #1042 (TEST)", "Order ID: order:abc", "Payment: Not recorded", "Status: Processing"));
+  const after = orderDetails(page09("Order #1225 (TEST)", "Paid · Processing").replace("Provider payment: pi_1", "Provider payment: Not recorded"));
+  assert.deepEqual([before.providerPaid, after.providerPaid], [false, false]);
 });

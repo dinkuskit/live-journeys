@@ -22,7 +22,9 @@ export function orderDetails(shown) {
     // Commerce leaves out a carrier or tracking number the owner didn't give.
     const [, carrier = null, tracking = null] = lines.find(line => /^Shipped /.test(line))?.slice("Shipped ".length).split(" · ") ?? [];
     const orderId = lines.map(line => line.match(/^Order ID: (.+)$/)?.[1]).find(Boolean) ?? null;
-    return { label: heading, test: / \(TEST\)$/.test(heading), orderId, status, carrier, tracking };
+    // Stripe's payment ID, in the Order record section; "Not recorded" when the provider gave none.
+    const payment = lines.map(line => line.match(/^Provider payment: (.+)$/)?.[1]).find(Boolean);
+    return { label: heading, test: / \(TEST\)$/.test(heading), orderId, status, carrier, tracking, providerPaid: Boolean(payment) && payment !== NOT_RECORDED };
   }
   return labeledDetails(shown);
 }
@@ -39,7 +41,8 @@ function labeledDetails(shown) {
   // These pages print "Not recorded" for a carrier or tracking number the owner didn't give; Commerce
   // 0.9 leaves it out, so both read as null.
   const given = name => (value => value === NOT_RECORDED ? null : value)(field(name));
-  return { label, test: / \(TEST\)$/.test(label ?? ""), orderId: field("Order ID"), status: field("Status"), carrier: given("Carrier"), tracking: given("Tracking number") };
+  return { label, test: / \(TEST\)$/.test(label ?? ""), orderId: field("Order ID"), status: field("Status"), carrier: given("Carrier"), tracking: given("Tracking number"),
+    providerPaid: field("Payment") === "Provider-paid" };
 }
 
 /**

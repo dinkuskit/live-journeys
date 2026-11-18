@@ -210,7 +210,7 @@ export async function payOnStripe(page, email) {
   await submitCard(page, email, "4242424242424242");
   const back = url => url.origin === config.store;
   await page.waitForURL(back, { timeout: 120_000 }).catch(async () => {
-    const problem = await framesTexts(page, '[role="alert"], .FieldError, .p-FieldError');
+    const problem = await framesTexts(page, FIELD_ERRORS);
     if (await captchaShown(page)) throw new CaptchaShown();
     if (config.headless) throw new Error(`Stripe did not send the shopper back to the store: ${problem}`);
     console.log("\n>>> Finish paying on the Stripe page in this test's browser window (card 4242 4242 4242 4242, 12/34, CVC 123).\n");
@@ -233,7 +233,7 @@ export async function payAndCloseTab(page, email) {
     await submitCard(page, email, "4242424242424242");
     if (!(await redirected)) {
       if (await captchaShown(page)) throw new CaptchaShown();
-      const problem = await framesTexts(page, '[role="alert"], .FieldError, .p-FieldError');
+      const problem = await framesTexts(page, FIELD_ERRORS);
       throw new Error(`Stripe did not send the shopper back toward the store: ${problem}`);
     }
   } finally {
@@ -264,6 +264,8 @@ const CVC = '#cardCvc, input[name="cvc"], input[autocomplete="cc-csc"]';
 const NAME = '#billingName, input[autocomplete="cc-name"], input[autocomplete="billing name"]';
 const COUNTRY = '#billingCountry, select[name="country"], select[autocomplete="billing country"]';
 const POSTAL = '#billingPostalCode, input[name="postalCode"], input[autocomplete="billing postal-code"], input[autocomplete="postal-code"]';
+// Where Stripe says what is wrong with the card or one of its fields.
+const FIELD_ERRORS = '[role="alert"], .FieldError, .p-FieldError';
 
 /** The first of `make`'s locators a shopper can see, in Stripe's page or any frame in it, or null. */
 async function shownInFrames(page, make) {
@@ -307,11 +309,25 @@ async function fillCard(page, email, cardNumber) {
   // Link's "save my information" would also ask for a phone number.
   const saveInfo = await shownInFrames(page, frame => [frame.locator("#enableStripePass"), frame.getByRole("checkbox", { name: /save my information/i })]);
   if (saveInfo && await saveInfo.isChecked()) await saveInfo.uncheck();
-  // Stripe's Pay button, never "Pay securely with Link".
-  const pay = await shownInFrames(page, frame => [frame.getByTestId("hosted-payment-submit-button"), frame.locator(".SubmitButton"),
-    frame.getByRole("button", { name: /^(pay|pay \$[\d.,]+|complete order|place order)$/i })]);
+  const pay = await payButton(page);
   if (!pay) throw new Error("Stripe's Checkout page showed no Pay button after the card was filled in.");
   await pay.click();
+}
+
+/** Stripe's Pay button, never "Pay securely with Link", in its page or a frame, or null. */
+function payButton(page) {
+  return shownInFrames(page, frame => [frame.getByTestId("hosted-payment-submit-button"), frame.locator(".SubmitButton"),
+    frame.getByRole("button", { name: /^(pay|pay \$[\d.,]+|complete order|place order)$/i })]);
+}
+
+/**
+ * Stripe's complaint about a card field the test filled in full, or null. After it turns a card down
+ * and the test types the next one, Stripe can keep a complaint it made mid-typing ("Your security code
+ * is incomplete.") beside a complete field and ignore that press of Pay, as 18 Nov 2026's run showed.
+ */
+async function staleFieldError(page) {
+  const shown = await framesTexts(page, FIELD_ERRORS);
+  return /\bincomplete\b/i.test(shown) ? shown : null;
 }
 
 /**
@@ -359,7 +375,8 @@ async function retype(field, value) {
  */
 export async function stripeRefusal(page, says, { bankCheck = false } = {}) {
   const deadline = Date.now() + 60_000;
-  let pressed = Date.now(); // failBankCheck has just pressed Fail.
+  let pressed = Date.now(); // submitCard or failBankCheck has just pressed Pay or Fail.
+  let repressed = 0;
   for (;;) {
     if (new URL(page.url()).origin === config.store) return { paid: true };
     if (await captchaShown(page)) throw new CaptchaShown();
@@ -369,12 +386,21 @@ export async function stripeRefusal(page, says, { bankCheck = false } = {}) {
     const fail = bankCheck ? await bankCheckFail(page) : null;
     if (Date.now() > deadline) {
       throw new Error(fail ? "Stripe's test bank check stayed open after the test pressed Fail."
-        : `Stripe showed no message saying why it turned the card down: ${await framesTexts(page, '[role="alert"], .FieldError, .p-FieldError')}`);
+        : `Stripe showed no message saying why it turned the card down: ${await framesTexts(page, FIELD_ERRORS)}`);
     }
     // Stripe closes its test page within seconds of a press it takes, so one open 8 seconds later never got it.
     if (fail && Date.now() - pressed >= 8_000) {
       await fail.click({ timeout: 5_000 }).catch(() => {});
       pressed = Date.now();
+    }
+    // A shopper who sees Stripe still complaining about a field they filled in presses Pay again.
+    if (!fail && repressed < 2 && Date.now() - pressed >= 8_000 && await staleFieldError(page)) {
+      const pay = await payButton(page);
+      if (pay) {
+        await pay.click({ timeout: 5_000 }).catch(() => {});
+        repressed += 1;
+        pressed = Date.now();
+      }
     }
     await page.waitForTimeout(1_000);
   }
