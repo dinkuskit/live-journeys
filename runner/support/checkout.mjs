@@ -261,7 +261,7 @@ async function fillCard(page, email, cardNumber) {
   // A card-only session shows the card form at once. With more methods on, Card is a row in Stripe's
   // list of payment methods, drawn as an accordion button or, as on 18 Nov 2026, a radio row.
   await expect.poll(async () => await card.isVisible() || Boolean(await visibleCardChoice(page)), { timeout: 60_000 })
-    .toBe(true).catch(() => { throw new Error("Stripe's Checkout page showed neither the card form nor a Card choice to open it."); });
+    .toBe(true).catch(async () => { throw new Error(`Stripe's Checkout page showed neither the card form nor a Card choice to open it (its payment choices: ${await paymentChoices(page)}).`); });
   if (!await card.isVisible()) {
     await (await visibleCardChoice(page)).click();
     await card.waitFor({ timeout: 15_000 }).catch(() => { throw new Error("Choosing Card on Stripe's Checkout page didn't open the card form."); });
@@ -292,14 +292,26 @@ async function fillCard(page, email, cardNumber) {
 async function visibleCardChoice(page) {
   const choices = [
     page.locator('[data-testid="card-accordion-item-button"]'),
-    page.getByRole("radio", { name: /^(pay with )?card$/i }),
-    page.locator('label[for="payment-method-accordion-item-title-card"]'),
     page.locator('[data-testid="card-accordion-item"]'),
+    page.locator('label[for="payment-method-accordion-item-title-card"]'),
+    // The radio's name can carry the card brands' names too, so it only has to start with Card.
+    page.getByRole("radio", { name: /^(pay with )?card\b/i }),
+    // The row's own visible label, which selects the row like a press anywhere on it.
+    page.getByText("Card", { exact: true }),
   ];
   for (const choice of choices) {
     for (const one of await choice.all()) if (await one.isVisible()) return one;
   }
   return null;
+}
+
+/** Stripe's payment-method controls as the page draws them, so a failure names what to look for next. */
+async function paymentChoices(page) {
+  const found = await page.locator('input[type="radio"], [data-testid*="accordion"], [role="radio"]').evaluateAll(nodes => nodes.slice(0, 12).map(node =>
+    [node.tagName.toLowerCase(), node.id && `#${node.id}`, node.getAttribute("data-testid") && `testid=${node.getAttribute("data-testid")}`,
+      node.getAttribute("value") && `value=${node.getAttribute("value")}`, node.getAttribute("aria-label") && `aria-label=${node.getAttribute("aria-label")}`,
+      node.getClientRects().length ? "shown" : "hidden"].filter(Boolean).join(" "))).catch(() => []);
+  return found.length ? found.join("; ") : "none found";
 }
 
 /** Types into one of Stripe's card fields, emptying it first: after Stripe turns a card down, its fields can still hold that card. */
