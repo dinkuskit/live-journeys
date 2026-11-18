@@ -41,6 +41,17 @@ export async function orderShown(page) {
   return orderDetails(await page.locator("main").innerText());
 }
 
+/**
+ * Waits for an order's page and shows its order ID. From Commerce 0.9 the ID sits in the page's
+ * "Order record" section, closed until pressed; older pages show it at once.
+ */
+export async function openOrderRecord(page) {
+  const record = page.getByRole("button", { name: "Order record", exact: true });
+  await record.or(page.getByText(/Order ID:/)).first().waitFor({ timeout: 30_000 });
+  if (await record.count() && await record.first().getAttribute("aria-expanded") !== "true") await record.first().click();
+  await page.getByText(/Order ID:/).first().waitFor({ timeout: 15_000 });
+}
+
 /** Opens order #number in Commerce Orders, paging to it, and returns what its page shows. */
 export async function openOrder(page, number) {
   await openAdmin(page, config.ordersAdmin);
@@ -49,7 +60,7 @@ export async function openOrder(page, number) {
     const inspect = page.getByRole("button", { name: new RegExp(`^Inspect #${number}(?!\\d)`) });
     if (await inspect.count()) {
       await inspect.first().click();
-      await page.getByText(/Order ID:/).first().waitFor({ timeout: 30_000 });
+      await openOrderRecord(page);
       return orderShown(page);
     }
   } while (await nextPage(page));

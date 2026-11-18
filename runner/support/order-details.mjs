@@ -6,8 +6,27 @@
 const DETAIL_LABELS = ["Order", "Order ID", "Version", "Receipt", "Checkout attempt", "Payment", "Provider payment", "Paid at", "Status",
   "Completed at", "Carrier", "Tracking number", "Email", "Phone", "Ship to", "Bill to"];
 
-/** An order page's details from its text. */
+/**
+ * An order page's details from its text. From Commerce 0.9 the page reads "Order #1001 (TEST)" as its
+ * heading, "Paid <when> · Processing" under it, "Shipped <when> · <carrier> · <tracking>" once
+ * completed, and keeps the order ID in its "Order record" section; older pages ran labeled fields
+ * together on one line.
+ */
 export function orderDetails(shown) {
+  const lines = shown.split("\n").map(line => line.trim()).filter(Boolean);
+  const heading = lines.map(line => line.match(/^Order (\S+(?: \(TEST\))?)$/)?.[1]).find(Boolean);
+  if (heading) {
+    const status = lines.map(line => line.match(/^Paid\b.* · (Processing|Completed)$/)?.[1]).find(Boolean) ?? null;
+    // Commerce leaves out a carrier or tracking number the owner didn't give.
+    const [, carrier = null, tracking = null] = lines.find(line => /^Shipped /.test(line))?.slice("Shipped ".length).split(" · ") ?? [];
+    const orderId = lines.map(line => line.match(/^Order ID: (.+)$/)?.[1]).find(Boolean) ?? null;
+    return { label: heading, test: / \(TEST\)$/.test(heading), orderId, status, carrier, tracking };
+  }
+  return labeledDetails(shown);
+}
+
+/** Before Commerce 0.9: the details as labeled fields run together on one line. */
+function labeledDetails(shown) {
   // The page runs its details together on one line ("Order: #1001 (TEST) Order ID: order:..."), so a
   // value ends where the next label starts.
   const field = name => {

@@ -25,3 +25,24 @@ test("an order page from before Commerce 0.7.0-beta.3 still reads the same", () 
   assert.equal(shown.status, "Processing");
   assert.equal(shown.orderId, "order:abc");
 });
+
+// Commerce 0.9's order page, as main's innerText reads it with the Order record section open.
+const page09 = (...lines) => ["Orders", "Back to orders", ...lines, "Ship to", "Test Shopper", "Customer", "agent@example.com",
+  "1 item ready to ship", "Complete order", "Order record", "Order ID: order:fd3e9da1", "Version: 1"].join("\n");
+
+test("Commerce 0.9's order page gives its number, status and order ID from its heading, status line and Order record", () => {
+  const shown = orderDetails(page09("Order #1222 (TEST)", "Paid Nov 18, 2026, 5:37 PM UTC · Processing", "Test order"));
+  assert.deepEqual(shown, { label: "#1222 (TEST)", test: true, orderId: "order:fd3e9da1", status: "Processing", carrier: null, tracking: null });
+});
+
+test("a completed Commerce 0.9 order gives its carrier and tracking number from its Shipped line", () => {
+  const shown = orderDetails(page09("Order #1223 (TEST)", "Paid Nov 18, 2026, 5:40 PM UTC · Completed",
+    "Shipped Nov 18, 2026, 5:41 PM UTC · USPS · 9400100000000000000000"));
+  assert.equal(shown.status, "Completed");
+  assert.deepEqual(completionProblems(shown, { carrier: "USPS", tracking: "9400100000000000000000" }), []);
+});
+
+test("a Commerce 0.9 order completed with nothing sent shows no carrier or tracking number", () => {
+  const shown = orderDetails(page09("Order #1224 (TEST)", "Paid Nov 18, 2026, 5:42 PM UTC · Completed", "Shipped Nov 18, 2026, 5:43 PM UTC"));
+  assert.deepEqual([shown.status, shown.carrier, shown.tracking], ["Completed", null, null]);
+});
