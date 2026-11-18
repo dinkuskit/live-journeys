@@ -374,7 +374,10 @@ export async function saveNew(page, collection) {
 
 /** Publishes the open EmDash entry; a refusal fails with the reason the admin gives. */
 export async function publish(page, collection) {
-  const published = page.waitForResponse(r => r.request().method() === "POST" && new RegExp(`/_emdash/api/content/${collection}/[^/]+/publish`).test(r.url()), { timeout: 30_000 });
+  // An owner waits about half a minute for Publish; a slower answer still fails the step, but saying how
+  // slow (and whether it published at all) tells a slow store from a lost request.
+  const started = Date.now();
+  const published = page.waitForResponse(r => r.request().method() === "POST" && new RegExp(`/_emdash/api/content/${collection}/[^/]+/publish`).test(r.url()), { timeout: 120_000 });
   // When the click or the question fails first, this wait's own failure mustn't go unhandled; awaiting it below still fails the step.
   published.catch(() => {});
   // An entry published before, with changes saved since, offers Publish changes instead.
@@ -382,7 +385,10 @@ export async function publish(page, collection) {
   const label = await button.getAttribute("aria-label") ?? (await button.innerText()).trim();
   await button.click();
   await answer(page, `${label}?`, label);
-  const response = await published;
+  const response = await published.catch(() => null);
+  const seconds = Math.round((Date.now() - started) / 1000);
+  if (!response) throw new Error(`EmDash gave no answer to Publish within ${seconds} s.`);
+  if (seconds > 30) throw new Error(`EmDash took ${seconds} s to answer Publish (HTTP ${response.status()}), past the 30 s an owner waits.`);
   if (response.ok()) return;
   const body = await response.json().catch(() => null);
   throw new Error(body?.error?.message ?? `HTTP ${response.status()}`);

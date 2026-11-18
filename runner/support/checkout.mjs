@@ -258,12 +258,14 @@ export function requireTestMode(page) {
 
 async function fillCard(page, email, cardNumber) {
   const card = page.locator("#cardNumber");
-  // A card-only session shows the card form at once; with more methods on, Card is an accordion row.
-  const cardRow = page.locator('[data-testid="card-accordion-item-button"]');
-  // Stripe also renders the accordion button, hidden, when Card is already open, and it comes first
-  // in the page, so `.or(...).first()` would wait on the hidden button: wait until either is visible.
-  await expect.poll(async () => await card.isVisible() || await cardRow.isVisible(), { timeout: 60_000 }).toBe(true);
-  if (!await card.isVisible()) await cardRow.click();
+  // A card-only session shows the card form at once. With more methods on, Card is a row in Stripe's
+  // list of payment methods, drawn as an accordion button or, as on 18 Nov 2026, a radio row.
+  await expect.poll(async () => await card.isVisible() || Boolean(await visibleCardChoice(page)), { timeout: 60_000 })
+    .toBe(true).catch(() => { throw new Error("Stripe's Checkout page showed neither the card form nor a Card choice to open it."); });
+  if (!await card.isVisible()) {
+    await (await visibleCardChoice(page)).click();
+    await card.waitFor({ timeout: 15_000 }).catch(() => { throw new Error("Choosing Card on Stripe's Checkout page didn't open the card form."); });
+  }
   // A prefilled email is shown as text, not an input.
   const emailInput = page.locator("#email");
   if (await emailInput.isVisible() && await emailInput.isEditable() && !await emailInput.inputValue()) await emailInput.fill(email);
@@ -280,6 +282,24 @@ async function fillCard(page, email, cardNumber) {
   const saveInfo = page.locator("#enableStripePass");
   if (await saveInfo.isVisible() && await saveInfo.isChecked()) await saveInfo.uncheck();
   await page.getByTestId("hosted-payment-submit-button").or(page.locator(".SubmitButton")).first().click();
+}
+
+/**
+ * The Card choice in Stripe's list of payment methods that a shopper can see, or null. Stripe draws it
+ * as an accordion button or a radio row; it also renders the accordion button hidden while Card is
+ * open, so only a visible one counts.
+ */
+async function visibleCardChoice(page) {
+  const choices = [
+    page.locator('[data-testid="card-accordion-item-button"]'),
+    page.getByRole("radio", { name: /^(pay with )?card$/i }),
+    page.locator('label[for="payment-method-accordion-item-title-card"]'),
+    page.locator('[data-testid="card-accordion-item"]'),
+  ];
+  for (const choice of choices) {
+    for (const one of await choice.all()) if (await one.isVisible()) return one;
+  }
+  return null;
 }
 
 /** Types into one of Stripe's card fields, emptying it first: after Stripe turns a card down, its fields can still hold that card. */
