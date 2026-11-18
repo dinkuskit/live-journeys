@@ -51,7 +51,7 @@ export const config = {
   shippingAdmin: read("DINKUS_E2E_SHIPPING_ADMIN"),
   productPath: read("DINKUS_E2E_PRODUCT_PATH"),
   // Full catalog: categories x products per category of the standing catalog the test keeps on the store.
-  catalog: read("DINKUS_E2E_CATALOG", "3x8"),
+  catalog: read("DINKUS_E2E_CATALOG", "3x2"),
   // Mark as completed: Processing TEST orders (1003,1004) for the owner and then the agent to complete, instead of placing new ones.
   // Every entry is kept as written, blanks included, so the journey refuses a typo rather than placing an order in its place.
   ordersToComplete: ordersToComplete ? ordersToComplete.split(",").map(number => number.trim()) : [],

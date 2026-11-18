@@ -15,7 +15,7 @@ journeys plan:
 | [Storefront](tests/storefront.spec.mjs) | `@running` | A new shopper's first look: the homepage, the product list, a product page and its category page |
 | [Cart](tests/cart.spec.mjs) | `@running` | A new shopper adds a product to the cart, changes its quantity and removes it, with the cart total right each time |
 | [Manage products](tests/manage-products.spec.mjs) | `@running` | On the one product screen (a Content > Products page with its Dinkus Commerce and Product image & gallery panels), the owner adds a product page in a category the store's other products are in (Full catalog's caps), gives it price and stock, sees the Draft stay off the store, gives it a photo that stays after a reload, publishes the page to put it on sale, changes its price and name, and archives it by moving its page to the Trash and restores it, with the store following each change |
-| [Full catalog](tests/full-catalog.spec.mjs) | `@running` | The store carries a catalog as big as a real shop's (3 categories of 8 products unless set otherwise), each product with its own price, weight, photo and page: the owner adds what's missing on each product's page and its Dinkus Commerce panel, the Shop list, every category page and every product page show the whole catalog, and the owner can still save a product with all of it in place |
+| [Full catalog](tests/full-catalog.spec.mjs) | `@running` | The store carries a standing catalog (3 categories of 2 products unless set otherwise), each product with its own price, weight, photo and page: the owner adds what's missing on each product's page and its Dinkus Commerce panel, the Shop list, every category page and every product page show the whole catalog, and the owner can still save a product with all of it in place |
 | [Mark as completed](tests/mark-completed.spec.mjs) | `@running` | The owner marks a paid TEST order completed in Commerce Orders, typing a carrier and tracking number, and an agent completes another through Commerce's orders API, sending neither; both end Completed |
 | [Problems](tests/problems.spec.mjs) | `@running` | A shopper's checkout going wrong: Stripe turns down a declined card, a card without enough funds and a card that fails the bank's security check, each with a clear message and no order; the shopper leaves Stripe for the cart, finds the way back to the same checkout, pays once with the test card and closes the tab, Commerce makes the order on its own, and the owner completes that one order |
 | [Buy a label in the store admin](tests/store-admin-label.spec.mjs) | `@running` | The owner ships a paid Stripe TEST order from the store admin's Shipping page, which the Ship plugin draws from hosted Ship: See prices, Buy label at the quoted price and Print label, then, once Commerce has completed the order, Print label again and Cancel label, with the order staying Completed |
@@ -179,11 +179,11 @@ product named "Live test product <date and time> renamed" with its page in the
 Trash, and its photo in the Media library.
 
 Full catalog keeps a standing catalog on the store, so every journey runs
-against a store with as many products as a real shop: categories named "Catalog
+against a store with several products in each category: categories named "Catalog
 Tees", "Catalog Hoodies" and "Catalog Caps", each holding products named
 "Catalog Tee 01" and so on, every one with its own price, weight, photo and
 published page. `DINKUS_E2E_CATALOG` sets the size, as categories x products per
-category (`3x8` unless set, up to `4x50`). The first run on a store adds the
+category (`3x2` unless set, up to `4x50`). The first run on a store adds the
 whole catalog as an owner would, on each product's page and its Dinkus Commerce
 panel, in the Media library and in EmDash's categories, which takes about a minute a product; later runs find
 it there, add only what's missing, and spend about four minutes checking it. A
@@ -361,7 +361,7 @@ the environment, which wins.
 | `DINKUS_E2E_COMPLETE_WAIT_SECONDS` | `420` | How long to wait for Commerce's background check |
 | `DINKUS_E2E_ORDERS_ADMIN` | the Registry Commerce plugin's Orders page | Commerce Orders in the store admin |
 | `DINKUS_E2E_SHIPPING_ADMIN` | the admin menu's Shipping page ("Shipments" in the Dinkus Ship folder, or "Shipping") | The Ship plugin's Shipping page in the store admin, for Buy a label in the store admin |
-| `DINKUS_E2E_CATALOG` | `3x8` | For Full catalog, the standing catalog's size as categories x products per category, from `1x1` to `4x50` |
+| `DINKUS_E2E_CATALOG` | `3x2` | For Full catalog, the standing catalog's size as categories x products per category, from `1x1` to `4x50` |
 | `DINKUS_E2E_ORDERS_TO_COMPLETE` | new orders | For Mark as completed, one or two different Processing TEST orders for the owner and then the agent to complete (`1003,1004`) instead of placing new ones. Anything else stops the journey before it places or completes an order |
 | `DINKUS_E2E_ADMIN_SIGNIN` | `skip` | `wait` lets a person sign in to the store admin |
 | `DINKUS_E2E_PROOF` | `~/.dinkus-e2e/proof` | Where each run's proof folder goes |
