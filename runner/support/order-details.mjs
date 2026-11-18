@@ -3,6 +3,8 @@
 
 // The labels on an order's page, in the order Commerce Orders shows them (Email, Phone and Bill to from
 // Commerce 0.7.0-beta.3, dinkuskit/commerce#213).
+const NOT_RECORDED = "Not recorded";
+
 const DETAIL_LABELS = ["Order", "Order ID", "Version", "Receipt", "Checkout attempt", "Payment", "Provider payment", "Paid at", "Status",
   "Completed at", "Carrier", "Tracking number", "Email", "Phone", "Ship to", "Bill to"];
 
@@ -34,14 +36,21 @@ function labeledDetails(shown) {
     return shown.match(new RegExp(`(?:^|\\s)${name}:\\s*(.*?)(?=\\s+(?:${others}):\\s|\\n|$)`))?.[1]?.trim() || null;
   };
   const label = field("Order");
-  return { label, test: / \(TEST\)$/.test(label ?? ""), orderId: field("Order ID"), status: field("Status"), carrier: field("Carrier"), tracking: field("Tracking number") };
+  // These pages print "Not recorded" for a carrier or tracking number the owner didn't give; Commerce
+  // 0.9 leaves it out, so both read as null.
+  const given = name => (value => value === NOT_RECORDED ? null : value)(field(name));
+  return { label, test: / \(TEST\)$/.test(label ?? ""), orderId: field("Order ID"), status: field("Status"), carrier: given("Carrier"), tracking: given("Tracking number") };
 }
 
-/** Where an open Completed order differs from the carrier and tracking number it should show. */
+/**
+ * Where an open Completed order differs from the carrier and tracking number it should show; null
+ * for one the owner didn't give.
+ */
 export function completionProblems(shown, { carrier, tracking }) {
   const problems = [];
   if (shown.status !== "Completed") problems.push(`it shows ${shown.status ?? "no status"}, not Completed`);
-  if (shown.carrier !== carrier) problems.push(`its carrier reads "${shown.carrier ?? "nothing"}", not "${carrier}"`);
-  if (shown.tracking !== tracking) problems.push(`its tracking number reads "${shown.tracking ?? "nothing"}", not "${tracking}"`);
+  const reads = (value, what) => value === null ? `no ${what}` : `${what} "${value}"`;
+  if (shown.carrier !== carrier) problems.push(`it shows ${reads(shown.carrier, "carrier")}, not ${reads(carrier, "carrier")}`);
+  if (shown.tracking !== tracking) problems.push(`it shows ${reads(shown.tracking, "tracking number")}, not ${reads(tracking, "tracking number")}`);
   return problems;
 }

@@ -46,3 +46,12 @@ test("a Commerce 0.9 order completed with nothing sent shows no carrier or track
   const shown = orderDetails(page09("Order #1224 (TEST)", "Paid Nov 18, 2026, 5:42 PM UTC · Completed", "Shipped Nov 18, 2026, 5:43 PM UTC"));
   assert.deepEqual([shown.status, shown.carrier, shown.tracking], ["Completed", null, null]);
 });
+
+test("both page formats read a carrier and tracking number nobody gave as none", () => {
+  const before = orderDetails(page(...head, "Status: Completed", "Completed at: 2026-10-30T02:40:00.000Z", "Carrier: Not recorded",
+    "Tracking number: Not recorded", "Email: Not recorded"));
+  const after = orderDetails(page09("Order #1224 (TEST)", "Paid Nov 18, 2026, 5:42 PM UTC · Completed", "Shipped Nov 18, 2026, 5:43 PM UTC"));
+  for (const shown of [before, after]) assert.deepEqual(completionProblems(shown, { carrier: null, tracking: null }), []);
+  assert.deepEqual(completionProblems(after, { carrier: "USPS", tracking: "9400" }),
+    ['it shows no carrier, not carrier "USPS"', 'it shows no tracking number, not tracking number "9400"']);
+});

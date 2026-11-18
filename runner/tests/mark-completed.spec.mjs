@@ -7,9 +7,6 @@ import { completionProblems, numberOf, openOrder, orderShown, ordersListed, test
 import { confirmed, notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { journey, step } from "../support/steps.mjs";
 
-// What an order's page in Commerce Orders shows for a carrier or tracking number nobody gave.
-const NOT_RECORDED = "Not recorded";
-
 /** Places a Stripe TEST order, or takes the order DINKUS_E2E_ORDERS_TO_COMPLETE names for this part of the journey. */
 async function orderToComplete(page, name, given, who) {
   if (given) {
@@ -151,9 +148,9 @@ test("Mark as completed", { tag: "@running" }, journey(async ({ page }) => {
       note("agent's order number", `#${number}`);
       const listed = (await testOrders(page)).find(order => order.number === number);
       if (listed?.status !== "Completed") throw new Error(`Commerce Orders lists #${number} as ${listed?.status ?? "missing"}, not Completed.`);
-      const problems = completionProblems(await openOrder(page, number), { carrier: NOT_RECORDED, tracking: NOT_RECORDED });
+      const problems = completionProblems(await openOrder(page, number), { carrier: null, tracking: null });
       if (problems.length) throw new Error(`Opened, #${number} ${problems.join(" and ")}.`);
-      return `#${number} is listed Completed, and its page shows carrier and tracking number "${NOT_RECORDED}"`;
+      return `#${number} is listed Completed, and its page shows no carrier or tracking number`;
     }, soft);
   } finally {
     if (agent) await step(page, "The test deletes the agent's key", () => deleteAgentKey(page, agent, () => agentCall(page, agent, { action: "show", orderId: agent.orderId ?? "order:none" })), soft);
