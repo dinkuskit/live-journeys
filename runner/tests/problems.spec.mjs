@@ -72,35 +72,30 @@ async function paidInCommerce(page) {
 }
 
 /**
- * On the store page Stripe's back link opened (the cart, or the checkout page): the shopper presses
- * "Check checkout status", and the page says the checkout is still open and links back to its Stripe
- * page, while it won't start a second checkout.
+ * On the store page Stripe's back link opened (the cart, or the checkout page): the page, drawn by the
+ * server from Commerce's cart, says the checkout is still open and links back to its Stripe page,
+ * while it won't start a second checkout.
  */
 async function cartWayBack(page, shopper) {
   // A page without the cart (a store missing the page Payments named) leaves the cart's own way back to check.
   if (!storeReturnPage(page.url(), config.store) || !await page.locator("[data-guest-cart]").count()) await openStorePage(page, `${config.store}/cart`);
   const where = storeReturnPage(page.url(), config.store) ?? "cart";
   const The = `The ${where}`;
-  const status = page.locator("[data-guest-cart-status]");
-  const recheck = page.locator("[data-guest-cart-recover]");
+  const status = page.locator("[data-guest-cart-checkout-reason]");
   const resume = page.locator("[data-guest-cart-resume]");
   const says = async () => {
-    const shown = (await status.innerText({ timeout: 5_000 }).catch(() => "")).trim();
+    const shown = (await status.first().innerText({ timeout: 5_000 }).catch(() => "")).trim();
     return shown ? `it says "${shown}"` : "it shows no message";
   };
-  await expect.poll(async () => await resume.isVisible() || await recheck.isVisible(), { timeout: 45_000 }).toBe(true)
-    .catch(async () => { throw new Error(`${The} offers neither "Check checkout status" nor a way back to Stripe; ${await says()}`); });
-  if (!await resume.isVisible()) {
-    await recheck.click();
-    await resume.waitFor({ timeout: 30_000 })
-      .catch(async () => { throw new Error(`After "Check checkout status" the ${where} offers no way back to the open Stripe checkout; ${await says()}`); });
-  }
+  await resume.waitFor({ timeout: 15_000 })
+    .catch(async () => { throw new Error(`${The} offers no way back to the open Stripe checkout; ${await says()}`); });
   const label = (await resume.innerText()).trim();
   const target = stripeSession(await resume.getAttribute("href") ?? "");
   if (!target) throw new Error(`${The}'s "${label}" link doesn't go to Stripe Checkout.`);
   if (target !== shopper.session) throw new Error(`${The}'s "${label}" link goes to a different Stripe checkout than the one the shopper left.`);
   // The open checkout keeps the cart locked, so the shopper can't start a second one.
-  if (await page.locator("[data-guest-cart-checkout]").isEnabled()) throw new Error(`${The} links back to Stripe, but it also lets the shopper start a second checkout.`);
+  const start = page.locator("[data-guest-cart-checkout]");
+  if (await start.count() && await start.first().isEnabled()) throw new Error(`${The} links back to Stripe, but it also lets the shopper start a second checkout.`);
   return `the ${where}'s "${label}" link goes back to the same Stripe checkout; ${await says()}`;
 }
 

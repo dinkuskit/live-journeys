@@ -1,7 +1,7 @@
 import { versionAtLeast } from "./store-plugins.mjs";
 
 // The standing catalog Full catalog keeps on a test store, so the journeys run against a store with
-// as many products as a real shop. Every name starts with "Catalog", so the test's products are easy to
+// several products in each category. Every name starts with "Catalog", so the test's products are easy to
 // spot, and stays the same from run to run, so a run finds what earlier runs added.
 
 // Each kind's prices end in their own cents, so no two products in the catalog share a price.

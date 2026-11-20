@@ -4,7 +4,7 @@ import { categoryHides } from "./category-page.mjs";
 import { config } from "./env.mjs";
 import { firstLine } from "./errors.mjs";
 import { PAGE_ROOM, paceStore } from "./pace.mjs";
-import { photo, photoProblem, readCard, text } from "./storefront-page.mjs";
+import { ADD_TO_CART, photo, photoProblem, readCard, text } from "./storefront-page.mjs";
 import { dollars, money } from "./storefront-text.mjs";
 
 // What a new shopper's browser shows of one product the journey made: the homepage's Shop list, its
@@ -139,8 +139,8 @@ export async function productPageProblems(shopper, response, { name, cents, hasP
     const visual = product.locator(".product-detail__visual");
     problems.push(...await photoProblems(visual, "the product page", await photo(visual), photoHash));
   }
-  // Ready means wired to the cart and pressable; the journey never presses it.
-  const add = shopper.locator('[data-add-to-cart][data-guest-cart-ready="1"]').first();
+  // The form's button, pressable; the journey never presses it.
+  const add = shopper.locator(ADD_TO_CART).first();
   if (!await add.waitFor({ timeout: 15_000 }).then(() => true, () => false)) problems.push("the product page has no working Add to cart button");
   else if (!await add.isEnabled()) problems.push("the product page's Add to cart button can't be pressed");
   if (categoryPath && !await shopper.locator(`.browse-breadcrumb a[href="${categoryPath}"]`).count()) problems.push(`the product page doesn't link to its category ${categoryPath}`);

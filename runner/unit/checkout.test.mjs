@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { settleCheckout as settle } from "../support/checkout-settle.mjs";
 import { storeReturnLinks, storeReturnPage, stripeSession, thankYouShown } from "../support/checkout-text.mjs";
 
 test("a Stripe Checkout address names its session, with or without Stripe's fragment", () => {
@@ -45,4 +46,21 @@ test("Stripe's way back is the store's cart or, from payments#79, its checkout p
   assert.match(links, /a\[href="https:\/\/store\.example\/cart"\]:visible/);
   assert.match(links, /a\[href="https:\/\/store\.example\/checkout"\]:visible/);
   assert.doesNotMatch(links, /checkout\/success/);
+});
+
+test("settling keeps asking Commerce after a read it gave no answer to, and keeps its last answer", async () => {
+    const page = { waits: 0, async waitForTimeout() { this.waits++; } };
+  const pending = { attemptId: "att_1", checkout: { attemptId: "att_1", state: "pending" } };
+  const paid = { attemptId: "att_1", checkout: { attemptId: "att_1", state: "paid", order: { orderId: "order:att_1" } } };
+  const reads = [pending, { attemptId: null, unanswered: true }, { attemptId: null, unanswered: true }, paid];
+  const settled = await settle(page, async () => reads.shift());
+  assert.deepEqual(settled, paid);
+  assert.equal(page.waits, 3);
+  assert.equal(reads.length, 0);
+});
+
+test("settling stops at once when the browser's cart has no checkout", async () => {
+    const page = { waits: 0, async waitForTimeout() { this.waits++; } };
+  assert.deepEqual(await settle(page, async () => ({ attemptId: null })), { attemptId: null });
+  assert.equal(page.waits, 0);
 });

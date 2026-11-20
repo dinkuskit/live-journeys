@@ -2,19 +2,21 @@ import { newPage, get } from "./browser.mjs";
 import { expect } from "@playwright/test";
 import { config } from "./env.mjs";
 import { openStorePage } from "./signin.mjs";
+import { settleCheckout } from "./checkout-settle.mjs";
+import { ADD_TO_CART } from "./storefront-page.mjs";
 import { cartCount } from "./storefront-text.mjs";
 import { storeReturnLinks, storeReturnPage } from "./checkout-text.mjs";
 
-// The storefront's own localStorage keys (template-store guest-cart intent.ts and checkout-protocol.ts).
-const CART_KEY = "dinkus.guest-cart.v1";
-const CHECKOUT_KEY = "dinkus.guest-checkout.v1";
+// Commerce keeps the cart (Template Store #229); the browser holds only its key, in the store's HttpOnly
+// dk_cart cookie, and the item count in dk_cart_count (template-store guest-cart server-cart.ts).
+const CART_COOKIES = ["dk_cart", "dk_cart_count"];
 const HUMAN_WAIT_MS = 10 * 60 * 1000;
 // The Add to cart button findPhysicalProduct chose, when the page shows more than one.
 let productId = null;
 
 /**
- * Buys one physical product as a guest, the way a shopper does: product page, Add to cart,
- * /cart with a US delivery address, Stripe's hosted Checkout with the 4242 test card, and back.
+ * Buys one physical product as a guest, the way a shopper does: product page, Add to cart, /cart,
+ * /checkout with a US delivery address, Stripe's hosted Checkout with the 4242 test card, and back.
  *
  * Returns { number, orderId, checkoutToken, state, pricing, thankYou }. The storefront never
  * learns the short order number: Commerce's guest checkout status carries only `order:<attempt id>`,
@@ -32,9 +34,8 @@ export async function placeTestOrder(page) {
 
 /**
  * Takes a guest shopper to Stripe's hosted Checkout for one physical product: product page, Add to
- * cart, /cart with a US delivery address, then Continue to secure checkout. A cart without the
- * checkout contact (Template Store #127) sends the shopper to /checkout for it. `quantity` is typed
- * into the cart's quantity box, as a shopper buying several would. Returns the checkout contact's
+ * cart, /cart, then /checkout with a US delivery address and Continue to secure checkout. `quantity`
+ * is typed into the cart's quantity box and Update pressed, as a shopper buying several would. Returns the checkout contact's
  * email, the product's unit price in cents from the store's cart snapshot (`unitCents`, null when
  * unreadable), and `resumed` when the browser already had a checkout pending in Commerce and went
  * back to its Stripe session instead.
@@ -49,40 +50,43 @@ export async function openCheckout(page, { quantity = 1 } = {}) {
   // own Stripe session instead of starting another.
   const resumed = await resumeCheckout(page);
   if (!resumed) {
-    // The saved profile keeps an earlier run's cart and checkout; a leftover checkout locks the cart.
-    await page.evaluate(keys => keys.forEach(key => localStorage.removeItem(key)), [CART_KEY, CHECKOUT_KEY]);
+    // The saved profile keeps an earlier run's cart and checkout; a leftover checkout locks the cart, so
+    // the shopper starts a new cart, as one whose cookies were cleared does.
+    for (const name of CART_COOKIES) await page.context().clearCookies({ name });
     path = config.productPath || await findPhysicalProduct(page);
 
     await page.goto(new URL(path, config.store).href);
-    await orFail(page.locator('[data-add-to-cart][data-guest-cart-ready="1"]').first().waitFor({ timeout: 15_000 }), async () =>
+    await orFail(page.locator(ADD_TO_CART).first().waitFor({ timeout: 15_000 }), async () =>
       `${path} offers no Add to cart: ${await texts(page, ".product-detail__notice, [data-product-status]")}`);
-    const add = page.locator(productId ? `[data-add-to-cart="${productId}"]` : "[data-add-to-cart]").first();
+    const add = page.locator(productId ? `form[data-add-to-cart-form] [data-add-to-cart="${productId}"]` : ADD_TO_CART).first();
     unitCents = await unitPrice(page, await add.getAttribute("data-add-to-cart"));
     await add.click();
-    await orFail(expect(page.locator("[data-add-to-cart-status]")).toHaveText(/added to cart/i, { timeout: 10_000 }), async () =>
-      `Add to cart failed: ${await texts(page, "[data-add-to-cart-status]")}`);
+    // The message beside the pressed button: a Shop list draws one beside each card's button.
+    const status = add.locator("xpath=ancestor::*[.//*[@data-add-to-cart-status]][1]").locator("[data-add-to-cart-status]");
+    await orFail(expect(status).toHaveText(ADDED, { timeout: 10_000 }), async () =>
+      `Add to cart failed: ${(await status.innerText({ timeout: 5_000 }).catch(() => "")).trim() || "no message beside the button"}`);
 
-    // The checkout button turns on once the cart's catalog snapshot and Commerce's prepare both answer.
+    // The server draws the cart from Commerce, so the page as loaded is the cart.
     await page.goto(config.store + "/cart");
     if (quantity !== 1) {
       const field = page.locator("[data-guest-cart-qty]").first();
       await orFail(field.waitFor({ timeout: 15_000 }), async () => `The cart shows no quantity box to change: ${await cartMessage(page)}`);
       await field.fill(String(quantity));
-      // The cart applies a typed quantity when the field loses focus, as when a shopper tabs on.
-      await field.press("Tab");
-      await orFail(expect(field).toHaveValue(String(quantity), { timeout: 10_000 }), async () =>
+      // The line's Update button sends the new quantity, as a shopper presses it.
+      await page.locator("[data-guest-cart-update]").first().click();
+      await orFail(expect(page.locator("[data-guest-cart-qty]").first()).toHaveValue(String(quantity), { timeout: 10_000 }), async () =>
         `The cart wouldn't keep quantity ${quantity}: ${await cartMessage(page)}`);
     }
+    // The cart's checkout is a link to /checkout, which asks for the contact and delivery address.
+    const proceed = page.locator("[data-guest-cart-proceed]");
+    await orFail(expect(proceed).toHaveAttribute("href", "/checkout", { timeout: 5_000 }), async () => `The cart never offered checkout: ${await cartMessage(page)}`);
+    await proceed.click();
+    await orFail(page.waitForURL(url => storeReturnPage(url.href, config.store) === "checkout page", { timeout: 30_000 }), async () =>
+      `The cart's checkout button didn't open the store's checkout page: ${await cartMessage(page)}`);
     const checkout = page.locator("[data-guest-cart-checkout]");
-    await orFail(expect(checkout).toBeEnabled({ timeout: 45_000 }), async () => `The cart never offered checkout: ${await cartMessage(page)}`);
-    if (!await page.locator("[data-guest-cart-email]").count()) {
-      await checkout.click();
-      await orFail(page.waitForURL(url => storeReturnPage(url.href, config.store) === "checkout page", { timeout: 30_000 }), async () =>
-        `The cart asks for no checkout contact and its checkout button didn't open the store's checkout page: ${await cartMessage(page)}`);
-      await orFail(expect(checkout).toBeEnabled({ timeout: 45_000 }), async () => `The checkout page never offered checkout: ${await cartMessage(page)}`);
-    }
+    await orFail(expect(checkout).toBeEnabled({ timeout: 15_000 }), async () => `The checkout page never offered checkout: ${await cartMessage(page)}`);
     await orFail(page.locator("[data-guest-cart-delivery]").waitFor({ timeout: 5_000 }), async () =>
-      `The cart asks for no delivery address, so ${path} is not a physical product; set DINKUS_E2E_PRODUCT_PATH.`);
+      `The checkout page asks for no delivery address, so ${path} is not a physical product; set DINKUS_E2E_PRODUCT_PATH.`);
     const { shopper } = config;
     await page.locator("[data-guest-cart-email]").fill(email);
     await page.locator("[data-guest-cart-delivery-name]").fill(shopper.name);
@@ -114,7 +118,7 @@ async function unitPrice(page, id) {
 export async function resumeCheckout(page) {
   // A store behind Cloudflare Access sends the browser to Access's login once the saved sign-in lapses.
   await openStorePage(page, config.store + "/");
-  const earlier = await page.evaluate(readStatus, { key: CHECKOUT_KEY, routes: statusRoutes() });
+  const earlier = await readStatus(page);
   const resume = earlier.checkout?.state === "pending" ? earlier.checkout.redirectUrl : null;
   if (!resume || new URL(resume).hostname !== "checkout.stripe.com") return false;
   await page.goto(resume);
@@ -191,7 +195,7 @@ async function findPhysicalProduct(page) {
   for (const path of [...paths, listing]) {
     await page.goto(new URL(path, config.store).href);
     // From Template Store #125 a product sold only by its options also draws a locked Add to cart, which this journey can't use.
-    const ids = await page.locator("[data-add-to-cart]").evaluateAll(buttons => buttons.filter(button => !button.disabled).map(button => button.getAttribute("data-add-to-cart")));
+    const ids = await page.locator(ADD_TO_CART).evaluateAll(buttons => buttons.filter(button => !button.disabled).map(button => button.getAttribute("data-add-to-cart")));
     for (const id of ids.filter(Boolean)) {
       const response = await get(page, `${config.store}/api/guest-cart/snapshot?ids=${encodeURIComponent(id)}`);
       const product = response.ok() ? (await response.json()).products?.[0] : null;
@@ -206,9 +210,9 @@ export async function payOnStripe(page, email) {
   await submitCard(page, email, "4242424242424242");
   const back = url => url.origin === config.store;
   await page.waitForURL(back, { timeout: 120_000 }).catch(async () => {
-    const problem = await texts(page, '[role="alert"], .FieldError');
+    const problem = await framesTexts(page, FIELD_ERRORS);
     if (await captchaShown(page)) throw new CaptchaShown();
-    if (config.headless) throw new Error(`Stripe did not send the shopper back to the store: ${problem}`);
+    if (config.headless) throw new Error(`Stripe did not send the shopper back to the store: ${problem}. Its page held ${await stripeFrames(page)}`);
     console.log("\n>>> Finish paying on the Stripe page in this test's browser window (card 4242 4242 4242 4242, 12/34, CVC 123).\n");
     await page.waitForURL(back, { timeout: HUMAN_WAIT_MS });
   });
@@ -229,8 +233,8 @@ export async function payAndCloseTab(page, email) {
     await submitCard(page, email, "4242424242424242");
     if (!(await redirected)) {
       if (await captchaShown(page)) throw new CaptchaShown();
-      const problem = await texts(page, '[role="alert"], .FieldError');
-      throw new Error(`Stripe did not send the shopper back toward the store: ${problem}`);
+      const problem = await framesTexts(page, FIELD_ERRORS);
+      throw new Error(`Stripe did not send the shopper back toward the store: ${problem}. Its page held ${await stripeFrames(page)}`);
     }
   } finally {
     await page.unroute(storeUrl).catch(() => {});
@@ -252,36 +256,128 @@ export function requireTestMode(page) {
   if (!/\/cs_test_/.test(new URL(page.url()).pathname)) throw new Error("Stripe opened a session that is not in test mode; nothing was paid.");
 }
 
-async function fillCard(page, email, cardNumber) {
-  const card = page.locator("#cardNumber");
-  // A card-only session shows the card form at once; with more methods on, Card is an accordion row.
-  const cardRow = page.locator('[data-testid="card-accordion-item-button"]');
-  // Stripe also renders the accordion button, hidden, when Card is already open, and it comes first
-  // in the page, so `.or(...).first()` would wait on the hidden button: wait until either is visible.
-  await expect.poll(async () => await card.isVisible() || await cardRow.isVisible(), { timeout: 60_000 }).toBe(true);
-  if (!await card.isVisible()) await cardRow.click();
-  // A prefilled email is shown as text, not an input.
-  const emailInput = page.locator("#email");
-  if (await emailInput.isVisible() && await emailInput.isEditable() && !await emailInput.inputValue()) await emailInput.fill(email);
-  await retype(card, cardNumber);
-  await retype(page.locator("#cardExpiry"), "1234");
-  await retype(page.locator("#cardCvc"), "123");
-  const name = page.locator("#billingName");
-  if (await name.isVisible()) await name.fill(config.shopper.name);
-  const country = page.locator("#billingCountry");
-  if (await country.isVisible()) await country.selectOption("US");
-  const zip = page.locator("#billingPostalCode");
-  if (await zip.isVisible()) await zip.fill(config.shopper.postalCode);
-  // Link's "save my information" would also ask for a phone number.
-  const saveInfo = page.locator("#enableStripePass");
-  if (await saveInfo.isVisible() && await saveInfo.isChecked()) await saveInfo.uncheck();
-  await page.getByTestId("hosted-payment-submit-button").or(page.locator(".SubmitButton")).first().click();
+// Stripe's card fields, by the ids its Checkout page used and by the names and autofill hints its payment
+// form uses when it draws the payment methods in a frame of their own (as on 18 Nov 2026).
+const CARD = '#cardNumber, input[name="number"], input[autocomplete="cc-number"]';
+const EXPIRY = '#cardExpiry, input[name="expiry"], input[autocomplete="cc-exp"]';
+const CVC = '#cardCvc, input[name="cvc"], input[autocomplete="cc-csc"]';
+const NAME = '#billingName, input[autocomplete="cc-name"], input[autocomplete="billing name"]';
+const COUNTRY = '#billingCountry, select[name="country"], select[autocomplete="billing country"]';
+const POSTAL = '#billingPostalCode, input[name="postalCode"], input[autocomplete="billing postal-code"], input[autocomplete="postal-code"]';
+// Where Stripe says what is wrong with the card or one of its fields.
+const FIELD_ERRORS = '[role="alert"], .FieldError, .p-FieldError';
+
+/** The first of `make`'s locators a shopper can see, in Stripe's page or any frame in it, or null. */
+async function shownInFrames(page, make) {
+  for (const frame of page.frames()) {
+    for (const choice of make(frame)) {
+      for (const one of await choice.all().catch(() => [])) if (await one.isVisible().catch(() => false)) return one;
+    }
+  }
+  return null;
+}
+const field = (page, selector) => shownInFrames(page, frame => [frame.locator(selector)]);
+
+/** Whether Stripe shows its card form or a Card choice yet, in its page or a frame. */
+export async function stripeCardReady(page) {
+  return Boolean(await field(page, CARD) || await visibleCardChoice(page));
 }
 
-/** Types into one of Stripe's card fields, emptying it first: after Stripe turns a card down, its fields can still hold that card. */
+async function fillCard(page, email, cardNumber) {
+  // A card-only session shows the card form at once. With more methods on, Card is a row in Stripe's
+  // list of payment methods, drawn as an accordion button or, as on 18 Nov 2026, a radio row in a frame.
+  await expect.poll(() => stripeCardReady(page), { timeout: 60_000 })
+    .toBe(true).catch(async () => { throw new Error(`Stripe's Checkout page showed neither the card form nor a Card choice to open it (its payment choices: ${await paymentChoices(page)}).`); });
+  if (!await field(page, CARD)) {
+    await (await visibleCardChoice(page)).click();
+    await expect.poll(async () => Boolean(await field(page, CARD)), { timeout: 15_000 }).toBe(true)
+      .catch(() => { throw new Error("Choosing Card on Stripe's Checkout page didn't open the card form."); });
+  }
+  // A prefilled email is shown as text, not an input.
+  const emailInput = await field(page, '#email, input[type="email"], input[name="email"], input[autocomplete="email"]');
+  if (emailInput && await emailInput.isEditable() && !await emailInput.inputValue()) await emailInput.fill(email);
+  await retype(await field(page, CARD), cardNumber);
+  await retype(await field(page, EXPIRY), "1234");
+  await retype(await field(page, CVC), "123");
+  const name = await field(page, NAME);
+  if (name) await name.fill(config.shopper.name);
+  const country = await field(page, COUNTRY);
+  if (country) await country.selectOption("US");
+  // The postal code field shows only once the country asks for one.
+  const zip = await field(page, POSTAL);
+  if (zip) await zip.fill(config.shopper.postalCode);
+  // Link's "save my information" would also ask for a phone number.
+  const saveInfo = await shownInFrames(page, frame => [frame.locator("#enableStripePass"), frame.getByRole("checkbox", { name: /save my information/i })]);
+  if (saveInfo && await saveInfo.isChecked()) await saveInfo.uncheck();
+  const pay = await payButton(page);
+  if (!pay) throw new Error("Stripe's Checkout page showed no Pay button after the card was filled in.");
+  await pay.click();
+}
+
+/** Stripe's Pay button, never "Pay securely with Link", in its page or a frame, or null. */
+function payButton(page) {
+  return shownInFrames(page, frame => [frame.getByTestId("hosted-payment-submit-button"), frame.locator(".SubmitButton"),
+    frame.getByRole("button", { name: /^(pay|pay \$[\d.,]+|complete order|place order)$/i })]);
+}
+
+/**
+ * Stripe's complaint about a card field the test filled in full, or null. After it turns a card down
+ * and the test types the next one, Stripe can keep a complaint it made mid-typing ("Your security code
+ * is incomplete.") beside a complete field and ignore that press of Pay, as 18 Nov 2026's run showed.
+ */
+async function staleFieldError(page) {
+  const shown = await framesTexts(page, FIELD_ERRORS);
+  return /\bincomplete\b/i.test(shown) ? shown : null;
+}
+
+/**
+ * The Card choice in Stripe's list of payment methods that a shopper can see, in its page or a frame,
+ * or null. Stripe draws it as an accordion button or a radio row; it also renders the accordion button
+ * hidden while Card is open, so only a visible one counts.
+ */
+function visibleCardChoice(page) {
+  return shownInFrames(page, frame => [
+    frame.locator('[data-testid="card-accordion-item-button"]'),
+    frame.locator('[data-testid="card-accordion-item"]'),
+    frame.locator('label[for="payment-method-accordion-item-title-card"]'),
+    // The radio's name can carry the card brands' names too, so it only has to start with Card.
+    frame.getByRole("radio", { name: /^(pay with )?card\b/i }),
+    // The row's own visible label, which selects the row like a press anywhere on it.
+    frame.getByText("Card", { exact: true }),
+  ]);
+}
+
+/** Stripe's payment-method controls as its page and frames draw them, so a failure names what to look for next. */
+async function paymentChoices(page) {
+  const found = [];
+  for (const frame of page.frames()) {
+    const controls = await frame.locator('input, select, [data-testid*="accordion"], [role="radio"]').evaluateAll(nodes => nodes.slice(0, 12).map(node =>
+      [node.tagName.toLowerCase(), node.id && `#${node.id}`, node.getAttribute("name") && `name=${node.getAttribute("name")}`,
+        node.getAttribute("type") && `type=${node.getAttribute("type")}`, node.getAttribute("data-testid") && `testid=${node.getAttribute("data-testid")}`,
+        node.getAttribute("value") && `value=${node.getAttribute("value")}`, node.getClientRects().length ? "shown" : "hidden"].filter(Boolean).join(" "))).catch(() => []);
+    if (controls.length) found.push(`${frame === page.mainFrame() ? "page" : `frame ${new URL(frame.url()).pathname || frame.url()}`}: ${controls.join(", ")}`);
+  }
+  return found.length ? found.join(" | ") : `none found in ${page.frames().length} frames`;
+}
+
+/**
+ * Types into one of Stripe's card fields as a shopper does: selects what it holds, deletes it and
+ * types the value, since after Stripe turns a card down its fields can still hold that card. Keys,
+ * not a programmatic clear, so Stripe's own checks see every change.
+ */
 async function retype(field, value) {
-  if (await field.inputValue()) await field.clear();
-  await field.pressSequentially(value);
+  if (!field) throw new Error("Stripe's card form lost one of its fields before the test could fill it.");
+  const digits = text => text.replace(/\D/g, "");
+  for (let tries = 0; tries < 3; tries++) {
+    await field.click();
+    if (await field.inputValue()) {
+      await field.press("ControlOrMeta+a");
+      await field.press("Backspace");
+    }
+    await field.pressSequentially(value, { delay: 25 });
+    if (digits(await field.inputValue()) === digits(value)) return;
+  }
+  throw new Error(`One of Stripe's card fields reads "${await field.inputValue()}" after the test typed ${value} three times.`);
 }
 
 /**
@@ -292,22 +388,33 @@ async function retype(field, value) {
  */
 export async function stripeRefusal(page, says, { bankCheck = false } = {}) {
   const deadline = Date.now() + 60_000;
-  let pressed = Date.now(); // failBankCheck has just pressed Fail.
+  let pressed = Date.now(); // submitCard or failBankCheck has just pressed Pay or Fail.
+  let repressed = 0;
   for (;;) {
     if (new URL(page.url()).origin === config.store) return { paid: true };
     if (await captchaShown(page)) throw new CaptchaShown();
-    const shown = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
+    const shown = await stripeText(page);
     const message = shown.split("\n").map(line => line.trim()).find(line => says.test(line));
     if (message) return { message };
     const fail = bankCheck ? await bankCheckFail(page) : null;
     if (Date.now() > deadline) {
       throw new Error(fail ? "Stripe's test bank check stayed open after the test pressed Fail."
-        : `Stripe showed no message saying why it turned the card down: ${await texts(page, '[role="alert"], .FieldError')}`);
+        : `Stripe showed no message saying why it turned the card down: ${await framesTexts(page, FIELD_ERRORS)}. Its page held ${await stripeFrames(page)}`);
     }
     // Stripe closes its test page within seconds of a press it takes, so one open 8 seconds later never got it.
     if (fail && Date.now() - pressed >= 8_000) {
       await fail.click({ timeout: 5_000 }).catch(() => {});
       pressed = Date.now();
+    }
+    // A shopper who sees Stripe still say the security code is incomplete types it again and presses Pay.
+    if (!fail && repressed < 2 && Date.now() - pressed >= 8_000 && await staleFieldError(page)) {
+      await retype(await field(page, CVC), "123").catch(() => {});
+      const pay = await payButton(page);
+      if (pay) {
+        await pay.click({ timeout: 5_000 }).catch(() => {});
+        repressed += 1;
+        pressed = Date.now();
+      }
     }
     await page.waitForTimeout(1_000);
   }
@@ -328,7 +435,7 @@ export async function failBankCheck(page) {
     if (fail) return void await fail.click({ timeout: 5_000 }).catch(() => {});
     await page.waitForTimeout(1_000);
   }
-  throw new Error("Stripe never showed its test bank check with a Fail button.");
+  throw new Error(`Stripe never showed its test bank check with a Fail button. Its page held ${await stripeFrames(page)}`);
 }
 
 /** The Fail button on Stripe's test bank check, in whichever frame shows it, or null while none shows. */
@@ -366,7 +473,27 @@ async function followBackLink(page) {
 }
 
 // A visible captcha is for a person to answer, never the test.
-const captchaShown = page => page.locator('iframe[title*="hCaptcha challenge"]').isVisible().catch(() => false);
+/** Whether Stripe has its hCaptcha challenge up, in its page or, since its form moved into a frame, inside one. */
+async function captchaShown(page) {
+  for (const frame of page.frames()) {
+    if (await frame.locator('iframe[title*="hCaptcha challenge"]').first().isVisible().catch(() => false)) return true;
+  }
+  return false;
+}
+
+/**
+ * What Stripe's page and its frames hold, for a failure where Stripe showed nothing the test knows:
+ * each frame's host and path, whether it shows, and the start of its text.
+ */
+async function stripeFrames(page) {
+  const described = await Promise.all(page.frames().map(async frame => {
+    const where = (() => { try { const url = new URL(frame.url()); return `${url.host}${url.pathname}`.slice(0, 60); } catch { return "about:blank"; } })();
+    const shown = frame === page.mainFrame() ? "page" : await frame.frameElement().then(element => element.isVisible()).then(visible => visible ? "shown" : "hidden").catch(() => "gone");
+    const text = (await frame.locator("body").innerText({ timeout: 2_000 }).catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 80);
+    return `${where} (${shown}${text ? `: ${text}` : ", empty"})`;
+  }));
+  return described.join(" | ");
+}
 
 /** Throws CaptchaShown when Stripe has a captcha up. */
 export async function stopIfCaptcha(page) {
@@ -395,63 +522,67 @@ export class CaptchaShown extends Error {
   }
 }
 
-/** Commerce's status for the checkout this browser saved, read from a store page opened beside the shopper's. */
+/** Commerce's status for this browser's cart's checkout, read from a store page opened beside the shopper's. */
 export async function checkoutStatus(page) {
   const storePage = await newPage(page.context());
   try {
     await openStorePage(storePage, config.store + "/");
-    return await storePage.evaluate(readStatus, { key: CHECKOUT_KEY, routes: statusRoutes() });
+    return await readStatus(storePage);
   } finally {
     await storePage.close();
   }
 }
 
+/** Asks Commerce for this checkout's status until it leaves "pending" (see checkout-settle.mjs). */
+const settle = page => settleCheckout(page, readStatus);
+
 /**
- * Asks Commerce for this checkout's status until it leaves "pending". Status is also what makes
- * Commerce check the payment and record the order, so this runs even when the thank-you page cannot.
+ * Commerce's word on this browser's cart and its checkout, read the way the store reads it: the cart
+ * key from the dk_cart cookie, sent to Commerce's cart route from a store page. An empty body only
+ * reads the cart, and a read also runs Commerce's payment check. { attemptId: null } when the browser
+ * has no cart or Commerce's cart has no checkout; `unanswered: true` as well when Commerce gave no answer.
  */
-async function settle(page) {
-  const routes = statusRoutes();
-  const deadline = Date.now() + 90_000;
-  let last;
-  do {
-    last = await page.evaluate(readStatus, { key: CHECKOUT_KEY, routes });
-    if (!last.attemptId || (last.checkout && last.checkout.state !== "pending")) return last;
-    await page.waitForTimeout(5_000);
-  } while (Date.now() < deadline);
-  return last;
-}
-
-/** Commerce's guest checkout status routes: the store's own proxy, then the plugin route. */
-function statusRoutes() {
+async function readStatus(page) {
+  const key = (await page.context().cookies(config.store)).find(cookie => cookie.name === CART_COOKIES[0])?.value ?? "";
   const plugin = config.ordersAdmin.match(/\/plugins\/([^/]+)\//)?.[1];
-  return ["/api/checkout/status", ...(plugin ? [`/_emdash/api/plugins/${plugin}/checkout/guest/status`] : [])];
-}
-
-// Runs in the store page: the capability the cart saved is the only key to the checkout's status.
-const readStatus = async ({ key, routes }) => {
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(key) ?? "null"); } catch {}
-  const attemptId = saved?.attemptId ?? null;
-  if (!saved?.capability) return { attemptId };
-  for (const route of routes) {
+  if (!key || !plugin) return { attemptId: null };
+  const answer = await page.evaluate(async ({ key, route }) => {
     try {
       const response = await fetch(route, {
         method: "POST", cache: "no-store", redirect: "error",
-        headers: { "content-type": "application/json", accept: "application/json", "x-commerce-guest-capability": saved.capability },
-        body: JSON.stringify(attemptId ? { attemptId } : {}),
+        headers: { "content-type": "application/json", accept: "application/json", "x-commerce-guest-capability": key },
+        body: "{}",
       });
       const body = await response.json();
       const value = body?.success === true ? body.data : body;
-      if (value?.ok) return { attemptId, checkout: value.checkout };
-    } catch {}
-  }
-  return { attemptId };
-};
+      return value?.ok ? { checkout: value.checkout ?? null } : null;
+    } catch {
+      return null;
+    }
+  }, { key, route: `/_emdash/api/plugins/${plugin}/checkout/guest/cart` }).catch(() => null);
+  if (!answer) return { attemptId: null, unanswered: true };
+  return answer.checkout?.attemptId ? { attemptId: answer.checkout.attemptId, checkout: answer.checkout } : { attemptId: null };
+}
+
+// The store's word beside Add to cart once the cart has the product ("Added to your cart.").
+const ADDED = /added to (?:your )?cart/i;
 
 /** Awaits `work`; on failure throws `reason()` instead, so the proof report's one line says what happened. */
 async function orFail(work, reason) {
   try { return await work; } catch { throw new Error(await reason()); }
+}
+
+/** Every line Stripe's page and its frames show, since its card messages can sit in the payment frame. */
+async function stripeText(page) {
+  const parts = await Promise.all(page.frames().map(frame => frame.locator("body").innerText({ timeout: 5_000 }).catch(() => "")));
+  return parts.join("\n");
+}
+
+/** `texts` across Stripe's page and its frames. */
+async function framesTexts(page, selector) {
+  const found = [];
+  for (const frame of page.frames()) found.push(...await frame.locator(selector).allInnerTexts().catch(() => []));
+  return found.map(text => text.trim()).filter(Boolean).join(" / ") || "no message on the page";
 }
 
 async function texts(page, selector) {

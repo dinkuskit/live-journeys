@@ -117,7 +117,7 @@ test("Buy and ship", { tag: "@running" }, journey(async ({ page }) => {
       orderName = String(number);
       expect(shown.test, `order #${number} should be a TEST order`).toBe(true);
       expect(shown.status).toBe("Processing");
-      expect(await page.locator("main").innerText()).toMatch(/Payment:\s*Provider-paid/);
+      expect(shown.providerPaid, `order #${number} should show Stripe's payment`).toBe(true);
       return `#${orderName} is TEST, provider-paid and Processing; opening Orders also sends it to Ship`;
     });
   } else {

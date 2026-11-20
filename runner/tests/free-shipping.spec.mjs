@@ -1,5 +1,5 @@
 import { test, expect } from "../support/browser.mjs";
-import { confirmCheckout, openCheckout, payOnStripe } from "../support/checkout.mjs";
+import { confirmCheckout, openCheckout, payOnStripe, stripeCardReady } from "../support/checkout.mjs";
 import { SITES_PATH } from "../support/connect-dinkuskit.mjs";
 import { config } from "../support/env.mjs";
 import { firstLine } from "../support/errors.mjs";
@@ -53,8 +53,7 @@ async function buy(page, quantity, orders) {
     if (opened.resumed) throw new Error("The store went back to an earlier checkout again instead of starting this one.");
   }
   // Stripe draws its order summary with the card form.
-  await expect.poll(async () => await page.locator("#cardNumber").isVisible() || await page.locator('[data-testid="card-accordion-item-button"]').isVisible(),
-    { timeout: 60_000 }).toBe(true).catch(() => {});
+  await expect.poll(() => stripeCardReady(page), { timeout: 60_000 }).toBe(true).catch(() => {});
   const stripe = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   // The amount Stripe asks for, under "Pay <store>" in its order summary, when it draws one there.
   const summary = await page.locator("#ProductSummary-totalAmount").first().innerText({ timeout: 2_000 }).catch(() => null);
