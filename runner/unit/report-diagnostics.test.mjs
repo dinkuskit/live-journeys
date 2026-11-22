@@ -132,7 +132,7 @@ test('malformed, oversized, unknown schema/journey and identity mismatch fail wi
   });
 });
 
-// The private timing fact as the journey wrapper writes it (support/steps.mjs), and a report that carries it.
+// The timing fact as the journey wrapper writes it (support/steps.mjs), and a report that carries it.
 const tryOf = (extra = {}) => ({ try: 1, body: 'returned', verdict: 'PASS', body_ms: 61234, pace_sleeps: 3,
   pace_sleep_requested_ms: 3750, pace_sleep_ms: 3812, pace_sleep_wall_ms: 2600, ...extra });
 const timed = (tries, name = 'Manage products', facts = {}) => {

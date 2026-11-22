@@ -187,7 +187,7 @@ export function waitFor(times, room, now = Date.now()) {
   return over > 0 ? recent[over - 1] + MINUTE - now : 0;
 }
 
-// The explicit sleeps paceStore has taken since this worker started, for the private timing fact each
+// The explicit sleeps paceStore has taken since this worker started, for the timing fact each
 // journey keeps (see steps.mjs): how many, the sum of what they asked the timer for, the sum of their
 // measured lengths (longer when the timer fired late, shorter when a replay woke the sleep before its
 // timer), and the wall time during which at least one was sleeping, which is less than the sum when

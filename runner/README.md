@@ -335,7 +335,7 @@ It needs these repository secrets:
 
 The [manual report diagnostics](../references/report-diagnostics.md) project
 only fixed link-failure categories, bounded counts and, for a journey that has
-one, its private timing fact (see "Private timing" below) in the exact shape
+one, its timing fact (see "Journey timing" below) in the exact shape
 the wrapper writes, from one selected private report. Each dispatch is one
 private read and needs the owner's approval; the one read approved so far has
 been used, and source preparation does not authorize another dispatch or
@@ -603,12 +603,19 @@ address on that first line loses its query, where a sign-in link, a connect
 address or Ship's sign-in code carries its secret, and a Ship print link loses
 its token.
 
-### Private timing
+### Journey timing
 
 Each journey's wrapper also keeps one timing fact in `report.json`'s `facts`,
 named `<journey> timing` (`Full catalog timing`), for reading how a run's time
-went before tuning it. It stays in the private proof: the public run summary
-and the console never show it. The only way out is the owner-approved manual
+went before tuning it. The public run summary (`scripts/run-summary.mjs`) shows
+two numbers from it per journey, in minutes and seconds: its body time
+(`body_ms` added up over its tries, with the number of tries when there were
+two) and how much of that was rate-limit waiting (`pace_sleep_wall_ms` added up
+the same way), plus both totals for the run. A journey without the fact, or
+with one that departs from the shape below, shows "not recorded". The owner
+chose on 22 Nov 2026 to show these times publicly; before that the fact stayed
+in the private proof. The full fact, every field of every try, still leaves the
+private proof only through the owner-approved manual
 [report diagnostics](../references/report-diagnostics.md), which project it, for
 one selected run, in exactly this shape and no other, and refuse the whole
 report when a timing fact departs from it. The value is
