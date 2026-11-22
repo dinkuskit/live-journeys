@@ -30,11 +30,12 @@ export const CONNECTED_PLUGINS = "Connected plugins";
 
 // dinkus-payments-beta's admin page. dinkuskit/payments src/registry/identity.ts and emdash-plugin.jsonc.
 // From Payments' sidebar folder change its menu label is "Payment settings", in a "Dinkus Payments" folder;
-// before it, and in the release listing the beta store also runs, "Payments status" with no folder. The
-// path stays /status.
+// before it, "Payments status" with no folder. From the Store folder change (admin-one-store-folder-128 in
+// dinkuskit/dinkuskit) the folder is "Store", shared with Commerce, Ship and the store's Products. The beta
+// store also runs the release listing, which can still carry an older folder. The path stays /status.
 export const PAYMENTS_BETA_STATUS_PATH = "/_emdash/admin/plugins/r_sffx6l4z6mpqliki/status";
 export const PAYMENTS_STATUS_LABELS = ["Payment settings", "Payments status"];
-export const PAYMENTS_FOLDER = "Dinkus Payments";
+export const PAYMENTS_FOLDERS = ["Store", "Dinkus Payments"];
 export const PAYMENT_SETUP_HEADING = "Payment setup";
 export const AUTHORIZE_LINK = "Authorize Payments at DinkusKit";
 
