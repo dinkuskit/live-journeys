@@ -366,7 +366,8 @@ export async function slugOf(page) {
 export async function saveNew(page, collection) {
   const saved = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname === `/_emdash/api/content/${collection}`, { timeout: 30_000 });
   saved.catch(() => {});
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  // EmDash 1.5 names a new entry's first save "Save draft"; 1.4 named it "Save".
+  await page.getByRole("button", { name: /^Save( draft)?$/ }).first().click();
   if (await page.waitForURL(url => !url.pathname.endsWith("/new"), { timeout: 30_000 }).then(() => true, () => false)) return page.url();
   const id = await saved.then(response => response.json()).then(body => body?.data?.item?.id, () => null);
   return typeof id === "string" && id ? `${config.store}/_emdash/admin/content/${collection}/${id}` : null;
