@@ -216,7 +216,11 @@ test("a sleep still running when the body ends is left out of that try's entry, 
   const [, retry] = timingOf("Buy a label in the store admin").tries;
   assert.equal(retry.try, 2);
   assert.equal(retry.pace_sleeps, 1);
-  assert.ok(retry.pace_sleep_ms >= scheduled - 100, `${retry.pace_sleep_ms} ms counted once it ended, scheduled ${scheduled} ms`);
+  // The sleep is asked for when paceStore runs, a moment after fillBudget measured the budget, so it asks
+  // for up to that moment less; on a busy machine that moment passed 100 ms. The whole of what it asked
+  // for is counted once it ends.
+  assert.ok(retry.pace_sleep_requested_ms <= scheduled && retry.pace_sleep_requested_ms > scheduled - 1_000, `${retry.pace_sleep_requested_ms} ms asked for, scheduled ${scheduled} ms`);
+  assert.ok(retry.pace_sleep_ms >= retry.pace_sleep_requested_ms - 5, `${retry.pace_sleep_ms} ms counted once it ended, asked for ${retry.pace_sleep_requested_ms} ms`);
   assert.equal(retry.pace_sleep_wall_ms, retry.pace_sleep_ms);
   assert.ok(retry.pace_sleep_ms > retry.body_ms, `${retry.pace_sleep_ms} ms of sleep > ${retry.body_ms} ms body, with no overlap`);
   assert.equal(pace.paceSnapshot().sleeps, before.sleeps + 1);

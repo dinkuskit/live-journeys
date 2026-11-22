@@ -23,7 +23,9 @@ export const COMMERCE_CONNECT = {
   section: "DinkusKit",
   asks: ["Connect Commerce"],
   invite: "Connect this store to DinkusKit.com first, then Payments and Ship. The business owner approves at DinkusKit.com.",
-  connected: /^Connected to DinkusKit\.com, store (\S+)\.$/,
+  // Commerce 0.9.0-beta.5 (commerce#294) names the business and the store's other DinkusKit plugins when
+  // DinkusKit.com shares them: "Connected to <business> on DinkusKit, store <id>. DinkusKit plugins on this store: …".
+  connected: /^Connected to (?:DinkusKit\.com|.+ on DinkusKit), store ([A-Za-z0-9-]+)\.(?:\s.*)?$/,
   adminOnly: "An Administrator connects Commerce on this page.",
 };
 

@@ -28,6 +28,8 @@ test("Commerce's DinkusKit section reads as asking, waiting, or connected to its
   const connected = readConnect(commercePage([`Connected to DinkusKit.com, store ${SITE}.`]), COMMERCE_CONNECT);
   assert.equal(connected.siteId, SITE);
   assert.equal(connected.notUpdated, null);
+  const named = readConnect(commercePage([`Connected to Smoky E2E Test Merchant on DinkusKit, store ${SITE}. DinkusKit plugins on this store: Commerce, Payments and Ship. To disconnect one, open Your stores at DinkusKit.com.`]), COMMERCE_CONNECT);
+  assert.equal(named.siteId, SITE);
   const refused = readConnect(commercePage([`Connected to DinkusKit.com, store ${SITE}.`, "Checkout settings not updated", "Connect Payments, then press Get checkout settings."]), COMMERCE_CONNECT);
   assert.equal(refused.notUpdated, "Connect Payments, then press Get checkout settings.");
   const failed = readConnect(commercePage(["Connect Commerce", "DinkusKit.com could not be reached. Try again in a moment."]), COMMERCE_CONNECT);
