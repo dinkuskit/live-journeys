@@ -129,6 +129,9 @@ test("Update the store", { tag: "@update" }, journey(async ({ page }) => {
         if (!next) stop(`${plugin.name} stays on ${plugin.installed}, not ${plugin.latest}: ${refusal(response.status(), body)}.`);
         asks.push(askAccepted(body));
         consent = next;
+        // The agreement is on record before it is sent, so a lost answer (the store may still have
+        // installed it) or a later stop can't drop it from the public summary.
+        note("accepted", [...accepted, `${plugin.name} ${plugin.latest}: ${asks.join("; ")} (agreed and sent; the install wasn't confirmed)`].join(". "));
       }
       if (asks.length) {
         accepted.push(`${plugin.name} ${plugin.latest}: ${asks.join("; ")}`);
