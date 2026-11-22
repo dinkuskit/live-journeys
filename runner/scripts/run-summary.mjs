@@ -94,6 +94,7 @@ const lines = [
   ...(journeys.some(({ verdict }) => verdict === "FLAKY") ? ["", "FLAKY: failed its first try and passed its one retry inside this run. Only Storefront and Cart get a retry: each opens a clean shopper browser, changes nothing in the store and pays nothing."] : []),
   ...(facts["update stopped"] ? ["", `Update stopped: ${facts["update stopped"]}`] : []),
   ...(facts.held ? ["", `Held on purpose, not updated to the newest beta: ${facts.held}`] : []),
+  ...(facts.accepted ? ["", `Accepted for the owner while updating: ${facts.accepted}`] : []),
   ...(storeRefusals ? ["", `Store HTTP 429 / 5xx answers during the run: ${storeRefusals}`] : []),
   ...(note ? ["", note] : []),
   "", `${tested ? "Plugins tested" : "Plugins on the store (no journeys ran)"}: ${facts.plugins ?? "not recorded"}`,

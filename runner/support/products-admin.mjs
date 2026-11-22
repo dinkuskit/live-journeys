@@ -187,11 +187,26 @@ export async function saveEditor(page) {
   const saving = page.locator('button[aria-label="Saving..."]:visible');
   if (await save.count() && !await save.isEnabled() && !await saving.count()) return;
   if (await save.count() && await save.isEnabled()) await save.click({ timeout: 5_000 }).catch(() => {});
-  if (!await page.locator('button[aria-label="Saved"]:visible').first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
-    if (await save.count() && await save.isEnabled()) throw new Error(`The editor's Save took no click: ${await inTheWay(page, save)}.`);
-    throw new Error("EmDash didn't save the product page within 30 seconds.");
+  // EmDash 1.4 says Saved on the button itself. EmDash 1.5 shows Save only while there are unsaved
+  // changes, saves a change by itself about 2 s later, and says Saved in the editor's status line.
+  const status = page.locator('span[role="status"]').filter({ hasText: EDITOR_STATUS }).first();
+  const said = () => status.textContent({ timeout: 2_000 }).then(text => text?.trim() ?? "", () => "");
+  const until = Date.now() + 30_000;
+  let last = "";
+  while (Date.now() < until) {
+    if (await page.locator('button[aria-label="Saved"]:visible').count()) return;
+    last = await said();
+    if (/^Failed to save/.test(last)) throw new Error(`EmDash couldn't save the product page: "${last}".`);
+    // Still Saved a second later, so it isn't the moment before a change's own save starts.
+    if (last === "Saved" && !await save.count() && (await page.waitForTimeout(1_000), await said()) === "Saved") return;
+    await page.waitForTimeout(500);
   }
+  if (await save.count() && await save.isEnabled()) throw new Error(`The editor's Save took no click: ${await inTheWay(page, save)}.`);
+  throw new Error(`EmDash didn't save the product page within 30 seconds${last ? ` (its editor says "${last}")` : ""}.`);
 }
+
+// The words EmDash 1.5's editor status line uses (ContentEditor's status), so a toast's status isn't read.
+const EDITOR_STATUS = /^(Saved|Saving\.\.\.|Unsaved changes|Not saved yet|Not saved|Offline|Joining…|Failed to save.*)$/;
 
 // Commerce's answer when the first Save makes the page's product (commerce#244).
 const MADE = /^Draft made\. Publish the page to sell it\.$/;
@@ -366,7 +381,8 @@ export async function slugOf(page) {
 export async function saveNew(page, collection) {
   const saved = page.waitForResponse(r => r.request().method() === "POST" && new URL(r.url()).pathname === `/_emdash/api/content/${collection}`, { timeout: 30_000 });
   saved.catch(() => {});
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  // EmDash 1.5 names a new entry's first save "Save draft"; 1.4 named it "Save".
+  await page.getByRole("button", { name: /^Save( draft)?$/ }).first().click();
   if (await page.waitForURL(url => !url.pathname.endsWith("/new"), { timeout: 30_000 }).then(() => true, () => false)) return page.url();
   const id = await saved.then(response => response.json()).then(body => body?.data?.item?.id, () => null);
   return typeof id === "string" && id ? `${config.store}/_emdash/admin/content/${collection}/${id}` : null;

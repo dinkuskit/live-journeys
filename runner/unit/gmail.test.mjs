@@ -102,6 +102,16 @@ test("the public summary says which betas the run held back, and says nothing wh
   assert.doesNotMatch(execFileSync(process.execPath, [script, folder, "0"], { encoding: "utf8" }), /Held/);
 });
 
+test("the public summary lists what the run accepted for the owner while updating", () => {
+  const folder = mkdtempSync(join(tmpdir(), "summary-"));
+  const script = new URL("../scripts/run-summary.mjs", import.meta.url).pathname;
+  const report = { verdict: "PASS", journeys: [{ name: "Storefront", verdict: "PASS" }] };
+  writeFileSync(join(folder, "report.json"), JSON.stringify({ ...report, facts: { accepted: "dinkus-commerce-beta 0.9.0-beta.4: it opens routes to visitors who aren't signed in (orders/lookup)" } }));
+  assert.match(execFileSync(process.execPath, [script, folder, "0"], { encoding: "utf8" }), /^Accepted for the owner while updating: dinkus-commerce-beta 0\.9\.0-beta\.4: .*\(orders\/lookup\)$/m);
+  writeFileSync(join(folder, "report.json"), JSON.stringify(report));
+  assert.doesNotMatch(execFileSync(process.execPath, [script, folder, "0"], { encoding: "utf8" }), /Accepted/);
+});
+
 test("when the store update stops, the summary says why and that no journey tested the plugins", () => {
   const folder = mkdtempSync(join(tmpdir(), "summary-"));
   const script = new URL("../scripts/run-summary.mjs", import.meta.url).pathname;
