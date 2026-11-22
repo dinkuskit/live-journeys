@@ -191,7 +191,7 @@ test("the public summary prints fixed store HTTP 429 / 5xx counts and timeout no
     ],
   };
   const midJourney = runFailingSummary(midJourneyReport, "1");
-  assert.match(midJourney, /^\| Test run \| FAIL: the run exited 1 \|$/m);
+  assert.match(midJourney, /^\| Test run \| FAIL: the run exited 1 \| \| \|$/m);
   assert.match(midJourney, /^\| A Draft product stays off the store \| FAIL \| timed out after 20 s \(still loading a store image\) \|$/m);
   assert.match(midJourney, /^Failure note: every failed step timed out waiting on the store or network, and later steps in the same journey passed;/m);
   assert.doesNotMatch(midJourney, /private/);

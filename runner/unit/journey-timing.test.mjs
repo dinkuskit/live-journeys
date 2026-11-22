@@ -439,7 +439,7 @@ test("a timing write that stops midway, part of its bytes down, leaves the repor
   assert.deepEqual(listing(), files);
 });
 
-test("a later worker keeps every journey's timing and the run's other facts, and the public summary shows none of it", async t => {
+test("a later worker keeps every journey's timing and the run's other facts, and the public summary shows each journey's time", async t => {
   quiet(t);
   proof.note("products listed", 4);
   proof.note("plugins", "dinkus-commerce-beta 0.8.0-beta.1");
@@ -475,9 +475,23 @@ test("a later worker keeps every journey's timing and the run's other facts, and
   }
   assert.equal(projected.find(entry => entry.journey === "Free shipping over an amount").timing.tries.length, 2);
   assert.doesNotMatch(JSON.stringify(projected), /products listed|dinkus-commerce-beta/);
-  // The default public run summary names no timing: it reads only the facts it knows.
+  // The public run summary shows each journey's body time, added up over its tries, and its rate-limit
+  // waits, in minutes and seconds; a journey without a timing fact says so. Field names stay out of it.
   const summary = publicSummary(join(dir, "timed"));
   assert.doesNotMatch(summary, /timing|body_ms|pace_sleep/);
+  assert.match(summary, /^\| Journey \| Pass \/ fail \| Time \| Of which rate-limit waits \|$/m);
+  const seconds = ms => Math.round(ms / 1000);
+  const shown = ms => (seconds(ms) >= 60 ? `${Math.floor(seconds(ms) / 60)}m ${String(seconds(ms) % 60).padStart(2, "0")}s` : `${seconds(ms)}s`);
+  const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const { name, verdict } of saved.journeys) {
+    const tries = saved.facts[`${name} timing`]?.tries;
+    const row = tries
+      ? `| ${name} | ${verdict} | ${shown(tries.reduce((sum, entry) => sum + entry.body_ms, 0))}${tries.length > 1 ? ` (${tries.length} tries)` : ""} | ${shown(tries.reduce((sum, entry) => sum + entry.pace_sleep_wall_ms, 0))} |`
+      : `| ${name} | ${verdict} | not recorded |  |`;
+    assert.match(summary, new RegExp(`^${escape(row)}$`, "m"), `${name} row`);
+  }
+  assert.match(summary, /^\| Free shipping over an amount \| [A-Z]+ \| \S+(?: \S+)? \(2 tries\) \| /m);
+  assert.match(summary, /^Journey time, added up: \S+(?: \S+)?, of which rate-limit waits \S+(?: \S+)?\. A journey's time is its body only/m);
   assert.match(summary, /Plugins tested: dinkus-commerce-beta 0\.8\.0-beta\.1/);
 });
 

@@ -44,7 +44,7 @@ export function journey(body, { profile = true } = {}) {
     const name = test.info().title;
     const retry = test.info().retry;
     startJourney(name, retry);
-    // The private timing fact measures the body alone, from here to its return or throw, on the
+    // The timing fact measures the body alone, from here to its return or throw, on the
     // monotonic clock: the fixtures that open and close its browser run outside this function, and
     // startJourney's write above and the fact's own write below fall outside the measured span.
     const from = performance.now();
@@ -76,7 +76,7 @@ export function journey(body, { profile = true } = {}) {
 }
 
 /**
- * One try's private timing, in whole milliseconds: how long its body ran, and how many explicit
+ * One try's timing, in whole milliseconds: how long its body ran, and how many explicit
  * pace sleeps it took meanwhile, what they asked for, what they measured (more when a timer fired
  * late), and their wall time (less than the measured sum when sleeps overlapped). Whatever the body
  * spent beyond the sleeps is unattributed: the store, the network, the browser or the runner itself;
