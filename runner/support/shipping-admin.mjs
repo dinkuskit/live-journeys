@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { config } from "./env.mjs";
-import { SHIP_FOLDER, SHIPPING_LABELS, shippingPages } from "./shipping-text.mjs";
+import { SHIP_FOLDERS, SHIPPING_LABELS, shippingPages } from "./shipping-text.mjs";
 import { menuLinks, openAdmin } from "./store-admin.mjs";
 
 // The Ship plugin's Shipping page in the store admin, as the journeys that buy labels there read it. The
@@ -36,7 +36,7 @@ const REFUSAL_TITLE = exactly(REFUSALS);
 
 /**
  * The store admin's Shipping page: DINKUS_E2E_SHIPPING_ADMIN, or the one Shipping page in the admin's menu,
- * labeled "Shipments" in the Dinkus Ship folder from Ship's sidebar folder change and "Shipping" before it.
+ * labeled "Shipments" in the Store (earlier Dinkus Ship) folder from Ship's sidebar folder change and "Shipping" before it.
  */
 export async function shippingAdmin(page) {
   if (config.shippingAdmin) {
@@ -44,7 +44,7 @@ export async function shippingAdmin(page) {
     return config.shippingAdmin;
   }
   await openAdmin(page, `${config.store}/_emdash/admin`);
-  const links = await menuLinks(page, SHIPPING_LABELS, [SHIP_FOLDER]);
+  const links = await menuLinks(page, SHIPPING_LABELS, SHIP_FOLDERS);
   const pages = shippingPages(await links.evaluateAll(anchors => anchors.map(anchor => anchor.href)), config.store);
   if (pages.length === 1) return pages[0];
   if (pages.length) throw new Error(`The store admin's menu has ${pages.length} Shipping pages; set DINKUS_E2E_SHIPPING_ADMIN to the Ship plugin's (in ${config.settingsFile}).`);

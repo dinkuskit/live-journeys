@@ -2,11 +2,13 @@
 
 /**
  * The Shipping page's menu labels and folder: from Ship's sidebar folder change (dinkuskit/ship
- * emdash-plugin.jsonc) "Shipments" in a "Dinkus Ship" folder, before it "Shipping" with no folder. The
- * path stays /shipping, and the page's heading follows the menu label.
+ * emdash-plugin.jsonc) "Shipments" in a "Dinkus Ship" folder, before it "Shipping" with no folder. From
+ * the Store folder change (admin-one-store-folder-128 in dinkuskit/dinkuskit) the folder is "Store",
+ * shared with Commerce, Payments and the store's Products. The path stays /shipping, and the page's
+ * heading follows the menu label.
  */
 export const SHIPPING_LABELS = ["Shipments", "Shipping"];
-export const SHIP_FOLDER = "Dinkus Ship";
+export const SHIP_FOLDERS = ["Store", "Dinkus Ship"];
 
 /** Where a plugin's Shipping page sits in the store admin. */
 const SHIPPING_PATH = /^\/_emdash\/admin\/plugins\/[^/]+\/shipping$/;

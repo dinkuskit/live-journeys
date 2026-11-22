@@ -271,7 +271,9 @@ addresses. A folder is drawn closed until it's opened, and a closed folder
 hides its links, so a journey that looks for either page opens its folder
 first when the menu shows it closed, and takes either name. The beta store also
 runs Payments' release listing, still "Payments status" with no folder until
-its next release.
+its next release. From the Store folder change, Commerce, Payments and Ship
+put their pages in one "Store" folder with the store's Products, and the
+journeys open "Store" or the older folder, whichever the menu shows.
 Print label's link shows the label to anyone who has it, for five minutes, so
 the test reads it with its own fetch and writes it in no note or error. For the
 same reason the journey leaves a blank page behind it, so Playwright's notes on
@@ -360,7 +362,7 @@ the environment, which wins.
 | `DINKUS_E2E_SERVICE` | `GA` | The label service (Ground Advantage) |
 | `DINKUS_E2E_COMPLETE_WAIT_SECONDS` | `420` | How long to wait for Commerce's background check |
 | `DINKUS_E2E_ORDERS_ADMIN` | the Registry Commerce plugin's Orders page | Commerce Orders in the store admin |
-| `DINKUS_E2E_SHIPPING_ADMIN` | the admin menu's Shipping page ("Shipments" in the Dinkus Ship folder, or "Shipping") | The Ship plugin's Shipping page in the store admin, for Buy a label in the store admin |
+| `DINKUS_E2E_SHIPPING_ADMIN` | the admin menu's Shipping page ("Shipments" in the Store or Dinkus Ship folder, or "Shipping") | The Ship plugin's Shipping page in the store admin, for Buy a label in the store admin |
 | `DINKUS_E2E_CATALOG` | `3x2` | For Full catalog, the standing catalog's size as categories x products per category, from `1x1` to `4x50` |
 | `DINKUS_E2E_ORDERS_TO_COMPLETE` | new orders | For Mark as completed, one or two different Processing TEST orders for the owner and then the agent to complete (`1003,1004`) instead of placing new ones. Anything else stops the journey before it places or completes an order |
 | `DINKUS_E2E_ADMIN_SIGNIN` | `skip` | `wait` lets a person sign in to the store admin |

@@ -1,7 +1,7 @@
 import { test } from "../support/browser.mjs";
 import { commerceSettings, openCommercePage, readCommercePage } from "../support/commerce-settings.mjs";
 import {
-  AUTHORIZE_LINK, CONNECTED_PLUGINS, PAYMENT_SETUP_HEADING, PAYMENTS_FOLDER, PAYMENTS_STATUS_LABELS, SITES_PATH, accountReading, betaPaymentsStatusLinks,
+  AUTHORIZE_LINK, CONNECTED_PLUGINS, PAYMENT_SETUP_HEADING, PAYMENTS_FOLDERS, PAYMENTS_STATUS_LABELS, SITES_PATH, accountReading, betaPaymentsStatusLinks,
   isSignInLink, storePlugins,
 } from "../support/connect-dinkuskit.mjs";
 import { failClosed, showsSecret } from "../support/dinkuskit-approve.mjs";
@@ -161,7 +161,7 @@ test("DinkusKit.com account and connect the store", { tag: "@running" }, journey
   let authorizeHref;
   await step(page, "Payment setup offers Connect", async () => {
     await openAdmin(page, `${config.store}/_emdash/admin`);
-    const links = await menuLinks(page, PAYMENTS_STATUS_LABELS, [PAYMENTS_FOLDER]);
+    const links = await menuLinks(page, PAYMENTS_STATUS_LABELS, PAYMENTS_FOLDERS);
     const hrefs = await links.evaluateAll(anchors => anchors.map(anchor => anchor.href));
     const matches = betaPaymentsStatusLinks(hrefs, config.store);
     if (!matches.length) throw new Error("The admin menu has no Payments status page for the beta Payments plugin. This journey will not open another plugin.");
