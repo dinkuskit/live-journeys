@@ -17,8 +17,8 @@ const NAMES = Object.freeze([
   'Manage products', 'Full catalog', 'Mark as completed', 'Problems', 'Buy a label in the store admin',
   'One product with a category', 'An agent manages a product', 'Free shipping over an amount', 'Test run',
 ]);
-// The private timing fact each journey's wrapper keeps, "<journey> timing" (support/steps.mjs; README
-// "Private timing"), read only in the producer's exact shape. The runner retries a journey at most once,
+// The timing fact each journey's wrapper keeps, "<journey> timing" (support/steps.mjs; README
+// "Journey timing"), read only in the producer's exact shape. The runner retries a journey at most once,
 // so the producer writes at most two tries; eight is a generous bound, not a promise of more.
 const MAX_TRIES = 8;
 const TRY_KEYS = Object.freeze(['try', 'body', 'verdict', 'body_ms', 'pace_sleeps', 'pace_sleep_requested_ms', 'pace_sleep_ms', 'pace_sleep_wall_ms']);

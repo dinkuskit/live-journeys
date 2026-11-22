@@ -76,13 +76,13 @@ literal allowlist matching the current runner (including `Test run`); an input
 name must equal one exactly. Each has integer `step_count`, `failed_step_count`,
 and fixed `link_problems` counters. Counts include retained retry records, so
 they describe report records, not unique logical steps. The only durations
-emitted are a journey's own private timing fact, below; arbitrary text and
+emitted are a journey's own timing fact, below; arbitrary text and
 timestamps are not interpreted as timing. `playwright.json` is not fetched.
 
 ### Timing
 
-A journey whose report carries the private timing fact the runner's wrapper
-writes (`facts["<journey> timing"]`, documented under "Private timing" in
+A journey whose report carries the timing fact the runner's wrapper
+writes (`facts["<journey> timing"]`, documented under "Journey timing" in
 `runner/README.md`) gets one more field, `timing`, holding that fact in the
 producer's exact shape and nothing else:
 
