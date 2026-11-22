@@ -5,7 +5,7 @@ import { countStoreRequest, paceStore } from "../support/pace.mjs";
 import { note } from "../support/proof.mjs";
 import { notePlugins, openAdmin } from "../support/store-admin.mjs";
 import { pluginVersion } from "../support/store-plugins.mjs";
-import { aimAt, BETA_STORE, cantTest, heldBetas, hold, namedBeta, notOffered, planUpdates, refusal } from "../support/store-updates.mjs";
+import { acceptsAsks, agreeTo, aimAt, askAccepted, BETA_STORE, cantTest, heldBetas, hold, namedBeta, notOffered, planUpdates, refusal } from "../support/store-updates.mjs";
 import { journey, step } from "../support/steps.mjs";
 
 const API = () => `${config.store}/_emdash/api/admin/plugins`;
@@ -17,6 +17,8 @@ const UPDATE_TIME = 180_000;
 // How long a run started by a release waits for the Registry to offer the beta that release published.
 const OFFER_WAIT = 15 * 60_000;
 const OFFER_POLL = 30_000;
+// Each consent EmDash can ask for (new permissions, public routes, agent tools), then the update itself.
+const MOST_TRIES = 4;
 // Room for the sign-in, that wait and an update of each plugin.
 const UPDATE_LIMIT = 45 * 60_000;
 
@@ -43,9 +45,13 @@ const listed = plan => plan.map(p => `${p.name} ${p.installed}${p.update ? ` (to
 // Not one of the plan's journeys: it gets the beta store ready for them, and the Live journeys workflow
 // runs it first (`npm run update-store`; other runs leave it out, see playwright.config.mjs). It moves
 // each DinkusKit beta plugin the store runs to the newest beta the Registry has, one at a time and in
-// place, as the Update button on Plugins does, so the journeys test those. It agrees to nothing that
-// button would ask the owner about: an update that asks for new permissions is refused, and the run
-// stops for the owner to update it by hand. A run a release started (DINKUS_E2E_BETA, the workflow's
+// place, as the Update button on Plugins does, so the journeys test those. When the workflow lets it
+// (`accept_asks`, DINKUS_E2E_ACCEPT_ASKS, on by default; the owner chose this for the beta store on
+// 22 Nov 2026), it agrees to what that button would ask the owner about (new permissions, routes open to
+// visitors who aren't signed in, changed agent tools) for the signed records EmDash showed it, and the
+// run's public summary lists each one as "accepted". It never agrees to signed records that changed
+// between two asks. With it off, an update that asks anything is refused, and the run stops for the
+// owner to update it by hand. A run a release started (DINKUS_E2E_BETA, the workflow's
 // `beta` input) first waits for the Registry to offer the beta that release published, and installs
 // exactly that one, even if a later beta is out. A plugin the run holds (DINKUS_E2E_HOLD, the `hold`
 // input) stays on what the store runs, and the summary says it was held.
@@ -56,6 +62,8 @@ test("Update the store", { tag: "@update" }, journey(async ({ page }) => {
   }
   let beta;
   let held;
+  const accept = acceptsAsks(process.env.DINKUS_E2E_ACCEPT_ASKS);
+  const accepted = [];
   try {
     beta = namedBeta(process.env.DINKUS_E2E_BETA);
     held = heldBetas(process.env.DINKUS_E2E_HOLD);
@@ -103,17 +111,31 @@ test("Update the store", { tag: "@update" }, journey(async ({ page }) => {
   for (const plugin of updating) {
     await step(page, `Update ${plugin.name} to ${plugin.latest}`, async () => {
       const url = `${API()}/registry/${encodeURIComponent(plugin.id)}/update`;
-      await paceStore();
-      countStoreRequest(url);
-      const response = await page.context().request.post(url, { headers: HEADERS, data: { version: plugin.latest }, maxRedirects: 0, timeout: UPDATE_TIME })
-        .catch(error => error);
-      if (response instanceof Error) {
-        // The store may still have finished, so say what it runs now.
-        const now = await readApi(page, "", { timeout: CHECK_TIME }).then(body => pluginVersion(body, plugin.id), () => null);
-        stop(`${plugin.name}'s update to ${plugin.latest} got no answer (${firstLine(response)}); the store now runs ${plugin.name} ${now ?? "(couldn't read its version)"}.`);
+      const asks = [];
+      let consent = {};
+      for (let tries = 1; ; tries += 1) {
+        await paceStore();
+        countStoreRequest(url);
+        const response = await page.context().request.post(url, { headers: HEADERS, data: { version: plugin.latest, ...consent }, maxRedirects: 0, timeout: UPDATE_TIME })
+          .catch(error => error);
+        if (response instanceof Error) {
+          // The store may still have finished, so say what it runs now.
+          const now = await readApi(page, "", { timeout: CHECK_TIME }).then(body => pluginVersion(body, plugin.id), () => null);
+          stop(`${plugin.name}'s update to ${plugin.latest} got no answer (${firstLine(response)}); the store now runs ${plugin.name} ${now ?? "(couldn't read its version)"}.`);
+        }
+        if (response.ok()) break;
+        const body = await response.json().catch(() => null);
+        const next = accept && tries < MOST_TRIES ? agreeTo(body, consent) : null;
+        if (!next) stop(`${plugin.name} stays on ${plugin.installed}, not ${plugin.latest}: ${refusal(response.status(), body)}.`);
+        asks.push(askAccepted(body));
+        consent = next;
       }
-      if (!response.ok()) stop(`${plugin.name} stays on ${plugin.installed}, not ${plugin.latest}: ${refusal(response.status(), await response.json().catch(() => null))}.`);
-      return `${plugin.name} updated from ${plugin.installed} to ${plugin.latest}`;
+      if (asks.length) {
+        accepted.push(`${plugin.name} ${plugin.latest}: ${asks.join("; ")}`);
+        // The public summary names every ask the run agreed to for the owner.
+        note("accepted", accepted.join(". "));
+      }
+      return `${plugin.name} updated from ${plugin.installed} to ${plugin.latest}${asks.length ? `, accepting: ${asks.join("; ")}` : ""}`;
     });
   }
 

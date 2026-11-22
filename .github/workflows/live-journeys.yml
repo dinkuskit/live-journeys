@@ -6,7 +6,8 @@ run-name: Live journeys${{ inputs.beta && format(' for {0}', inputs.beta) || '' 
 # "Run workflow" button, which a plugin's Cut beta also presses once it has published a beta. This
 # store belongs to this workflow alone; no Mac or other computer runs journeys on it. Stripe TEST
 # cards and Ship sandbox labels only. Before the journeys it updates the store's DinkusKit beta
-# plugins to the newest betas, and stops if an update asks for new permissions.
+# plugins to the newest betas, accepting what an update asks for (new permissions, public routes,
+# agent tools) and listing each in the summary; with accept_asks off it stops there instead.
 #
 # The job log is public, so it shows only each journey's pass or fail, the plugin versions tested, why
 # a store update stopped and, for a journey that failed, its step names with each step's pass or fail
@@ -21,7 +22,11 @@ on:
         default: "@running"
         required: true
       update_store:
-        description: First update the store's DinkusKit plugins to the newest betas (stops if one asks for new permissions)
+        description: First update the store's DinkusKit plugins to the newest betas
+        type: boolean
+        default: true
+      accept_asks:
+        description: While updating, accept what a beta asks for (new permissions, public routes, agent tools) and list it in the summary; off stops the run for the owner instead
         type: boolean
         default: true
       beta:
@@ -114,6 +119,8 @@ jobs:
         env:
           JOURNEYS: ${{ inputs.journeys }}
           UPDATE_STORE: ${{ inputs.update_store }}
+          # A run another workflow starts without naming it accepts, as the button's default does.
+          DINKUS_E2E_ACCEPT_ASKS: ${{ inputs.accept_asks != false }}
           DINKUS_E2E_BETA: ${{ inputs.beta }}
           DINKUS_E2E_HOLD: ${{ inputs.hold }}
           DINKUS_E2E_OWNER_EMAIL: ${{ secrets.DINKUS_E2E_OWNER_EMAIL }}

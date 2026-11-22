@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aimAt, cantTest, heldBetas, hold, namedBeta, notOffered, planUpdates, refusal } from "../support/store-updates.mjs";
+import { acceptsAsks, agreeTo, aimAt, askAccepted, cantTest, heldBetas, hold, namedBeta, notOffered, planUpdates, refusal } from "../support/store-updates.mjs";
 
 const list = items => ({ data: { items } });
 const commerce = { id: "r_commerce", source: "registry", registrySlug: "dinkus-commerce-beta", version: "0.3.0-beta.9" };
@@ -87,4 +87,32 @@ test("a refusal names what the update asks for, or EmDash's code and status", ()
   assert.match(refusal(400, { error: { code: "MCP_TOOL_CONSENT_REQUIRED" } }), /tools it offers agents/);
   assert.equal(refusal(500, { error: { code: "UPDATE_FAILED", message: "Failed to update plugin" } }), "EmDash said UPDATE_FAILED: Failed to update plugin (HTTP 500)");
   assert.equal(refusal(302, null), "the store answered HTTP 302");
+});
+
+const verification = { profileCid: "bafy-profile", releaseCid: "bafy-release" };
+const ask = (code, details = {}) => ({ error: { code, details: { ...details, verification } } });
+
+test("a run accepts a beta's asks only when the workflow says so", () => {
+  for (const on of ["true", "1", " TRUE "]) assert.equal(acceptsAsks(on), true);
+  for (const off of ["false", "0", "", undefined, "yes"]) assert.equal(acceptsAsks(off), false);
+});
+
+test("the run agrees to each ask in turn, pinned to the signed records EmDash showed it", () => {
+  const first = agreeTo(ask("CAPABILITY_ESCALATION", { capabilityChanges: { added: ["network:fetch"] } }));
+  assert.deepEqual(first, { confirmCapabilityChanges: true, acknowledgedProfileCid: "bafy-profile", acknowledgedReleaseCid: "bafy-release" });
+  const second = agreeTo(ask("ROUTE_VISIBILITY_ESCALATION", { routeVisibilityChanges: { newlyPublic: ["orders/lookup", "catalog/feed"] } }), first);
+  assert.deepEqual(second, { ...first, acknowledgedPublicRoutes: ["catalog/feed", "orders/lookup"] });
+  assert.deepEqual(agreeTo(ask("MCP_TOOL_CONSENT_REQUIRED"), second), { ...second, confirmMcpTools: true });
+  assert.match(askAccepted(ask("ROUTE_VISIBILITY_ESCALATION", { routeVisibilityChanges: { newlyPublic: ["orders/lookup"] } })), /\(orders\/lookup\)/);
+});
+
+test("the run never agrees to changed or missing signed records, other refusals, or the same ask twice", () => {
+  const routes = ask("ROUTE_VISIBILITY_ESCALATION", { routeVisibilityChanges: { newlyPublic: ["orders/lookup"] } });
+  const agreed = agreeTo(routes);
+  assert.equal(agreeTo(routes, agreed), null);
+  assert.equal(agreeTo({ error: { code: "MCP_TOOL_CONSENT_REQUIRED", details: { verification: { profileCid: "bafy-profile", releaseCid: "bafy-other" } } } }, agreed), null);
+  assert.equal(agreeTo({ error: { code: "CAPABILITY_ESCALATION", details: {} } }), null);
+  assert.equal(agreeTo(ask("ROUTE_VISIBILITY_ESCALATION", { routeVisibilityChanges: { newlyPublic: [] } })), null);
+  for (const code of ["RECORD_CONSENT_REQUIRED", "RECORD_VERIFICATION_DRIFT", "DECLARED_ACCESS_DRIFT", "UPDATE_FAILED"]) assert.equal(agreeTo(ask(code)), null);
+  assert.equal(agreeTo(null), null);
 });

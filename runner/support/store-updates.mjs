@@ -29,7 +29,8 @@ export function planUpdates(list, updates) {
     });
 }
 
-// What EmDash's own Update button asks the owner about first. The run never agrees to any of it.
+// What EmDash's own Update button asks the owner about first. A run agrees to the first three only when
+// the workflow lets it (`accept_asks`, DINKUS_E2E_ACCEPT_ASKS), and never to changed signed records.
 const ASKS = {
   CAPABILITY_ESCALATION: details => `it asks for new permissions (${(details?.capabilityChanges?.added ?? []).join(", ") || "not named"})`,
   ROUTE_VISIBILITY_ESCALATION: details => `it opens routes to visitors who aren't signed in (${(details?.routeVisibilityChanges?.newlyPublic ?? []).join(", ") || "not named"}), which the beta store's Access app also needs an exception for`,
@@ -43,6 +44,49 @@ export function refusal(status, body) {
   const { code, message, details } = body?.error ?? {};
   if (ASKS[code]) return `${ASKS[code](details)}; update it by hand from Plugins once you've read what it asks`;
   return code ? `EmDash said ${code}${message ? `: ${message}` : ""} (HTTP ${status})` : `the store answered HTTP ${status}`;
+}
+
+// What the run agrees to for each ask it may accept, as EmDash's update body names it.
+const AGREE = {
+  CAPABILITY_ESCALATION: () => ({ confirmCapabilityChanges: true }),
+  ROUTE_VISIBILITY_ESCALATION: details => {
+    const routes = (details?.routeVisibilityChanges?.newlyPublic ?? []).filter(route => typeof route === "string");
+    return routes.length ? { acknowledgedPublicRoutes: routes.toSorted() } : null;
+  },
+  MCP_TOOL_CONSENT_REQUIRED: () => ({ confirmMcpTools: true }),
+};
+
+/**
+ * Whether the workflow lets the run agree to a beta's asks on the beta store, from DINKUS_E2E_ACCEPT_ASKS
+ * ("true" or "1"; anything else, or nothing, keeps the run stopping for the owner).
+ */
+export function acceptsAsks(text) {
+  return ["true", "1"].includes(String(text ?? "").trim().toLowerCase());
+}
+
+/**
+ * The next update body when EmDash refused with `body` and the run may agree: the earlier `consent`
+ * plus this ask's agreement and the publisher's signed records it was shown. EmDash asks one thing at
+ * a time (new permissions, then public routes, then agent tools), so a run sends this, reads the next
+ * refusal and agrees again. Null when it's an ask the run never agrees to (signed records it wasn't
+ * shown, or records that changed between two asks), when EmDash didn't send the records, or when it
+ * asks again for what `consent` already agreed to, so the run stops instead of going round.
+ */
+export function agreeTo(body, consent = {}) {
+  const { code, details } = body?.error ?? {};
+  const agreement = AGREE[code]?.(details);
+  const { profileCid, releaseCid } = details?.verification ?? {};
+  if (!agreement || typeof profileCid !== "string" || !profileCid || typeof releaseCid !== "string" || !releaseCid) return null;
+  if (consent.acknowledgedProfileCid && (consent.acknowledgedProfileCid !== profileCid || consent.acknowledgedReleaseCid !== releaseCid)) return null;
+  const next = { ...consent, ...agreement, acknowledgedProfileCid: profileCid, acknowledgedReleaseCid: releaseCid };
+  if (JSON.stringify(next) === JSON.stringify(consent)) return null;
+  return next;
+}
+
+/** What the run agreed to, in the owner's words, for the run's public summary ("accepted"). */
+export function askAccepted(body) {
+  const { code, details } = body?.error ?? {};
+  return ASKS[code] ? ASKS[code](details) : code;
 }
 
 /**

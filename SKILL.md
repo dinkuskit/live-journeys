@@ -63,10 +63,12 @@ Changesets pre mode any more.
    (`npm run update-store`, tag `@update`). That moves each DinkusKit beta plugin
    the store already runs to the newest Registry beta, in place, the way the
    admin's **Update** button does. A run a release started waits up to 15 minutes
-   for the Registry to offer the named beta, then installs that one. It stops if
-   an update asks for new permissions, opens routes to visitors who are not signed
-   in, or changes agent tools. The owner then updates that plugin by hand from
-   **Plugins** and presses the workflow again with the same `beta`. It does not
+   for the Registry to offer the named beta, then installs that one. When an
+   update asks for new permissions, opens routes to visitors who are not signed
+   in, or changes agent tools, the run accepts it for the owner (the owner chose
+   this for the beta store on 22 Nov 2026) and the summary lists what it accepted.
+   With the `accept_asks` input off it stops there instead, and the owner updates
+   that plugin by hand from **Plugins**. Real stores keep the owner's click. It does not
    install a plugin the store is not already running (that is the `@next` journey
    Install the Registry plugins), and it does not switch a
    plugin between its beta listing and its release listing. After the update

@@ -296,13 +296,16 @@ moves each DinkusKit beta plugin the store runs (dinkus-commerce-beta, dinkus-pa
 so on) to the newest beta the Registry has, one at a time and in place, as the Update button on
 the admin's Plugins page does; the journeys run only once it has passed. It refuses any store
 but beta.sm0ky.dev, leaves every other plugin alone, never moves a plugin back to an older
-version or between its beta and release listings, and agrees to nothing the Update button would
-ask about: an update that asks for new permissions, opens routes to visitors who aren't signed
-in (which also need an exception in the store's Access app) or changes its agent tools stops the
-run, naming the plugin and what it asked, for the owner to update by hand. Commerce's and Ship's
-Connect releases each open one such route, `store-proof`, which DinkusKit.com reads while the
-owner approves that plugin's Connect, so the first run on each stops here until the owner has
-updated it by hand and the Access app lets DinkusKit.com reach that route. It also stops when
+version or between its beta and release listings. What the Update button would ask the owner
+about (new permissions, routes open to visitors who aren't signed in, changed agent tools) the run
+accepts on the owner's behalf, as the owner chose for this test store on 22 Nov 2026: it agrees to
+each ask for the publisher's signed records EmDash showed it, one at a time as EmDash asks, and the
+run's summary lists every one under "Accepted for the owner while updating". It never agrees to signed
+records that changed between two asks. A route newly open to visitors may also need an exception in
+the store's Access app; a journey that reaches it then fails at the Access sign-in, which says so.
+The workflow's `accept_asks` input (`DINKUS_E2E_ACCEPT_ASKS`, on by default) turned off makes the
+run stop at such an update instead, naming the plugin and what it asked, for the owner to update by
+hand. Real stores always keep the owner's own click. It also stops when
 EmDash couldn't check the Registry for a plugin, since a pass has to name the betas it really
 tested. When a plugin's **Cut beta** presses Run workflow, it names the beta it just published
 (the `beta` input, such as `dinkus-payments-beta 0.2.9-beta.3`, shown in the run's name), and the
