@@ -319,7 +319,7 @@ product on sale fail. See the runner README's "Run on GitHub".
   order it places, and cancels it at the end. It stops when the Shipping page
   says why it can't use Ship (report what the page says), when the order can't
   be placed, when Commerce Orders doesn't list it as Processing, when the
-  Shipping page doesn't list it with "No label", when See prices quotes no price
+  Shipping page doesn't list it with "Needs label", when See prices quotes no price
   for the service, when the label can't be bought, when Commerce doesn't
   complete the order, or when the cancel fails. A stop before the cancel leaves
   the sandbox label bought, which charged nothing, and Commerce still completes
