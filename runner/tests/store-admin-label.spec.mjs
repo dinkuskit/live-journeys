@@ -5,8 +5,8 @@ import { config } from "../support/env.mjs";
 import { renderLabelPdf, showLabelPicture } from "../support/label-pdf.mjs";
 import { completionProblems, numberOf, openOrder } from "../support/orders-admin.mjs";
 import { note } from "../support/proof.mjs";
-import { afterPress, chosen, choose, openEarlierLabels, openRow, openShipping, openShippingOrder, optionsOf, orderFields, printLabel, refusalShown,
-  rowStatus, SANDBOX_KIND, SERVICES, shippingAdmin, shippingRow, weightField } from "../support/shipping-admin.mjs";
+import { afterPress, chooseService, chosen, openRow, openShipping, openShippingOrder, orderView, printLabel, refusalShown, rowStatus,
+  SANDBOX_KIND, serviceChoices, serviceGroup, SERVICES, shippingAdmin, shippingRow, weightField } from "../support/shipping-admin.mjs";
 import { boughtMessage, expectedWeight, labelProblems, servicePrice } from "../support/shipping-text.mjs";
 import { notePlugins } from "../support/store-admin.mjs";
 import { pluginVersion } from "../support/store-plugins.mjs";
@@ -16,6 +16,12 @@ import { journey, step } from "../support/steps.mjs";
 // completed the order and it has no live label (dinkuskit/ship src/pages.ts).
 const SANDBOX_CANCEL = "The sandbox label is voided with Pitney Bowes. The order stays as it is in Commerce.";
 const COMPLETED_NOTE = /^This order is Completed in Commerce, so Ship makes no label for it\./;
+// The line under an order's heading (without its item count) while it waits for a label, once a label is
+// bought, and once Commerce has completed it with no live label; the list's status while it waits.
+const NO_LABEL_YET = "ready to ship · No label yet";
+const LABEL_BOUGHT = "Label bought";
+const COMPLETED_IN_COMMERCE = "Completed in Commerce";
+const NEEDS_LABEL = "Needs label";
 
 // Ship's print link opens the label for five minutes with no sign-in. On a failure Playwright writes
 // down the open page, links included (error-context.md), after the test's own screenshot; a blank page
@@ -72,9 +78,9 @@ test("Buy a label in the store admin", { tag: "@running" }, journey(async ({ pag
     const row = await shippingRow(page, shipping, number, config.completeWaitMs);
     if (!row) throw new Error(`Shipping still doesn't list #${number} (TEST) ${config.completeWaitMs / 1000}s after Commerce Orders opened.`);
     const status = await rowStatus(row);
-    if (status !== "No label") throw new Error(`Shipping lists #${number} as "${status}", not "No label".`);
+    if (status !== NEEDS_LABEL) throw new Error(`Shipping lists #${number} as "${status}", not "${NEEDS_LABEL}".`);
     await openRow(page, row, number);
-    return `#${number} (TEST) is listed with "No label"`;
+    return `#${number} (TEST) is listed as "${NEEDS_LABEL}"`;
   });
 
   // Soft: a wrong weight or field fails the run, and pressing See prices still shows whether the form works.
@@ -82,19 +88,19 @@ test("Buy a label in the store admin", { tag: "@running" }, journey(async ({ pag
     const main = page.locator("main");
     const refusal = await refusalShown(page);
     if (refusal) throw new Error(refusal);
-    const { order, label } = await orderFields(page);
-    if (!order) throw new Error("The order's page shows no Ship to, Items or Status.");
-    if (label) throw new Error(`The order's page already shows a label, tracking ${label["Tracking number"]}.`);
-    if (order.Status !== "No label") throw new Error(`The order's page says "${order.Status}", not "No label".`);
+    const order = await orderView(page, number);
+    if (order.label) throw new Error(`The order's page already shows a label, tracking ${order.label["Tracking number"]}.`);
+    if (order.status !== NO_LABEL_YET) throw new Error(`The order's page says "${order.status}", not "${NO_LABEL_YET}".`);
+    if (!order.shipTo) throw new Error("The order's page shows no Ship to.");
     if (!await main.getByText("TEST order", { exact: true }).count()) throw new Error("The order's page doesn't say it's a TEST order.");
     // Hosted Ship gives TEST orders sandbox labels only while it runs on Pitney Bowes's sandbox; otherwise it offers practice labels.
     if (await chosen(page, "Label kind") !== SANDBOX_KIND) throw new Error(`The label form offers "${await chosen(page, "Label kind")}", not a free Pitney Bowes sandbox label; hosted Ship isn't on Pitney Bowes's sandbox (or has no Pitney Bowes developer account set), so it offers TEST orders only practice labels.`);
     const box = await chosen(page, "Box");
     const weight = (await weightField(page).inputValue()).trim();
-    const expected = expectedWeight(order["Items' weight"], box);
-    if (expected === null) throw new Error(`The test couldn't read the items' weight ("${order["Items' weight"]}") or the box's empty weight ("${box}").`);
-    if (Number(weight) !== expected) throw new Error(`The weight field reads "${weight}", not the items' ${order["Items' weight"]} plus the box's empty weight, ${expected} oz.`);
-    return `ships to ${order["Ship to"]}; ${box}; weight ${weight} oz filled in`;
+    const expected = expectedWeight(order.itemsWeight, box);
+    if (expected === null) throw new Error(`The test couldn't read the items' weight ("${order.itemsWeight ?? "not shown"}") or the box's empty weight ("${box}").`);
+    if (Number(weight) !== expected) throw new Error(`The weight field reads "${weight}", not the items' ${order.itemsWeight} plus the box's empty weight, ${expected} oz.`);
+    return `ships to ${order.shipTo}; ${box}; weight ${weight} oz filled in`;
   }, soft);
 
   // Without prices there is no label to buy, so this step stops the journey.
@@ -108,8 +114,8 @@ test("Buy a label in the store admin", { tag: "@running" }, journey(async ({ pag
     const refused = await weight.evaluate(input => input.validationMessage);
     if (refused) throw new Error(`The browser won't send the label form: it refuses the weight "${await weight.inputValue()}" ("${refused}").`);
     await main.getByRole("button", { name: "See prices", exact: true }).click();
-    await afterPress(page, main.getByRole("combobox", { name: "Service", exact: true }));
-    prices = await optionsOf(page, "Service");
+    await afterPress(page, serviceGroup(page));
+    prices = await serviceChoices(page);
     note("store admin label prices", prices.join("; "));
     if (!servicePrice(prices, service)) throw new Error(`Ship quoted no price for ${service}: ${prices.join("; ")}.`);
     return prices.join("; ");
@@ -120,15 +126,15 @@ test("Buy a label in the store admin", { tag: "@running" }, journey(async ({ pag
   await step(page, "Buy label buys the sandbox label at the quoted price", async () => {
     const main = page.locator("main");
     const price = servicePrice(prices, service);
-    await choose(page, "Service", `${service}: ${price}`);
+    await chooseService(page, `${service} · ${price}`);
     await main.getByRole("button", { name: "Buy label", exact: true }).click();
     const said = await afterPress(page, main.getByText(/^Label bought, /));
     const toast = boughtMessage(said);
     if (!toast) throw new Error(`The Shipping page said "${said}" after Buy label, not "Label bought, $X.XX sandbox. Tracking ...".`);
     if (toast.price !== price) throw new Error(`The Shipping page says the label cost ${toast.price}, not the ${price} Ship quoted.`);
-    const { order, label } = await orderFields(page);
-    const problems = labelProblems(label, { service, ...toast });
-    if (order?.Status !== "Label bought") problems.push(`the order's Status reads "${order?.Status ?? "nothing"}", not "Label bought"`);
+    const order = await orderView(page, number);
+    const problems = labelProblems(order.label, { service, ...toast });
+    if (order.status !== LABEL_BOUGHT) problems.push(`the line under the order's heading reads "${order.status}", not "${LABEL_BOUGHT}"`);
     if (problems.length) throw new Error(`Ship sold the label, but ${problems.join(" and ")}.`);
     bought = toast;
     note("store admin label tracking", toast.tracking);
@@ -167,9 +173,9 @@ test("Buy a label in the store admin", { tag: "@running" }, journey(async ({ pag
     const row = await shippingRow(page, shipping, number);
     if (!row) throw new Error(`Shipping no longer lists #${number} (TEST).`);
     const status = await rowStatus(row);
-    if (status !== "Label bought") throw new Error(`Shipping lists the Completed #${number} as "${status}", not "Label bought".`);
+    if (status !== LABEL_BOUGHT) throw new Error(`Shipping lists the Completed #${number} as "${status}", not "${LABEL_BOUGHT}".`);
     await openRow(page, row, number);
-    const { label } = await orderFields(page);
+    const { label } = await orderView(page, number);
     if (!label) throw new Error(`#${number}'s page shows no label once the order is Completed, so it can't be printed or cancelled there.`);
     const problems = labelProblems(label, { service, ...bought });
     if (problems.length) throw new Error(`The Completed order's label differs from the one bought: ${problems.join(" and ")}.`);
@@ -196,15 +202,15 @@ test("Buy a label in the store admin", { tag: "@running" }, journey(async ({ pag
     const said = await afterPress(page, main.getByText(/^Label cancelled\./));
     // A sandbox label's postage was never paid, so there is no refund to promise.
     if (said !== "Label cancelled.") throw new Error(`The Shipping page said "${said}", not "Label cancelled.".`);
-    const { order, label } = await orderFields(page);
-    if (label) throw new Error(`#${number}'s page still shows a live label after the cancel, tracking ${label["Tracking number"]}.`);
-    if (order?.Status !== "Label cancelled") throw new Error(`#${number}'s Status reads "${order?.Status ?? "nothing"}", not "Label cancelled".`);
+    const order = await orderView(page, number);
+    if (order.label) throw new Error(`#${number}'s page still shows a live label after the cancel, tracking ${order.label["Tracking number"]}.`);
+    if (order.status !== COMPLETED_IN_COMMERCE) throw new Error(`The line under #${number}'s heading reads "${order.status}", not "${COMPLETED_IN_COMMERCE}".`);
     if (!await main.getByText(COMPLETED_NOTE).count()) throw new Error(`#${number}'s page doesn't say the order is Completed in Commerce.`);
-    if (!await openEarlierLabels(page)) throw new Error(`#${number}'s page lists no earlier labels, so the cancelled label isn't shown.`);
-    const cancelled = (await orderFields(page)).earlier.find(fields => fields["Tracking number"] === `${bought.tracking} (test, not trackable)`);
-    if (!cancelled?.Cancelled) throw new Error(`#${number}'s earlier labels show no cancelled label with tracking ${bought.tracking}.`);
-    if (/refund/i.test(cancelled.Cancelled)) throw new Error(`The cancelled sandbox label reads "Cancelled ${cancelled.Cancelled}", promising a refund for postage nobody paid.`);
-    return `"Label cancelled."; the label is under Earlier labels, cancelled ${cancelled.Cancelled}; the page says the order is Completed in Commerce`;
+    const cancelled = order.labels.find(row => row["Tracking number"] === `${bought.tracking} (test, not trackable)`);
+    if (!cancelled) throw new Error(`#${number}'s Labels table shows no label with tracking ${bought.tracking}.`);
+    // A sandbox label's postage was never paid; "Cancelled, refund ..." would promise a refund.
+    if (cancelled.Status !== "Cancelled") throw new Error(`#${number}'s Labels table shows the label as "${cancelled.Status}", not "Cancelled".`);
+    return `"Label cancelled."; the Labels table shows it Cancelled; the page says the order is Completed in Commerce`;
   });
 
   await step(page, "Shipping lists the order as Label cancelled and Commerce keeps it Completed", async () => {

@@ -1,14 +1,19 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { config } from "./env.mjs";
-import { SHIP_FOLDERS, SHIPPING_LABELS, shippingPages } from "./shipping-text.mjs";
+import { orderPageText, SHIP_FOLDERS, SHIPPING_LABELS, shippingPages, statusText } from "./shipping-text.mjs";
 import { menuLinks, openAdmin } from "./store-admin.mjs";
 
 // The Ship plugin's Shipping page in the store admin, as the journeys that buy labels there read it. The
 // plugin draws each page from hosted Ship's answer on every click (dinkuskit/ship docs/contracts/ship-plugin-v1.md).
+// From Ship 0.4 (dinkuskit/ship src/pages.ts, "Lay out the Shipments page like the Commerce order page") the
+// list has three columns, Order, Ship to and Status, the order number is the button that opens the order,
+// and an order's page shows Ship to beside Package or Label, then a Labels table of every label.
 
 export const SERVICES = { GA: "USPS Ground Advantage", PM: "USPS Priority Mail", EM: "USPS Priority Mail Express" };
 export const SANDBOX_KIND = "Free Pitney Bowes sandbox label (real sandbox price, nothing charged)";
+// The label form's USPS services once Ship has quoted them: radio choices, "USPS Ground Advantage · $5.12".
+const SERVICE_CHOICES = "USPS service and price";
 // The label form's weight field ("Package weight in ounces, items plus box (0.1 to 1120)").
 const WEIGHT_FIELD = /^Package weight\b/;
 
@@ -103,7 +108,7 @@ export async function openShipping(page, url) {
 export async function shippingRow(page, url, number, waitMs = 0) {
   const deadline = Date.now() + waitMs;
   for (;;) {
-    const row = page.locator("main").getByRole("row").filter({ has: page.getByRole("cell", { name: `#${number} (TEST)`, exact: true }) });
+    const row = page.locator("main").getByRole("row").filter({ has: page.getByRole("button", { name: `#${number} (TEST)`, exact: true }) });
     if (await row.count()) return row.first();
     if (Date.now() >= deadline) return null;
     await page.waitForTimeout(15_000);
@@ -111,14 +116,14 @@ export async function shippingRow(page, url, number, waitMs = 0) {
   }
 }
 
-/** The status a Shipping list row shows ("No label", "Label bought", "Label cancelled", "Completed", "Fix address"). */
+/** The status a Shipping list row shows, without its dot ("Needs label", "Label bought", "Label cancelled", "Completed", "Fix address"). */
 export async function rowStatus(row) {
-  return (await row.getByRole("cell").nth(3).innerText()).trim();
+  return statusText(await row.getByRole("cell").last().innerText());
 }
 
-/** Opens TEST order #number from its row in the Shipping list and waits for the order's page. */
+/** Opens TEST order #number from its row in the Shipping list (its order number) and waits for the order's page. */
 export async function openRow(page, row, number) {
-  await row.getByRole("button", { name: "Open", exact: true }).click();
+  await row.getByRole("button", { name: `#${number} (TEST)`, exact: true }).click();
   await afterPress(page, page.locator("main").getByRole("heading", { name: `Order #${number} (TEST)`, exact: true }));
 }
 
@@ -130,41 +135,29 @@ export async function openShippingOrder(page, url, number) {
   await openRow(page, row, number);
 }
 
-/**
- * The open order's fields, as the page groups them: `order` (Ship to, Items, Items' weight, Status), the
- * live label's (`label`, or null) and each earlier label's (`earlier`, once that list is open).
- */
-export async function orderFields(page) {
-  const groups = await page.locator("main").evaluate(main => {
-    const earlier = [...main.querySelectorAll("button")].find(button => /^Earlier labels \(\d+\)$/.test(button.textContent.trim()));
-    const found = [];
-    // A fields block is a grid of label and value pairs; the plugin draws one for the order and one per label.
-    for (const grid of main.querySelectorAll("div")) {
-      const cells = [...grid.children];
-      if (!cells.length || !cells.every(cell => cell.children.length === 2 && cell.children[1].hasAttribute("title"))) continue;
-      found.push({
-        fields: Object.fromEntries(cells.map(cell => [cell.children[0].textContent.trim(), cell.children[1].textContent.trim()])),
-        earlier: Boolean(earlier && earlier.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING),
-      });
-    }
-    return found;
-  });
-  const labels = groups.filter(group => "Tracking number" in group.fields);
-  return {
-    order: groups.find(group => "Items' weight" in group.fields)?.fields ?? null,
-    label: labels.find(group => !group.earlier)?.fields ?? null,
-    earlier: labels.filter(group => group.earlier).map(group => group.fields),
-  };
+/** TEST order #number's open page, as orderPageText reads its text; fails when another page is open. */
+export async function orderView(page, number) {
+  const lines = (await page.locator("main").innerText()).split("\n").map(line => line.trim()).filter(Boolean);
+  const view = orderPageText(lines, number);
+  if (!view) throw new Error(`The Shipping page isn't showing order #${number} (TEST).`);
+  return view;
 }
 
-/** Opens the order page's Earlier labels list, when it has one; false when it has none. */
-export async function openEarlierLabels(page) {
-  const toggle = page.locator("main").getByRole("button", { name: /^Earlier labels \(\d+\)$/ });
-  if (!await toggle.count()) return false;
-  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
-  await page.waitForFunction(() => [...document.querySelectorAll("main button")].some(button =>
-    /^Earlier labels \(\d+\)$/.test(button.textContent.trim()) && button.getAttribute("aria-expanded") === "true"), null, { timeout: 15_000 });
-  return true;
+/** The label form's choice of quoted services. */
+export const serviceGroup = page => page.locator("main").getByRole("group", { name: SERVICE_CHOICES, exact: true });
+
+/** The quoted USPS services the label form offers, as each choice reads ("USPS Ground Advantage · $5.12"). */
+export async function serviceChoices(page) {
+  return (await serviceGroup(page).innerText()).split("\n").map(line => line.trim()).filter(line => line && line !== SERVICE_CHOICES);
+}
+
+/** Picks the quoted service reading exactly `choice` ("USPS Ground Advantage · $5.12"). */
+export async function chooseService(page, choice) {
+  const radio = serviceGroup(page).getByRole("radio", { name: choice, exact: true });
+  if (!await radio.count()) throw new Error(`The label form offers no "${choice}": ${(await serviceChoices(page)).map(text => `"${text}"`).join(", ") || "nothing"}.`);
+  // As an owner does, by its words: Kumo draws the round button itself as a small mark beside them.
+  if (await radio.getAttribute("aria-checked") !== "true") await serviceGroup(page).getByText(choice, { exact: true }).click();
+  if (await radio.getAttribute("aria-checked") !== "true") throw new Error(`The label form wouldn't take "${choice}".`);
 }
 
 /** The label form's weight field: a text field since ship#45, a number field before. */
@@ -176,27 +169,6 @@ export const weightField = page => {
 /** What the label form's select named `label` shows now. */
 export async function chosen(page, label) {
   return (await page.locator("main").getByRole("combobox", { name: label, exact: true }).innerText()).trim();
-}
-
-/** The options of the label form's select named `label`, as it lists them ("USPS Ground Advantage: $5.12"). */
-export async function optionsOf(page, label) {
-  await page.locator("main").getByRole("combobox", { name: label, exact: true }).click();
-  const options = page.getByRole("option");
-  await options.first().waitFor({ timeout: 15_000 });
-  const shown = (await options.allInnerTexts()).map(option => option.trim());
-  await page.keyboard.press("Escape");
-  await options.first().waitFor({ state: "hidden", timeout: 15_000 }).catch(() => {});
-  return shown;
-}
-
-/** Picks the option reading exactly `option` in the label form's select named `label`, unless it shows it already. */
-export async function choose(page, label, option) {
-  if (await chosen(page, label) === option) return;
-  const shown = await optionsOf(page, label);
-  if (!shown.includes(option)) throw new Error(`The label form's ${label} offers no "${option}": ${shown.map(text => `"${text}"`).join(", ") || "nothing"}.`);
-  await page.locator("main").getByRole("combobox", { name: label, exact: true }).click();
-  await page.getByRole("option", { name: option, exact: true }).click();
-  if (await chosen(page, label) !== option) throw new Error(`The label form's ${label} wouldn't take "${option}".`);
 }
 
 const hostOf = href => { try { return new URL(href).host || "nowhere"; } catch { return "an unreadable address"; } };
