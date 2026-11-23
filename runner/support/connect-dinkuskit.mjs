@@ -27,6 +27,22 @@ const ANOTHER_STORE = "https://another-store.invalid";
 // Connect in the Commerce plugin in EmDash.", and a Disconnect button for a connected one, never pressed.
 export const SITES_PATH = "/account/sites";
 export const CONNECTED_PLUGINS = "Connected plugins";
+// From the connect-once dashboard (dinkuskit 20fd347) each store has Plugins, Shipping and Payments tabs in
+// a "Settings for <web address>" bar, and a store with Commerce connected opens on Shipping; the Connected
+// plugins list shows only on Plugins.
+export const STORE_TABS = "Settings for";
+export const PLUGINS_TAB = "Plugins";
+
+/** Opens this store's Plugins tab on Your Stores when the page has tabs and another one is open, as an owner would. */
+export async function openPluginsTab(page, store) {
+  const tabs = page.getByRole("navigation", { name: `${STORE_TABS} ${originOf(store)}`, exact: true });
+  if (!await tabs.count()) return;
+  const plugins = tabs.getByRole("link", { name: PLUGINS_TAB, exact: true });
+  if (await plugins.getAttribute("aria-current") === "page") return;
+  await plugins.click();
+  await page.waitForLoadState("domcontentloaded");
+  await page.locator(`ul[aria-label="${CONNECTED_PLUGINS}"]`).first().waitFor({ timeout: 30_000 }).catch(() => {});
+}
 
 // dinkus-payments-beta's admin page. dinkuskit/payments src/registry/identity.ts and emdash-plugin.jsonc.
 // From Payments' sidebar folder change its menu label is "Payment settings", in a "Dinkus Payments" folder;
