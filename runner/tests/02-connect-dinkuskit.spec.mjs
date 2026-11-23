@@ -1,7 +1,7 @@
 import { test } from "../support/browser.mjs";
 import { commerceSettings, openCommercePage, readCommercePage } from "../support/commerce-settings.mjs";
 import {
-  AUTHORIZE_LINK, CONNECTED_PLUGINS, PAYMENT_SETUP_HEADING, PAYMENTS_FOLDERS, PAYMENTS_STATUS_LABELS, SITES_PATH, accountReading, betaPaymentsStatusLinks,
+  AUTHORIZE_LINK, CONNECTED_PLUGINS, PAYMENT_SETUP_HEADING, openPluginsTab, PAYMENTS_FOLDERS, PAYMENTS_STATUS_LABELS, SITES_PATH, accountReading, betaPaymentsStatusLinks,
   isSignInLink, storePlugins,
 } from "../support/connect-dinkuskit.mjs";
 import { failClosed, showsSecret } from "../support/dinkuskit-approve.mjs";
@@ -137,6 +137,7 @@ test("DinkusKit.com account and connect the store", { tag: "@running" }, journey
 
     await step(page, "Your Stores shows Commerce connected for this store", async () => {
       await page.goto(`${config.account}${SITES_PATH}`, { waitUntil: "domcontentloaded" });
+      await openPluginsTab(page, config.store);
       const lists = page.locator(`ul[aria-label="${CONNECTED_PLUGINS}"]`);
       await lists.first().waitFor({ timeout: 30_000 }).catch(() => {});
       // Your Stores shows a store key only after Replace key, which this journey never presses.
