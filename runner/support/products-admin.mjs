@@ -44,8 +44,10 @@ const panelButton = (page, title) => page.getByLabel("Settings", { exact: true }
  */
 async function openSidePanel(page, title, ready) {
   const trigger = panelButton(page, title);
-  // On a phone-sized window the editor's settings open from its Settings button.
-  const settings = page.getByRole("main").getByRole("button", { name: "Settings", exact: true });
+  // On a phone-sized window the editor's settings open from a button in the bar: EmDash 1.5 names it
+  // Settings, 1.6 names it Show settings (and Hide settings once the panel is open).
+  const settings = page.getByRole("main").getByRole("button", { name: "Settings", exact: true })
+    .or(page.getByRole("button", { name: "Show settings", exact: true }));
   if (!await trigger.or(settings).first().waitFor({ timeout: 60_000 }).then(() => true, () => false)) {
     throw new Error(`The product page's editor shows no ${title} panel.`);
   }
@@ -503,6 +505,11 @@ export async function republishProductPage(content) {
   const unpublish = content.getByRole("button", { name: /^Unpublish / });
   if (await unpublish.count()) {
     await unpublish.first().click();
+    // EmDash 1.6 asks "Unpublish <type>?" first; 1.5 unpublished at once.
+    const asked = content.getByRole("dialog").or(content.getByRole("alertdialog")).filter({ hasText: /Unpublish .+\?/ }).first();
+    if (await asked.waitFor({ timeout: 5_000 }).then(() => true, () => false)) {
+      await asked.getByRole("button", { name: "Unpublish", exact: true }).click();
+    }
     if (!await content.getByRole("button", { name: /^Publish (now|changes)$/ }).first().waitFor({ timeout: 30_000 }).then(() => true, () => false)) {
       throw new Error("Unpublishing the product page didn't bring back its Publish button.");
     }
